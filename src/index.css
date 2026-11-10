@@ -1,0 +1,459 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: 'Prompt', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    color: #1e293b;
+    background-color: #f8fafc;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  html.dark body {
+    color: #f1f5f9;
+    background-color: #0b1120;
+  }
+
+  /* Global Dark Mode smart overrides for consistent contrast across modules */
+  html.dark .bg-white {
+    background-color: #1e293b;
+  }
+
+  html.dark .bg-slate-50 {
+    background-color: #0f172a;
+  }
+
+  html.dark .bg-slate-100 {
+    background-color: #1e293b;
+  }
+
+  html.dark .border-slate-200,
+  html.dark .border-slate-100 {
+    border-color: #334155;
+  }
+
+  html.dark .text-slate-900,
+  html.dark .text-slate-800 {
+    color: #f8fafc;
+  }
+
+  html.dark .text-slate-700,
+  html.dark .text-slate-600 {
+    color: #cbd5e1;
+  }
+
+  html.dark .text-slate-500,
+  html.dark .text-slate-400 {
+    color: #94a3b8;
+  }
+
+  html.dark .bg-indigo-50 {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+
+  html.dark .bg-amber-50 {
+    background-color: rgba(245, 158, 11, 0.15);
+  }
+
+  html.dark .bg-emerald-50 {
+    background-color: rgba(16, 185, 129, 0.15);
+  }
+
+  html.dark .bg-purple-50 {
+    background-color: rgba(168, 85, 247, 0.15);
+  }
+
+  html.dark .bg-rose-50 {
+    background-color: rgba(244, 63, 94, 0.15);
+  }
+
+  html.dark .hover\:bg-slate-50:hover,
+  html.dark .hover\:bg-slate-100:hover,
+  html.dark .hover\:bg-slate-200:hover {
+    background-color: #334155;
+  }
+
+  /* High Contrast Accessibility Theme */
+  html.high-contrast {
+    filter: contrast(1.18);
+  }
+
+  html.high-contrast button,
+  html.high-contrast a,
+  html.high-contrast input,
+  html.high-contrast select {
+    outline-offset: 2px !important;
+  }
+
+  html.high-contrast .border,
+  html.high-contrast .border-slate-200,
+  html.high-contrast .border-slate-100 {
+    border-color: #475569 !important;
+  }
+
+  html.high-contrast.dark .border,
+  html.high-contrast.dark .border-slate-700,
+  html.high-contrast.dark .border-slate-800 {
+    border-color: #94a3b8 !important;
+  }
+}
+
+/* User requested: Input text color in blue (สีน้ำเงิน) for clear readable contrast */
+input,
+textarea,
+select {
+  color: #1d4ed8;
+  caret-color: #2563eb;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+}
+
+/* Explicit blue text for white background inputs in both light and dark mode */
+input.bg-white,
+textarea.bg-white,
+select.bg-white,
+html.dark input.bg-white,
+html.dark textarea.bg-white,
+html.dark select.bg-white,
+html.dark .bg-white input,
+html.dark .bg-white textarea {
+  color: #1d4ed8 !important;
+  caret-color: #2563eb !important;
+  background-color: #ffffff !important;
+}
+
+html.dark input.bg-white::placeholder,
+html.dark textarea.bg-white::placeholder,
+html.dark .bg-white input::placeholder,
+html.dark .bg-white textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* When dark mode styling is explicitly applied with dark background */
+html.dark input[class*="dark:bg-slate-800"],
+html.dark textarea[class*="dark:bg-slate-800"] {
+  color: #93c5fd !important; /* Sky/light blue in dark-bg inputs for high contrast */
+  caret-color: #38bdf8 !important;
+}
+
+/* ========================================================
+   CUSTOM SMOOTH SCROLLBAR (สำหรับเมนูที่ล้นจอและตาราง)
+   ======================================================== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+}
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* ========================================================
+   APP COLOR TONES (ฟีเจอร์เปลี่ยนโทนสีของแอป)
+   ======================================================== */
+
+/* EMERALD TONE (เขียวมรกต) */
+html[data-color-tone="emerald"] {
+  --theme-primary: #059669;
+  --theme-hover: #047857;
+  --theme-light: #ecfdf5;
+  --theme-border: #a7f3d0;
+}
+html[data-color-tone="emerald"] .bg-indigo-600 {
+  background-color: #059669 !important;
+}
+html[data-color-tone="emerald"] .hover\:bg-indigo-700:hover {
+  background-color: #047857 !important;
+}
+html[data-color-tone="emerald"] .hover\:bg-indigo-600:hover {
+  background-color: #059669 !important;
+}
+html[data-color-tone="emerald"] .text-indigo-600,
+html[data-color-tone="emerald"] .text-indigo-700 {
+  color: #059669 !important;
+}
+html[data-color-tone="emerald"] .border-indigo-600,
+html[data-color-tone="emerald"] .border-indigo-500 {
+  border-color: #059669 !important;
+}
+html[data-color-tone="emerald"] .border-indigo-200,
+html[data-color-tone="emerald"] .border-indigo-300 {
+  border-color: #a7f3d0 !important;
+}
+html[data-color-tone="emerald"] .bg-indigo-50 {
+  background-color: #ecfdf5 !important;
+}
+html[data-color-tone="emerald"] .bg-indigo-100 {
+  background-color: #d1fae5 !important;
+}
+html[data-color-tone="emerald"] .text-indigo-800,
+html[data-color-tone="emerald"] .text-indigo-900 {
+  color: #065f46 !important;
+}
+html.dark[data-color-tone="emerald"] .dark\:text-indigo-400,
+html.dark[data-color-tone="emerald"] .dark\:text-indigo-300 {
+  color: #34d399 !important;
+}
+html.dark[data-color-tone="emerald"] .dark\:bg-indigo-950,
+html.dark[data-color-tone="emerald"] .dark\:bg-indigo-900\/60 {
+  background-color: rgba(6, 78, 59, 0.45) !important;
+}
+html.dark[data-color-tone="emerald"] .dark\:border-indigo-800,
+html.dark[data-color-tone="emerald"] .dark\:border-indigo-900\/60 {
+  border-color: #065f46 !important;
+}
+
+/* PURPLE TONE (ม่วงคอสมิก) */
+html[data-color-tone="purple"] {
+  --theme-primary: #9333ea;
+  --theme-hover: #7e22ce;
+  --theme-light: #faf5ff;
+  --theme-border: #e9d5ff;
+}
+html[data-color-tone="purple"] .bg-indigo-600 {
+  background-color: #9333ea !important;
+}
+html[data-color-tone="purple"] .hover\:bg-indigo-700:hover {
+  background-color: #7e22ce !important;
+}
+html[data-color-tone="purple"] .hover\:bg-indigo-600:hover {
+  background-color: #9333ea !important;
+}
+html[data-color-tone="purple"] .text-indigo-600,
+html[data-color-tone="purple"] .text-indigo-700 {
+  color: #9333ea !important;
+}
+html[data-color-tone="purple"] .border-indigo-600,
+html[data-color-tone="purple"] .border-indigo-500 {
+  border-color: #9333ea !important;
+}
+html[data-color-tone="purple"] .border-indigo-200,
+html[data-color-tone="purple"] .border-indigo-300 {
+  border-color: #e9d5ff !important;
+}
+html[data-color-tone="purple"] .bg-indigo-50 {
+  background-color: #faf5ff !important;
+}
+html[data-color-tone="purple"] .bg-indigo-100 {
+  background-color: #f3e8ff !important;
+}
+html[data-color-tone="purple"] .text-indigo-800,
+html[data-color-tone="purple"] .text-indigo-900 {
+  color: #581c87 !important;
+}
+html.dark[data-color-tone="purple"] .dark\:text-indigo-400,
+html.dark[data-color-tone="purple"] .dark\:text-indigo-300 {
+  color: #c084fc !important;
+}
+html.dark[data-color-tone="purple"] .dark\:bg-indigo-950,
+html.dark[data-color-tone="purple"] .dark\:bg-indigo-900\/60 {
+  background-color: rgba(88, 28, 135, 0.45) !important;
+}
+html.dark[data-color-tone="purple"] .dark\:border-indigo-800,
+html.dark[data-color-tone="purple"] .dark\:border-indigo-900\/60 {
+  border-color: #6b21a8 !important;
+}
+
+/* AMBER TONE (ส้มอำพัน) */
+html[data-color-tone="amber"] {
+  --theme-primary: #d97706;
+  --theme-hover: #b45309;
+  --theme-light: #fffbeb;
+  --theme-border: #fde68a;
+}
+html[data-color-tone="amber"] .bg-indigo-600 {
+  background-color: #d97706 !important;
+}
+html[data-color-tone="amber"] .hover\:bg-indigo-700:hover {
+  background-color: #b45309 !important;
+}
+html[data-color-tone="amber"] .hover\:bg-indigo-600:hover {
+  background-color: #d97706 !important;
+}
+html[data-color-tone="amber"] .text-indigo-600,
+html[data-color-tone="amber"] .text-indigo-700 {
+  color: #d97706 !important;
+}
+html[data-color-tone="amber"] .border-indigo-600,
+html[data-color-tone="amber"] .border-indigo-500 {
+  border-color: #d97706 !important;
+}
+html[data-color-tone="amber"] .border-indigo-200,
+html[data-color-tone="amber"] .border-indigo-300 {
+  border-color: #fde68a !important;
+}
+html[data-color-tone="amber"] .bg-indigo-50 {
+  background-color: #fffbeb !important;
+}
+html[data-color-tone="amber"] .bg-indigo-100 {
+  background-color: #fef3c7 !important;
+}
+html[data-color-tone="amber"] .text-indigo-800,
+html[data-color-tone="amber"] .text-indigo-900 {
+  color: #78350f !important;
+}
+html.dark[data-color-tone="amber"] .dark\:text-indigo-400,
+html.dark[data-color-tone="amber"] .dark\:text-indigo-300 {
+  color: #fbbf24 !important;
+}
+html.dark[data-color-tone="amber"] .dark\:bg-indigo-950,
+html.dark[data-color-tone="amber"] .dark\:bg-indigo-900\/60 {
+  background-color: rgba(120, 53, 15, 0.45) !important;
+}
+html.dark[data-color-tone="amber"] .dark\:border-indigo-800,
+html.dark[data-color-tone="amber"] .dark\:border-indigo-900\/60 {
+  border-color: #92400e !important;
+}
+
+/* ROSE TONE (แดงทับทิม) */
+html[data-color-tone="rose"] {
+  --theme-primary: #e11d48;
+  --theme-hover: #be123c;
+  --theme-light: #fff1f2;
+  --theme-border: #fecdd3;
+}
+html[data-color-tone="rose"] .bg-indigo-600 {
+  background-color: #e11d48 !important;
+}
+html[data-color-tone="rose"] .hover\:bg-indigo-700:hover {
+  background-color: #be123c !important;
+}
+html[data-color-tone="rose"] .hover\:bg-indigo-600:hover {
+  background-color: #e11d48 !important;
+}
+html[data-color-tone="rose"] .text-indigo-600,
+html[data-color-tone="rose"] .text-indigo-700 {
+  color: #e11d48 !important;
+}
+html[data-color-tone="rose"] .border-indigo-600,
+html[data-color-tone="rose"] .border-indigo-500 {
+  border-color: #e11d48 !important;
+}
+html[data-color-tone="rose"] .border-indigo-200,
+html[data-color-tone="rose"] .border-indigo-300 {
+  border-color: #fecdd3 !important;
+}
+html[data-color-tone="rose"] .bg-indigo-50 {
+  background-color: #fff1f2 !important;
+}
+html[data-color-tone="rose"] .bg-indigo-100 {
+  background-color: #ffe4e6 !important;
+}
+html[data-color-tone="rose"] .text-indigo-800,
+html[data-color-tone="rose"] .text-indigo-900 {
+  color: #881337 !important;
+}
+html.dark[data-color-tone="rose"] .dark\:text-indigo-400,
+html.dark[data-color-tone="rose"] .dark\:text-indigo-300 {
+  color: #fb7185 !important;
+}
+html.dark[data-color-tone="rose"] .dark\:bg-indigo-950,
+html.dark[data-color-tone="rose"] .dark\:bg-indigo-900\/60 {
+  background-color: rgba(136, 19, 55, 0.45) !important;
+}
+html.dark[data-color-tone="rose"] .dark\:border-indigo-800,
+html.dark[data-color-tone="rose"] .dark\:border-indigo-900\/60 {
+  border-color: #9f1239 !important;
+}
+
+/* TEAL TONE (ฟ้าน้ำทะเล) */
+html[data-color-tone="teal"] {
+  --theme-primary: #0d9488;
+  --theme-hover: #0f766e;
+  --theme-light: #f0fdfa;
+  --theme-border: #99f6e4;
+}
+html[data-color-tone="teal"] .bg-indigo-600 {
+  background-color: #0d9488 !important;
+}
+html[data-color-tone="teal"] .hover\:bg-indigo-700:hover {
+  background-color: #0f766e !important;
+}
+html[data-color-tone="teal"] .hover\:bg-indigo-600:hover {
+  background-color: #0d9488 !important;
+}
+html[data-color-tone="teal"] .text-indigo-600,
+html[data-color-tone="teal"] .text-indigo-700 {
+  color: #0d9488 !important;
+}
+html[data-color-tone="teal"] .border-indigo-600,
+html[data-color-tone="teal"] .border-indigo-500 {
+  border-color: #0d9488 !important;
+}
+html[data-color-tone="teal"] .border-indigo-200,
+html[data-color-tone="teal"] .border-indigo-300 {
+  border-color: #99f6e4 !important;
+}
+html[data-color-tone="teal"] .bg-indigo-50 {
+  background-color: #f0fdfa !important;
+}
+html[data-color-tone="teal"] .bg-indigo-100 {
+  background-color: #ccfbf1 !important;
+}
+html[data-color-tone="teal"] .text-indigo-800,
+html[data-color-tone="teal"] .text-indigo-900 {
+  color: #134e4a !important;
+}
+html.dark[data-color-tone="teal"] .dark\:text-indigo-400,
+html.dark[data-color-tone="teal"] .dark\:text-indigo-300 {
+  color: #2dd4bf !important;
+}
+html.dark[data-color-tone="teal"] .dark\:bg-indigo-950,
+html.dark[data-color-tone="teal"] .dark\:bg-indigo-900\/60 {
+  background-color: rgba(19, 78, 74, 0.45) !important;
+}
+html.dark[data-color-tone="teal"] .dark\:border-indigo-800,
+html.dark[data-color-tone="teal"] .dark\:border-indigo-900\/60 {
+  border-color: #115e59 !important;
+}
+
+/* ========================================================
+   CLASSROOM PROJECTOR MODE (โหมดฉายจอห้องเรียนโปรเจกเตอร์)
+   ======================================================== */
+html[data-projector="true"] {
+  font-size: 17px;
+}
+html[data-projector="true"] body {
+  letter-spacing: 0.015em;
+  font-weight: 500;
+}
+html[data-projector="true"] h1,
+html[data-projector="true"] h2,
+html[data-projector="true"] h3,
+html[data-projector="true"] h4 {
+  font-weight: 800 !important;
+  letter-spacing: -0.01em;
+}
+html[data-projector="true"] button,
+html[data-projector="true"] a {
+  font-size: 1.05em;
+}
+html[data-projector="true"] .text-xs {
+  font-size: 0.85rem !important;
+}
+html[data-projector="true"] .text-\[10px\],
+html[data-projector="true"] .text-\[11px\] {
+  font-size: 0.8rem !important;
+}
+
+
