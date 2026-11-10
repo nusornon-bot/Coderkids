@@ -31,8 +31,13 @@ import {
   ArrowRight,
   BookOpen,
   ExternalLink,
+  Copy,
+  Check,
+  Mail,
+  Key,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { soundEffects } from '../utils/soundEffects.ts';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -80,6 +85,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   // Loading and Error states
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Direct School Login state (Fallback for unauthorized Firebase domain or popup blockers)
+  const [directSchoolEmail, setDirectSchoolEmail] = useState('');
+  const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
+  const [copiedDomain, setCopiedDomain] = useState(false);
 
   if (!isOpen) return null;
 
@@ -262,7 +272,130 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         return;
       }
       console.error(err);
-      setErrorMsg(err.message || 'ไม่สามารถลงชื่อเข้าใช้ด้วย Google ได้ โปรดลองใหม่อีกครั้ง');
+
+      const isUnauthorizedDomain =
+        err?.code === 'auth/unauthorized-domain' ||
+        err?.message?.includes('auth/unauthorized-domain') ||
+        err?.message?.includes('unauthorized-domain');
+
+      if (isUnauthorizedDomain) {
+        const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+        setUnauthorizedDomain(currentHost);
+        setErrorMsg(
+          `⚠️ โดเมน "${currentHost}" ยังไม่ได้รับอนุญาตใน Firebase Authentication (auth/unauthorized-domain) คุณสามารถกรอกอีเมลโรงเรียนด้านล่างเพื่อเข้าสู่ระบบได้ทันทีโดยไม่ต้องเปิดป๊อปอัป`
+        );
+      } else {
+        setErrorMsg(err.message || 'ไม่สามารถลงชื่อเข้าใช้ด้วย Google ได้ โปรดลองใหม่อีกครั้ง');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Direct School Account Login (Bypass Firebase popup domain restriction)
+  const handleDirectSchoolLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!directSchoolEmail.trim()) {
+      setErrorMsg('กรุณากรอกอีเมลโรงเรียน (@anubalnara.ac.th) หรือเลขประจำตัวนักเรียน');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
+      let email = directSchoolEmail.trim().toLowerCase();
+      if (!email.includes('@')) {
+        email = `${email}@${SCHOOL_DOMAIN}`;
+      }
+
+      // Check Teacher & Domain permissions
+      let isTeacherAdmin = false;
+      let matchedTeacherName: string | undefined;
+      let teachers: TeacherRecord[] = [];
+      try {
+        teachers = await fetchTeachersFromGoogleSheet(TARGET_SPREADSHEET_ID);
+        const teacherCheck = checkIsTeacherAdmin(email, teachers);
+        isTeacherAdmin = teacherCheck.isAdmin;
+        matchedTeacherName = teacherCheck.matchedTeacher?.name;
+      } catch (tErr) {
+        console.warn('Teacher check error during direct login:', tErr);
+      }
+
+      const domainCheck = isAllowedSchoolUser(email, teachers);
+      if (!domainCheck.isAllowed) {
+        setErrorMsg(
+          `⚠️ การเข้าสู่ระบบถูกปฏิเสธ: บัญชี "${email}" ไม่ได้อยู่ในโดเมนโรงเรียน @${SCHOOL_DOMAIN} หรือรายชื่อคุณครูผู้ดูแลระบบ กรุณาใช้บัญชีของโรงเรียนอนุบาลนราธิวาส (@${SCHOOL_DOMAIN})`
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      const emailPrefix = email.split('@')[0];
+      const matchedStudent = profiles.find(
+        (p) =>
+          p.contactEmail?.toLowerCase() === email.toLowerCase() ||
+          p.studentId === emailPrefix ||
+          p.studentId?.replace(/\D/g, '') === emailPrefix.replace(/\D/g, '') ||
+          (p.name && (p.name.includes(emailPrefix) || emailPrefix.includes(p.name)))
+      );
+
+      let updated: UserProfile;
+      if (isTeacherAdmin) {
+        updated = getAdminProfileData(email, matchedTeacherName || undefined);
+      } else if (matchedStudent) {
+        updated = {
+          ...matchedStudent,
+          contactEmail: email,
+          role: 'student',
+        };
+      } else {
+        const isNumericId = /^\d+$/.test(emailPrefix);
+        updated = {
+          ...currentProfile,
+          id: `student_${emailPrefix}`,
+          studentId: isNumericId ? emailPrefix : `CK-${emailPrefix}`,
+          name: `นักเรียน (${emailPrefix})`,
+          nickname: emailPrefix,
+          school: 'โรงเรียนอนุบาลนราธิวาส',
+          grade: currentProfile.grade && currentProfile.grade !== '-' ? currentProfile.grade : 'ประถมศึกษาปีที่ 4/1',
+          bio: 'พร้อมเริ่มต้นเรียนรู้วิทยาการคำนวณและสะสมแต้มผลงาน',
+          motto: 'เขียนโค้ดวันละนิด จิตแจ่มใส บั๊กหายวับ!',
+          avatarId: 'avatar_cat',
+          avatarEmoji: '🐱',
+          themeColor: 'indigo',
+          codingLevel: 'Intermediate',
+          techInterests: ['Scratch Game', 'Micro:bit IoT', 'Cyber Security'],
+          selectedTitle: 'นักประดิษฐ์รุ่นเยาว์ (Junior Innovator)',
+          contactEmail: email,
+          role: 'student',
+          joinedDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }),
+          streakDays: 1,
+          unlockedRewardIds: ['title_junior'],
+        };
+      }
+
+      localStorage.setItem('coderkids_sync_to_sheets', 'sync');
+
+      // Record to Google Sheet / Logs and Backend
+      try {
+        await recordStudentLoginToGoogleSheet(
+          TARGET_SPREADSHEET_ID,
+          updated,
+          email,
+          isTeacherAdmin ? 'แอดมิน/ครู เข้าสู่ระบบห้องเรียน (Direct Login)' : 'ลงชื่อเข้าใช้งานห้องเรียน Coder Kids (Direct Login)',
+          getModuleName(pendingDestinationModule)
+        );
+      } catch (sheetErr) {
+        console.warn('Google Sheet background login recording:', sheetErr);
+      }
+
+      soundEffects.play('victory');
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+      onLoginSuccess(updated);
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการลงชื่อเข้าใช้ด้วยบัญชีโรงเรียน');
     } finally {
       setIsLoading(false);
     }
@@ -472,11 +605,77 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </button>
         </div>
 
-        {/* Error Alert */}
+        {/* Error Alert with Smart Domain Resolution */}
         {errorMsg && (
-          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span>{errorMsg}</span>
+          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-900 dark:text-rose-200 text-xs space-y-3 animate-fadeIn">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1.5">
+                <div className="font-bold text-xs leading-snug">{errorMsg}</div>
+                {unauthorizedDomain && (
+                  <div className="text-[11px] text-slate-700 dark:text-slate-300 space-y-2 pt-1.5 border-t border-rose-200/60 dark:border-rose-900/40">
+                    <p>
+                      <strong>วิธีแก้ไขสำหรับผู้ดูแลระบบ Firebase:</strong> โดเมนปัจจุบันยังไม่ได้เพิ่มใน Authorized Domains ของโปรเจกต์
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (navigator.clipboard) {
+                            navigator.clipboard.writeText(unauthorizedDomain);
+                            setCopiedDomain(true);
+                            setTimeout(() => setCopiedDomain(false), 2000);
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        {copiedDomain ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            <span className="text-emerald-600 dark:text-emerald-400">คัดลอก {unauthorizedDomain} แล้ว!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-slate-400" />
+                            <span>คัดลอกโดเมน: {unauthorizedDomain}</span>
+                          </>
+                        )}
+                      </button>
+                      <a
+                        href="https://console.firebase.google.com/project/gen-lang-client-0756366544/authentication/settings"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-semibold text-[11px]"
+                      >
+                        <span>เปิด Firebase Console ➔ Authorized domains</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Bypass Button inside Error Alert */}
+            {unauthorizedDomain && (
+              <div className="pt-2 border-t border-rose-200/60 dark:border-rose-900/40 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                  ต้องการเข้าเรียนทันทีโดยไม่ต้องตั้งค่าคอนโซล?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setUnauthorizedDomain(null);
+                    setActiveTab('existing');
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all cursor-pointer shadow-xs flex items-center gap-1"
+                >
+                  <span>เลือกโปรไฟล์นักเรียนเข้าเรียนทันที</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -671,10 +870,54 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
               </svg>
-              <span>{isLoading ? 'กำลังเชื่อมต่อ Google...' : `เข้าสู่ระบบด้วย @${SCHOOL_DOMAIN}`}</span>
+              <span>{isLoading ? 'กำลังเชื่อมต่อ Google...' : `เข้าสู่ระบบด้วย @${SCHOOL_DOMAIN} (Popup)`}</span>
             </button>
+
+            {/* Alternative: Direct School Account Login without Popup */}
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-slate-800" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white dark:bg-slate-900 px-3 text-slate-500 font-semibold text-[11px]">
+                  หรือ เข้าสู่ระบบด่วนด้วยอีเมลโรงเรียน (ไม่ต้องเปิดป๊อปอัป)
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleDirectSchoolLogin} className="space-y-3 text-left p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  อีเมลโรงเรียน หรือ เลขประจำตัวนักเรียน
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    placeholder={`เช่น 4102 หรือ 4102@${SCHOOL_DOMAIN}`}
+                    value={directSchoolEmail}
+                    onChange={(e) => setDirectSchoolEmail(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                  * หากกรอกเฉพาะเลขประจำตัว ระบบจะต่อท้าย @{SCHOOL_DOMAIN} ให้อัตโนมัติ (หรือระบุอีเมลคุณครู/แอดมิน)
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>{isLoading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบด้วยบัญชีโรงเรียนทันที'}</span>
+              </button>
+            </form>
           </div>
         )}
+
 
         {/* TAB 3: Register New Student */}
         {activeTab === 'register' && (

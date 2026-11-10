@@ -410,10 +410,24 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
         return;
       }
       console.error(err);
-      setStatusMsg({
-        text: err.message || 'การเข้าสู่ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง',
-        type: 'error',
-      });
+
+      const isUnauthorizedDomain =
+        err?.code === 'auth/unauthorized-domain' ||
+        err?.message?.includes('auth/unauthorized-domain') ||
+        err?.message?.includes('unauthorized-domain');
+
+      if (isUnauthorizedDomain) {
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        setStatusMsg({
+          text: `⚠️ โดเมน "${host}" ยังไม่ได้เพิ่มใน Authorized Domains ของ Firebase Authentication (โปรดเพิ่มใน Firebase Console ➔ Authentication ➔ Settings ➔ Authorized domains)`,
+          type: 'error',
+        });
+      } else {
+        setStatusMsg({
+          text: err.message || 'การเข้าสู่ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง',
+          type: 'error',
+        });
+      }
     } finally {
       setIsLoggingIn(false);
     }

@@ -118,6 +118,19 @@ export const googleSignIn = async (
       return null;
     }
     console.error('Google Sign-In Error:', error);
+    if (
+      error?.code === 'auth/unauthorized-domain' ||
+      error?.message?.includes('auth/unauthorized-domain') ||
+      error?.message?.includes('unauthorized-domain')
+    ) {
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+      const customErr: any = new Error(
+        `โดเมน "${currentHost}" ยังไม่ได้รับอนุญาตใน Firebase Authentication (auth/unauthorized-domain)`
+      );
+      customErr.code = 'auth/unauthorized-domain';
+      customErr.hostname = currentHost;
+      throw customErr;
+    }
     throw error;
   } finally {
     isSigningIn = false;
