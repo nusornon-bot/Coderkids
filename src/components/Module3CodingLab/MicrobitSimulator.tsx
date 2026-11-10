@@ -16,8 +16,11 @@ import {
   BookOpen,
   Layers,
   Info,
+  Download,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { downloadMicrobitHexFile } from '../../utils/hexExporter.ts';
+import { soundEffects } from '../../utils/soundEffects.ts';
 
 interface PresetExplanationData {
   id: string;
@@ -847,25 +850,45 @@ export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({ onComplete
                     </div>
                   </div>
 
-                  {/* Copy Code button */}
-                  <button
-                    type="button"
-                    onClick={() => handleCopyCode(exp.rawCode)}
-                    className="self-start sm:self-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors text-[11px] font-sans cursor-pointer shrink-0"
-                    title="คัดลอกโค้ด MakeCode"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-emerald-400 font-medium">คัดลอกแล้ว!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5 text-slate-400" />
-                        <span>คัดลอกโค้ด</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Download HEX file button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundEffects.play('victory');
+                        confetti({ particleCount: 30, spread: 50 });
+                        downloadMicrobitHexFile({
+                          name: exp.name,
+                          sourceCode: exp.rawCode,
+                        });
+                      }}
+                      className="self-start sm:self-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-colors text-[11px] font-sans font-bold cursor-pointer shadow-sm"
+                      title="ดาวน์โหลดไฟล์ .HEX เพื่อนำไปใส่ในบอร์ด Micro:bit จริงผ่าน USB"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>โหลด .HEX แฟลชบอร์ดจริง</span>
+                    </button>
+
+                    {/* Copy Code button */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCode(exp.rawCode)}
+                      className="self-start sm:self-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors text-[11px] font-sans cursor-pointer shrink-0"
+                      title="คัดลอกโค้ด MakeCode"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400 font-medium">คัดลอกแล้ว!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-slate-400" />
+                          <span>คัดลอกโค้ด</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Concept Banner */}

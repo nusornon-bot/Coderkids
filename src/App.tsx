@@ -72,6 +72,13 @@ import { ClassroomLuckyWheel } from './components/ClassroomLuckyWheel.tsx';
 import { BlockMazeRunner } from './components/BlockMazeRunner.tsx';
 import { HomeworkDropzone } from './components/HomeworkDropzone.tsx';
 import { AvatarShopModal } from './components/AvatarShopModal.tsx';
+import { LiveQuizBattleModal } from './components/LiveQuizBattleModal.tsx';
+import { CommunityRemixHubModal } from './components/CommunityRemixHubModal.tsx';
+import { DailyMicroChallengeModal } from './components/DailyMicroChallengeModal.tsx';
+import { BebrasSimulatorModal } from './components/BebrasSimulatorModal.tsx';
+import { SmartSocraticDebuggerModal } from './components/SmartSocraticDebuggerModal.tsx';
+import { StudentReportCardModal } from './components/StudentReportCardModal.tsx';
+import { ComputingGlossaryModal } from './components/ComputingGlossaryModal.tsx';
 import { soundEffects } from './utils/soundEffects.ts';
 
 import {
@@ -314,6 +321,13 @@ export default function App() {
   const [isMazeRunnerOpen, setIsMazeRunnerOpen] = useState(false);
   const [isHomeworkDropzoneOpen, setIsHomeworkDropzoneOpen] = useState(false);
   const [isAvatarShopOpen, setIsAvatarShopOpen] = useState(false);
+  const [isLiveQuizBattleOpen, setIsLiveQuizBattleOpen] = useState(false);
+  const [isCommunityRemixOpen, setIsCommunityRemixOpen] = useState(false);
+  const [isDailyChallengeOpen, setIsDailyChallengeOpen] = useState(false);
+  const [isBebrasSimulatorOpen, setIsBebrasSimulatorOpen] = useState(false);
+  const [isSocraticDebuggerOpen, setIsSocraticDebuggerOpen] = useState(false);
+  const [isStudentReportCardOpen, setIsStudentReportCardOpen] = useState(false);
+  const [isComputingGlossaryOpen, setIsComputingGlossaryOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [selectedProjectForReview, setSelectedProjectForReview] = useState<ShowcaseProject | null>(null);
 
@@ -721,6 +735,34 @@ export default function App() {
     }
     if (moduleKey === 'quickSearch') {
       setIsQuickSearchOpen(true);
+      return;
+    }
+    if (moduleKey === 'liveQuizBattle') {
+      setIsLiveQuizBattleOpen(true);
+      return;
+    }
+    if (moduleKey === 'communityRemix') {
+      setIsCommunityRemixOpen(true);
+      return;
+    }
+    if (moduleKey === 'dailyChallenge') {
+      setIsDailyChallengeOpen(true);
+      return;
+    }
+    if (moduleKey === 'bebrasSimulator') {
+      setIsBebrasSimulatorOpen(true);
+      return;
+    }
+    if (moduleKey === 'socraticDebugger') {
+      setIsSocraticDebuggerOpen(true);
+      return;
+    }
+    if (moduleKey === 'reportCard') {
+      setIsStudentReportCardOpen(true);
+      return;
+    }
+    if (moduleKey === 'glossary') {
+      setIsComputingGlossaryOpen(true);
       return;
     }
     if (moduleKey === 'safety' && subSection) {
@@ -2074,6 +2116,60 @@ export default function App() {
         profile={profile}
         onDeductPoints={(pts, reason) => spendPoints(pts, reason, 'avatar_shop')}
         onUpdateProfile={handleUpdateProfile}
+      />
+
+      {/* กลุ่มที่ 1: Live Classroom Quiz Battle Modal (Kahoot-Style) */}
+      <LiveQuizBattleModal
+        isOpen={isLiveQuizBattleOpen}
+        onClose={() => setIsLiveQuizBattleOpen(false)}
+        currentStudentName={profile.name}
+        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
+      />
+
+      {/* กลุ่มที่ 2: Community Remix Hub Modal */}
+      <CommunityRemixHubModal
+        isOpen={isCommunityRemixOpen}
+        onClose={() => setIsCommunityRemixOpen(false)}
+        currentStudentName={profile.name}
+        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'showcase')}
+      />
+
+      {/* กลุ่มที่ 2: 3-Minute Daily Micro Challenge Modal */}
+      <DailyMicroChallengeModal
+        isOpen={isDailyChallengeOpen}
+        onClose={() => setIsDailyChallengeOpen(false)}
+        currentStudentName={profile.name}
+        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
+      />
+
+      {/* กลุ่มที่ 3: Bebras CT Challenge Simulator Modal */}
+      <BebrasSimulatorModal
+        isOpen={isBebrasSimulatorOpen}
+        onClose={() => setIsBebrasSimulatorOpen(false)}
+        currentStudentName={profile.name}
+        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
+      />
+
+      {/* กลุ่มที่ 3: Smart Socratic AI Debugger Modal */}
+      <SmartSocraticDebuggerModal
+        isOpen={isSocraticDebuggerOpen}
+        onClose={() => setIsSocraticDebuggerOpen(false)}
+        currentStudentName={profile.name}
+        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+      />
+
+      {/* กลุ่มที่ 4: Student Competency Report Card Modal (ปพ.5 / ว PA) */}
+      <StudentReportCardModal
+        isOpen={isStudentReportCardOpen}
+        onClose={() => setIsStudentReportCardOpen(false)}
+        profile={profile}
+        points={points}
+      />
+
+      {/* กลุ่มที่ 4: Computing Glossary Bilingual Dictionary Modal */}
+      <ComputingGlossaryModal
+        isOpen={isComputingGlossaryOpen}
+        onClose={() => setIsComputingGlossaryOpen(false)}
       />
 
       {/* Offline Mode Indicator Toast */}

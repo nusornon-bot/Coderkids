@@ -842,21 +842,112 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </button>
                 )}
 
-                {/* Code Examples Gallery */}
-                <button
-                  type="button"
-                  onClick={() => onNavigate('codingLab', 'examplesGallery')}
-                  className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-slate-200 dark:border-slate-700 hover:border-amber-300 transition-all text-left group cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
-                    <span>คลังโจทย์โค้ด 📚</span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">ถอดรหัสบล็อกโค้ด</div>
-                </button>
-              </div>
+                  {/* Code Examples Gallery */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('codingLab', 'examplesGallery')}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-slate-200 dark:border-slate-700 hover:border-amber-300 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                      <span>คลังโจทย์โค้ด 📚</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">ถอดรหัสบล็อกโค้ด</div>
+                  </button>
+
+                  {/* กลุ่ม 1: Live Quiz Battle */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('liveQuizBattle')}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-slate-200 dark:border-slate-700 hover:border-rose-300 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <Trophy className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">Live Quiz ⚡</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">สมรภูมิสด Kahoot PIN</div>
+                  </button>
+
+                  {/* กลุ่ม 2: Community Remix Hub */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('communityRemix')}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 border border-slate-200 dark:border-slate-700 hover:border-cyan-300 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">Remix Hub 🌐</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">แชร์โค้ด & 2 Stars</div>
+                  </button>
+
+                  {/* กลุ่ม 2: 3-Min Daily Challenge */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('dailyChallenge')}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/30 border border-slate-200 dark:border-slate-700 hover:border-amber-300 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <Flame className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">Daily 3-Min ⚡</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">ภารกิจวันละ 3 นาที</div>
+                  </button>
+
+                  {/* กลุ่ม 3: Bebras Simulator */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('bebrasSimulator')}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-yellow-50 dark:hover:bg-yellow-950/30 border border-slate-200 dark:border-slate-700 hover:border-yellow-300 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-yellow-100 dark:bg-yellow-900/60 text-yellow-700 dark:text-yellow-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <Brain className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">Bebras CT 🦫</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">สอบนานาชาติ 4 เสาหลัก</div>
+                  </button>
+
+                  {/* กลุ่ม 3: Socratic Debugger */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('socraticDebugger')}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-slate-200 dark:border-slate-700 hover:border-purple-300 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">แมวจับบั๊ก 🐾</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">โสเครติสโค้ดดิ้ง</div>
+                  </button>
+
+                  {/* กลุ่ม 4: Student Report Card */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('reportCard')}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <GraduationCap className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">สมุด ปพ.5 📜</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">รายงานสมรรถนะ ว PA</div>
+                  </button>
+
+                  {/* กลุ่ม 4: Computing Glossary */}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('glossary')}
+                    className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-teal-50 dark:hover:bg-teal-950/30 border border-slate-200 dark:border-slate-700 hover:border-teal-300 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">ศัพท์ CS 📖</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">พจนานุกรม 2 ภาษา</div>
+                  </button>
+                </div>
             </div>
 
             <div className="pt-4 mt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
