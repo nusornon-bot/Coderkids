@@ -35,14 +35,15 @@ npx wrangler secret put GEMINI_API_KEY
 ```bash
 npx wrangler deploy
 ```
-หรือรันผ่าน npm script ที่เตรียมไว้:
+หรือรันผ่านคำสั่ง:
 ```bash
 npm run deploy:cloudflare
 ```
 
-🎉 **เสร็จเรียบร้อย!** ระบบจะแสดง URL สาธารณะ เช่น:
-`https://coder-kids-app.<your-subdomain>.workers.dev` 
-คุณสามารถนำลิงก์นี้ไปให้นักเรียนและคุณครูเปิดใช้งานได้ทันทีทั่วโลก!
+🎉 **เสร็จเรียบร้อย!** แอปพลิเคชันได้รับการ Deploy ที่ URL:
+`https://coderkids.nusornon.workers.dev`
+
+คุณสามารถนำลิงก์นี้ไปให้นักเรียนและคุณครูเปิดใช้งานได้ทันทีทั่วโลก โดยรองรับทั้งสมาร์ตโฟน แท็บเล็ต และคอมพิวเตอร์ 100%!
 
 ---
 
