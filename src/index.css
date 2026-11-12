@@ -456,4 +456,35 @@ html[data-projector="true"] .text-\[11px\] {
   font-size: 0.8rem !important;
 }
 
+/* ========================================================
+   DAY / NIGHT CYCLE SMOOTH SCREEN TRANSITIONS
+   (เอฟเฟกต์การเปลี่ยนผ่านหน้าจออย่างนุ่มนวล)
+   ======================================================== */
+html.theme-transitioning,
+html.theme-transitioning body,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.45s ease,
+              border-color 0.5s ease,
+              box-shadow 0.5s ease,
+              fill 0.5s ease,
+              stroke 0.5s ease !important;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+
 

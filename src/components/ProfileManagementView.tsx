@@ -778,10 +778,21 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
             });
             return;
           }
+          const isUnauth =
+            authErr?.code === 'auth/unauthorized-domain' ||
+            authErr?.message?.includes('unauthorized-domain');
+          const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
           setStatusMsg({
-            text: `กรุณาลงชื่อเข้าใช้ Google เพื่อยืนยันการบันทึก: ${authErr.message || 'ยกเลิกการเข้าสู่ระบบ'}`,
-            type: 'error',
+            text: isUnauth
+              ? `⚠️ โดเมน "${currentHost}" ยังไม่ได้เพิ่มใน Firebase Authorized domains: บันทึกข้อมูลเฉพาะในระบบท้องถิ่น (โปรดเพิ่มโดเมนใน Firebase Console เพื่อซิงค์ Google Sheets)`
+              : `กรุณาลงชื่อเข้าใช้ Google เพื่อยืนยันการบันทึก: ${authErr.message || 'ยกเลิกการเข้าสู่ระบบ'}`,
+            type: isUnauth ? 'warning' : 'error',
           });
+          if (isUnauth) {
+            // Save locally and proceed even if domain not authorized
+            onUpdateProfile(studentToSave);
+            return;
+          }
           return;
         }
       }
@@ -869,8 +880,14 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
             });
             return;
           }
+          const isUnauth =
+            authErr?.code === 'auth/unauthorized-domain' ||
+            authErr?.message?.includes('unauthorized-domain');
+          const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
           setStatusMsg({
-            text: `กรุณาลงชื่อเข้าใช้ด้วย Google เพื่อบันทึก: ${authErr.message || 'ยกเลิก'}`,
+            text: isUnauth
+              ? `⚠️ โดเมน "${currentHost}" ยังไม่ได้เพิ่มใน Firebase Authorized domains: โปรดเพิ่มใน Firebase Console ➔ Authentication ➔ Settings ➔ Authorized domains เพื่อซิงค์ข้อมูลลงกูเกิลชีต`
+              : `กรุณาลงชื่อเข้าใช้ด้วย Google เพื่อบันทึก: ${authErr.message || 'ยกเลิก'}`,
             type: 'error',
           });
           return;

@@ -12,22 +12,24 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Parse port and host.
-// In dev environment, Nginx binds to 8080 and proxies to 3000 (Express must bind to 3000).
+// In dev environment, Express must bind to port 3000.
 // In production deployment (Cloud Run), Express must listen on the port provided by Cloud Run (process.env.PORT, default 8080).
+const isProduction = process.env.NODE_ENV === 'production';
+
 const parsePort = (): number => {
   const portArgIdx = process.argv.indexOf('--port');
   if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
     return parseInt(process.argv[portArgIdx + 1], 10);
   }
-  // In dev environment, Nginx binds to 8080 and proxies to 3000
-  if (process.env.NODE_ENV === 'development') {
-    if (process.env.PORT && process.env.PORT !== '8080') {
-      return parseInt(process.env.PORT, 10);
-    }
-    return 3000;
-  }
   // In production deployment (Cloud Run), listen on the PORT assigned by Cloud Run (default 8080)
-  return parseInt(process.env.PORT || '8080', 10);
+  if (isProduction) {
+    return parseInt(process.env.PORT || '8080', 10);
+  }
+  // In dev environment, Express must bind to 3000
+  if (process.env.PORT && process.env.PORT !== '8080') {
+    return parseInt(process.env.PORT, 10);
+  }
+  return 3000;
 };
 
 const port = parsePort();
@@ -260,9 +262,7 @@ app.get('/api/students/list', (_req, res) => {
 
 // ------------------ STATIC / VITE MIDDLEWARE ------------------
 async function startServer() {
-  const isDev = process.env.NODE_ENV === 'development';
-
-  if (!isDev) {
+  if (isProduction) {
     const distPath = path.resolve(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
@@ -286,7 +286,7 @@ async function startServer() {
   }
 
   const server = app.listen(port, host, () => {
-    console.log(`Coder Kids Server running on http://${host}:${port}`);
+    console.log(`Coder Kids Server running on http://${host}:${port} (${isProduction ? 'production' : 'development'})`);
   });
 
   server.on('error', (err: any) => {

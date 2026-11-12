@@ -72,6 +72,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [regGrade, setRegGrade] = useState('ประถมศึกษาปีที่ 4/1');
   const [regAvatarId, setRegAvatarId] = useState('avatar_cat');
   const [regAvatarEmoji, setRegAvatarEmoji] = useState('🐱');
+  const [regEmail, setRegEmail] = useState('');
 
   // User's choice whether to record to Google Sheet when NOT signing in with Google
   const [syncChoice, setSyncChoice] = useState<'sync' | 'nosync'>(() => {
@@ -413,6 +414,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setErrorMsg(null);
 
     const chosenAvatar = AVATAR_OPTIONS.find((a) => a.id === regAvatarId) || AVATAR_OPTIONS[0];
+    let formattedRegEmail = regEmail.trim();
+    if (formattedRegEmail && !formattedRegEmail.includes('@')) {
+      formattedRegEmail = `${formattedRegEmail}@${SCHOOL_DOMAIN}`;
+    }
+
     const newStudentProfile: UserProfile = {
       id: `prof_${Date.now()}`,
       name: regName.trim(),
@@ -424,6 +430,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       motto: 'เขียนโค้ดวันละนิด จิตแจ่มใส บั๊กหายวับ!',
       avatarId: regAvatarId,
       avatarEmoji: regAvatarEmoji || chosenAvatar.emoji,
+      contactEmail: formattedRegEmail || undefined,
       themeColor: 'indigo',
       codingLevel: 'Intermediate',
       techInterests: ['Scratch Game', 'Micro:bit IoT', 'Cyber Security'],
@@ -437,14 +444,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       if (syncChoice === 'sync') {
         localStorage.setItem('coderkids_sync_to_sheets', 'sync');
         // ตรวจสอบและเชื่อมต่อสิทธิ์ Google เพื่อบันทึกลงใน Google Sheet ทันที
-        let userEmail = '';
+        let userEmail = formattedRegEmail || '';
         let token = await getAccessToken();
         if (!token) {
           try {
             const authRes = await googleSignIn(true);
             if (authRes?.accessToken) {
               token = authRes.accessToken;
-              userEmail = authRes.user.email || '';
+              userEmail = authRes.user.email || userEmail;
               newStudentProfile.contactEmail = userEmail;
             }
           } catch (authErr: any) {
@@ -606,78 +613,145 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
 
         {/* Error Alert with Smart Domain Resolution */}
-        {errorMsg && (
-          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-900 dark:text-rose-200 text-xs space-y-3 animate-fadeIn">
-            <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-1.5">
-                <div className="font-bold text-xs leading-snug">{errorMsg}</div>
-                {unauthorizedDomain && (
-                  <div className="text-[11px] text-slate-700 dark:text-slate-300 space-y-2 pt-1.5 border-t border-rose-200/60 dark:border-rose-900/40">
-                    <p>
-                      <strong>วิธีแก้ไขสำหรับผู้ดูแลระบบ Firebase:</strong> โดเมนปัจจุบันยังไม่ได้เพิ่มใน Authorized Domains ของโปรเจกต์
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (navigator.clipboard) {
-                            navigator.clipboard.writeText(unauthorizedDomain);
-                            setCopiedDomain(true);
-                            setTimeout(() => setCopiedDomain(false), 2000);
-                          }
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        {copiedDomain ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-500" />
-                            <span className="text-emerald-600 dark:text-emerald-400">คัดลอก {unauthorizedDomain} แล้ว!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5 text-slate-400" />
-                            <span>คัดลอกโดเมน: {unauthorizedDomain}</span>
-                          </>
-                        )}
-                      </button>
-                      <a
-                        href="https://console.firebase.google.com/project/gen-lang-client-0756366544/authentication/settings"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-semibold text-[11px]"
-                      >
-                        <span>เปิด Firebase Console ➔ Authorized domains</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+        {errorMsg && (() => {
+          const isDomainErr = Boolean(
+            unauthorizedDomain ||
+            errorMsg.includes('auth/unauthorized-domain') ||
+            errorMsg.includes('unauthorized-domain')
+          );
+          const domainHost =
+            unauthorizedDomain ||
+            (typeof window !== 'undefined' ? window.location.hostname : '') ||
+            'coderkids.nusornon.workers.dev';
 
-            {/* Quick Bypass Button inside Error Alert */}
-            {unauthorizedDomain && (
-              <div className="pt-2 border-t border-rose-200/60 dark:border-rose-900/40 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-[11px] text-slate-600 dark:text-slate-400">
-                  ต้องการเข้าเรียนทันทีโดยไม่ต้องตั้งค่าคอนโซล?
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setErrorMsg(null);
-                    setUnauthorizedDomain(null);
-                    setActiveTab('existing');
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all cursor-pointer shadow-xs flex items-center gap-1"
-                >
-                  <span>เลือกโปรไฟล์นักเรียนเข้าเรียนทันที</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+          return (
+            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 text-xs space-y-3 animate-fadeIn">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <div className="font-bold text-xs sm:text-sm text-rose-800 dark:text-rose-200 leading-snug">
+                    {isDomainErr
+                      ? `⚠️ โดเมน "${domainHost}" ยังไม่ได้รับอนุญาตใน Firebase Authentication (auth/unauthorized-domain)`
+                      : errorMsg}
+                  </div>
+
+                  {isDomainErr && (
+                    <div className="text-[11px] text-slate-700 dark:text-slate-300 space-y-2 pt-1.5 border-t border-rose-200 dark:border-rose-900/60">
+                      <p className="leading-relaxed">
+                        <strong>สาเหตุ:</strong> เพื่อความปลอดภัยของบัญชีผู้ใช้ Firebase กำหนดให้ต้องเพิ่มโดเมนของเว็บไซต์นี้ลงในรายการ <strong>Authorized domains</strong> ก่อน จึงจะสามารถเปิดป๊อปอัป Google Sign-In ได้
+                      </p>
+
+                      <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                          <span className="font-bold text-[11px] text-indigo-700 dark:text-indigo-300">
+                            🛠️ วิธีแก้ไขสำหรับผู้ดูแลระบบ (Admin):
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-mono">โปรเจกต์: gen-lang-client-0756366544</span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(domainHost);
+                                setCopiedDomain(true);
+                                setTimeout(() => setCopiedDomain(false), 2500);
+                              }
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                          >
+                            {copiedDomain ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-emerald-700 dark:text-emerald-400">คัดลอก {domainHost} แล้ว!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5 text-indigo-500" />
+                                <span>คัดลอกโดเมน: {domainHost}</span>
+                              </>
+                            )}
+                          </button>
+
+                          <a
+                            href="https://console.firebase.google.com/project/gen-lang-client-0756366544/authentication/settings"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] flex items-center gap-1.5 shadow-xs transition-colors"
+                          >
+                            <span>เปิด Firebase Console ➔ Settings ➔ Authorized domains</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+
+                        <div className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1 pt-1 leading-relaxed border-t border-slate-100 dark:border-slate-800">
+                          <div><strong>3 ขั้นตอนง่ายๆ:</strong></div>
+                          <div>1. กดปุ่มเปิด Firebase Console ด้านบน</div>
+                          <div>2. เลื่อนลงมาที่หัวข้อ <strong>Authorized domains (โดเมนที่ได้รับอนุญาต)</strong></div>
+                          <div>3. กด <strong>Add domain</strong> แล้ววาง <code className="font-mono text-indigo-600 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-950/50 px-1 py-0.5 rounded">{domainHost}</code> จากนั้นกด Save</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
-        )}
+
+              {/* Quick Bypass / Instant Entry for Students and Teachers */}
+              {isDomainErr && (
+                <div className="pt-2 border-t border-rose-200/80 dark:border-rose-900/60 space-y-2">
+                  <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                    ⚡ สำหรับผู้เรียน/คุณครู (เข้าเรียนหรือลงทะเบียนได้ทันที ไม่ต้องรอตั้งค่า):
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setUnauthorizedDomain(null);
+                        setActiveTab('google');
+                        setTimeout(() => {
+                          const input = document.querySelector('input[placeholder*="4102"]') as HTMLInputElement;
+                          if (input) input.focus();
+                        }, 100);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                    >
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>กรอกอีเมลโรงเรียน (@{SCHOOL_DOMAIN}) เข้าสู่ระบบทันที</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setUnauthorizedDomain(null);
+                        setActiveTab('existing');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-200 font-bold text-xs transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                    >
+                      <span>เลือกโปรไฟล์นักเรียนเข้าเรียน</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setErrorMsg(null);
+                        setUnauthorizedDomain(null);
+                        setActiveTab('register');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>สมัครนักเรียนใหม่ทันที</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* TAB 1: Existing Profile Login */}
         {activeTab === 'existing' && (
@@ -1041,6 +1115,25 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 style={{ color: '#1d4ed8', caretColor: '#1d4ed8', backgroundColor: '#ffffff' }}
                 className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-xs font-semibold text-blue-700 placeholder:text-slate-400"
               />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-medium text-slate-700 dark:text-slate-300">
+                  อีเมลโรงเรียน (@{SCHOOL_DOMAIN}) <span className="text-[11px] font-normal text-slate-500">(ไม่บังคับ - ใช้เชื่อมโยงข้อมูล)</span>
+                </label>
+              </div>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder={`เช่น 4102 หรือ 4102@${SCHOOL_DOMAIN}`}
+                  style={{ color: '#1d4ed8', caretColor: '#1d4ed8', backgroundColor: '#ffffff' }}
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm font-semibold text-blue-700 placeholder:text-slate-400"
+                />
+              </div>
             </div>
 
             {/* Google Sheets Sync Selector for Registration */}

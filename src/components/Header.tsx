@@ -56,6 +56,9 @@ import { soundEffects } from '../utils/soundEffects.ts';
 import { AccessibilityControls } from './AccessibilityControls.tsx';
 import { PWAInstallButton } from './PWAInstallButton.tsx';
 
+import { ThemeMode } from '../utils/dayNightCycle.ts';
+import { DayNightCycleMenu } from './DayNightCycleMenu.tsx';
+
 interface HeaderProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -71,7 +74,10 @@ interface HeaderProps {
   onToggleAdmin?: (isAdmin: boolean) => void;
   onOpenAITutor?: () => void;
   theme?: 'light' | 'dark';
+  themeMode?: ThemeMode;
   onToggleTheme?: () => void;
+  onSelectThemeMode?: (mode: ThemeMode) => void;
+  onPreviewTransition?: () => void;
   onOpenGasExport?: () => void;
   onOpenAssessmentReport?: () => void;
   onOpenUnpluggedWorksheets?: () => void;
@@ -121,7 +127,10 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleAdmin,
   onOpenAITutor,
   theme = 'light',
+  themeMode = 'auto',
   onToggleTheme,
+  onSelectThemeMode,
+  onPreviewTransition,
   colorTone = 'indigo',
   onChangeColorTone,
   onOpenQuickSearch,
@@ -158,8 +167,8 @@ export const Header: React.FC<HeaderProps> = ({
   const userLevel = Math.max(1, Math.floor(completedPoints / 75) + 1);
   const [isSoundMuted, setIsSoundMuted] = useState<boolean>(() => soundEffects.isSoundMuted());
 
-  // Categorized dropdowns state (including tone picker)
-  const [openDropdown, setOpenDropdown] = useState<'modules' | 'labs' | 'system' | 'tone' | null>(null);
+  // Categorized dropdowns state (including tone picker and Day/Night cycle)
+  const [openDropdown, setOpenDropdown] = useState<'modules' | 'labs' | 'system' | 'tone' | 'daynight' | null>(null);
   const activeToneOption = COLOR_TONES.find((t) => t.id === colorTone) || COLOR_TONES[0];
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
@@ -1397,21 +1406,54 @@ export const Header: React.FC<HeaderProps> = ({
               onToggleFocusMode={onToggleFocusMode || (() => {})}
             />
 
-            {/* Dark / Light Mode Toggle */}
-            {onToggleTheme && (
+            {/* Day / Night Cycle & Theme Controller */}
+            <div className="relative">
               <button
-                onClick={onToggleTheme}
-                className="p-2 rounded-xl text-slate-500 dark:text-amber-300 hover:text-slate-900 dark:hover:text-amber-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center cursor-pointer shadow-xs"
-                title={theme === 'dark' ? 'สลับเป็นโหมดสว่าง (Light Mode)' : 'สลับเป็นโหมดมืด (Dark Mode)'}
-                aria-label="สลับธีม"
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === 'daynight' ? null : 'daynight')}
+                className={`p-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border ${
+                  theme === 'dark'
+                    ? 'text-amber-300 hover:text-amber-200 bg-slate-800 hover:bg-slate-750 border-slate-700'
+                    : 'text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border-slate-200'
+                }`}
+                title={
+                  themeMode === 'auto'
+                    ? `วัฏจักรตามเวลาจริง (Day/Night Auto): ${theme === 'dark' ? 'โหมดมืด (กลางคืน)' : 'โหมดสว่าง (กลางวัน)'} - คลิกเพื่อตั้งค่า`
+                    : `โหมดธีม: ${theme === 'dark' ? 'โหมดมืดคงที่' : 'โหมดสว่างคงที่'} - คลิกเพื่อตั้งค่า`
+                }
+                aria-label="ตั้งค่าวัฏจักรกลางวัน/กลางคืนและธีม"
+                aria-expanded={openDropdown === 'daynight'}
               >
                 {theme === 'dark' ? (
-                  <Sun className="w-4 h-4 text-amber-400" />
+                  <Moon className="w-4 h-4 text-amber-400" />
                 ) : (
-                  <Moon className="w-4 h-4 text-slate-600" />
+                  <Sun className="w-4 h-4 text-amber-500" />
+                )}
+                {themeMode === 'auto' && (
+                  <span
+                    className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-400/40 animate-pulse shrink-0"
+                    title="โหมดสลับอัตโนมัติตามเวลาเปิดใช้งานอยู่"
+                  />
                 )}
               </button>
-            )}
+
+              {openDropdown === 'daynight' && (
+                <div className="absolute right-0 mt-2 z-50">
+                  <DayNightCycleMenu
+                    theme={theme}
+                    themeMode={themeMode}
+                    onSelectThemeMode={(mode) => {
+                      if (onSelectThemeMode) onSelectThemeMode(mode);
+                      // Don't necessarily close dropdown so user can see timeline update, or close if they prefer
+                    }}
+                    onPreviewTransition={() => {
+                      if (onPreviewTransition) onPreviewTransition();
+                    }}
+                    onClose={() => setOpenDropdown(null)}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* App Color Tone Picker (ฟีเจอร์เปลี่ยนโทนสีของแอป) */}
             <div className="relative">
