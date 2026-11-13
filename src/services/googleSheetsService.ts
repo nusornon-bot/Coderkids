@@ -41,15 +41,19 @@ export const SCHOOL_DOMAIN = 'anubalnara.ac.th';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const auth = getAuth(app);
 
-// Google Auth Provider for Students & Teachers (Basic Profile & Email only)
-// ไม่ขอ Sensitive Scope (spreadsheets) ตอนล็อกอินปกติ เพื่อป้องกันข้อผิดพลาด 403: access_denied (แอปยังไม่ผ่านการยืนยันตัวตนของ Google)
+// Google Auth Provider for Students & Teachers (Includes Profile, Email, and Spreadsheets scope to read/write Google Sheet)
 const provider = new GoogleAuthProvider();
+provider.addScope('profile');
+provider.addScope('email');
+provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.setCustomParameters({
   prompt: 'select_account',
 });
 
-// Teacher Google Auth Provider with Spreadsheets scope (เฉพาะกรณีแอดมินกดเชื่อมต่อ API ชีตโดยตรงและเพิ่มอีเมลใน Test Users แล้ว)
+// Teacher Google Auth Provider with Spreadsheets scope
 export const teacherSheetsProvider = new GoogleAuthProvider();
+teacherSheetsProvider.addScope('profile');
+teacherSheetsProvider.addScope('email');
 teacherSheetsProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
 teacherSheetsProvider.setCustomParameters({
   prompt: 'select_account',
@@ -64,13 +68,26 @@ let cachedAccessToken: string | null = (() => {
   }
 })();
 
+export const getCachedGoogleProfileName = (): string => {
+  try {
+    return (
+      auth.currentUser?.displayName ||
+      auth.currentUser?.providerData?.[0]?.displayName ||
+      localStorage.getItem('coderkids_google_profile_name') ||
+      ''
+    ).trim();
+  } catch {
+    return '';
+  }
+};
+
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      const token = cachedAccessToken || sessionStorage.getItem('coderkids_sheets_access_token') || '';
+      const token = cachedAccessToken || sessionStorage.getItem('coderkids_sheets_access_token') || localStorage.getItem('coderkids_sheets_access_token') || '';
       if (token) {
         cachedAccessToken = token;
         if (onAuthSuccess) onAuthSuccess(user, token);
@@ -88,8 +105,8 @@ export const initAuth = (
 };
 
 export const googleSignIn = async (
-  requestSheetsScope: boolean = false
-): Promise<{ user: User; accessToken: string } | null> => {
+  requestSheetsScope: boolean = true
+): Promise<{ user: User; accessToken: string; googleProfileName: string } | null> => {
   try {
     isSigningIn = true;
     const authProvider = requestSheetsScope ? teacherSheetsProvider : provider;
@@ -102,7 +119,46 @@ export const googleSignIn = async (
         localStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
       } catch {}
     }
-    return { user: result.user, accessToken: cachedAccessToken || '' };
+
+    // Resolve Google Profile Name from Firebase User, ProviderData, or Google UserInfo API
+    let googleProfileName = (
+      result.user.displayName ||
+      result.user.providerData?.find((p) => p?.displayName)?.displayName ||
+      ''
+    ).trim();
+
+    if (cachedAccessToken) {
+      try {
+        const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: { Authorization: `Bearer ${cachedAccessToken}` },
+        });
+        if (userInfoRes.ok) {
+          const userInfo = await userInfoRes.json();
+          const apiName = (
+            userInfo.name ||
+            [userInfo.given_name, userInfo.family_name].filter(Boolean).join(' ') ||
+            ''
+          ).trim();
+          if (apiName) {
+            googleProfileName = apiName;
+          }
+        }
+      } catch (uErr) {
+        console.warn('Could not fetch Google userinfo profile name:', uErr);
+      }
+    }
+
+    if (googleProfileName) {
+      try {
+        localStorage.setItem('coderkids_google_profile_name', googleProfileName);
+      } catch {}
+    }
+
+    return {
+      user: result.user,
+      accessToken: cachedAccessToken || '',
+      googleProfileName,
+    };
   } catch (error: any) {
     if (
       error?.code === 'auth/popup-closed-by-user' ||
@@ -160,6 +216,7 @@ export const googleLogout = async () => {
   cachedAccessToken = null;
   try {
     localStorage.removeItem('coderkids_direct_google_user');
+    localStorage.removeItem('coderkids_google_profile_name');
     sessionStorage.removeItem('coderkids_sheets_access_token');
     localStorage.removeItem('coderkids_sheets_access_token');
   } catch {}
@@ -974,36 +1031,53 @@ export const saveMultipleProfilesToGoogleSheet = async (
     throw new Error('ยังไม่ได้เข้าสู่ระบบด้วย Google หรือเซสชันหมดอายุ กรุณาลงชื่อเข้าใช้ก่อนบันทึกหมู่');
   }
 
-  const sheetTitle = STUDENTS_SHEET_TITLE;
-
-  // 1. Ensure headers exist in Students tab
-  await ensureSheetHeaders(spreadsheetId, sheetTitle, STUDENTS_HEADERS, token);
-
-  const nowThai = new Date().toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-
-  // รวมโปรไฟล์จาก Parameter, Express server API และ LocalStorage
+  // รวมโปรไฟล์จาก Parameter, LocalStorage (coderkids_profile & coderkids_registered_students) และ Express server API
   const allProfilesMap = new Map<string, UserProfile>();
+
+  // 1. Add active profile from localStorage first if available
+  try {
+    const activeRaw = localStorage.getItem('coderkids_profile');
+    if (activeRaw) {
+      const activeProf = JSON.parse(activeRaw) as UserProfile;
+      if (activeProf && activeProf.name && activeProf.role !== 'admin') {
+        const key = (activeProf.contactEmail || activeProf.studentId || activeProf.name).trim().toLowerCase();
+        allProfilesMap.set(key, activeProf);
+      }
+    }
+  } catch {}
+
+  // 2. Add passed profiles
   profiles.forEach((p) => {
-    const key = (p.studentId || p.name).trim().toLowerCase();
-    allProfilesMap.set(key, p);
+    if (p && p.name && p.role !== 'admin') {
+      const key = (p.contactEmail || p.studentId || p.name).trim().toLowerCase();
+      allProfilesMap.set(key, p);
+    }
   });
 
+  // 3. Add cached registered students from localStorage
+  try {
+    const cachedStudents = JSON.parse(localStorage.getItem('coderkids_registered_students') || '[]');
+    if (Array.isArray(cachedStudents)) {
+      cachedStudents.forEach((s: any) => {
+        if (s && s.name && s.role !== 'admin') {
+          const key = (s.contactEmail || s.email || s.studentId || s.name).trim().toLowerCase();
+          if (!allProfilesMap.has(key)) {
+            allProfilesMap.set(key, s);
+          }
+        }
+      });
+    }
+  } catch {}
+
+  // 4. Add students from backend API (/api/students/list)
   try {
     const sRes = await fetch('/api/students/list');
     if (sRes.ok) {
       const sData = await sRes.json();
       if (Array.isArray(sData.students)) {
         sData.students.forEach((s: any, idx: number) => {
-          const key = (s.studentId || s.name).trim().toLowerCase();
-          if (!allProfilesMap.has(key)) {
+          const key = (s.email || s.studentId || s.name).trim().toLowerCase();
+          if (key && !allProfilesMap.has(key)) {
             allProfilesMap.set(key, {
               id: s.id || `stu_server_${idx}`,
               name: s.name,
@@ -1031,56 +1105,44 @@ export const saveMultipleProfilesToGoogleSheet = async (
     }
   } catch {}
 
-  const mergedProfiles = Array.from(allProfilesMap.values());
+  let mergedProfiles = Array.from(allProfilesMap.values());
 
-  const rows = mergedProfiles.map((p, idx) => {
-    const mockPoints = 75 + idx * 20;
-    const userLevel = Math.max(1, Math.floor(mockPoints / 75) + 1);
-    const displayName = p.name + (p.nickname ? ` (${p.nickname})` : '');
-    const displayBio = (p.bio || '') + (p.motto ? ` | คติ: ${p.motto}` : '');
-
-    return [
-      p.studentId || `1024${idx + 1}`,
-      nowThai,
-      displayName,
-      p.grade || 'ประถมศึกษาปีที่ 4/1',
-      p.school || 'โรงเรียนอนุบาลนราธิวาส',
-      `${p.avatarEmoji || '🐱'} (${p.avatarId || 'avatar_cat'})`,
-      p.selectedTitle || 'นักประดิษฐ์รุ่นเยาว์ (Junior Innovator)',
-      displayBio,
-      mockPoints,
-      `LV.${userLevel}`,
-      '3/4',
-      'ผู้พิทักษ์ข้อมูล PDPA, ยอดนักคิดอัลกอริทึม',
-      userEmail || p.contactEmail || auth.currentUser?.email || 'นักเรียน Coder Kids',
-    ];
-  });
-
-  const appendRes = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!A:M:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        range: `${sheetTitle}!A:M`,
-        majorDimension: 'ROWS',
-        values: rows,
-      }),
-    }
+  // If there are real Google-authenticated or non-default student profiles, filter out the 3 demo profiles (prof_1, prof_2, prof_3)
+  const realProfiles = mergedProfiles.filter(
+    (p) => !['prof_1', 'prof_2', 'prof_3'].includes(String(p.id))
   );
+  if (realProfiles.length > 0) {
+    mergedProfiles = realProfiles;
+  }
 
-  if (!appendRes.ok) {
-    const errData = await appendRes.json().catch(() => ({}));
-    throw new Error(errData.error?.message || `บันทึกข้อมูลหมู่ไม่สำเร็จ (HTTP ${appendRes.status})`);
+  // Upsert each profile into the Students tab via saveProfileToGoogleSheet
+  let savedCount = 0;
+  let lastError: any = null;
+  for (const p of mergedProfiles) {
+    try {
+      const pts = Number(localStorage.getItem('coderkids_points') || p.points || 75);
+      await saveProfileToGoogleSheet(
+        spreadsheetId,
+        p,
+        pts,
+        1,
+        [],
+        p.contactEmail || userEmail || auth.currentUser?.email || ''
+      );
+      savedCount++;
+    } catch (err: any) {
+      lastError = err;
+    }
+  }
+
+  if (savedCount === 0 && lastError) {
+    throw lastError;
   }
 
   return {
     success: true,
-    count: profiles.length,
-    sheetTitle,
+    count: savedCount,
+    sheetTitle: STUDENTS_SHEET_TITLE,
   };
 };
 
@@ -1265,7 +1327,7 @@ export const batchSyncLogsToGoogleSheet = async (
 ): Promise<{ success: boolean; count: number; message: string }> => {
   const token = await getAccessToken();
   if (!token) {
-    throw new Error('กรุณาลงชื่อเข้าใช้ด้วยบัญชี Google ของคุณครู/แอดมิน เพื่อรับสิทธิ์เชื่อมต่อ Google Sheets');
+    throw new Error('กรุณาลงชื่อเข้าใช้ด้วยบัญชี Google เพื่อรับสิทธิ์เชื่อมต่อ Google Sheets');
   }
 
   // 1. Get logs from localStorage
@@ -1274,7 +1336,7 @@ export const batchSyncLogsToGoogleSheet = async (
     localLogs = JSON.parse(localStorage.getItem('coderkids_classroom_logs') || '[]');
   } catch {}
 
-  // 2. Fetch logs from Express server API if available
+  // 2. Fetch logs from Express/Worker server API if available
   try {
     const sRes = await fetch('/api/logs/list');
     if (sRes.ok) {
@@ -1292,13 +1354,36 @@ export const batchSyncLogsToGoogleSheet = async (
     }
   } catch {}
 
+  // 3. If no logs exist yet, generate a current session log entry from active profile
+  if (localLogs.length === 0) {
+    try {
+      const activeRaw = localStorage.getItem('coderkids_profile');
+      const activeProf = activeRaw ? (JSON.parse(activeRaw) as UserProfile) : null;
+      const nowThai = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' }).replace('T', ' ');
+      const googleName = getCachedGoogleProfileName();
+      const studentName = googleName || activeProf?.name || auth.currentUser?.email || 'ผู้เรียน Coder Kids';
+      localLogs.push({
+        timestamp: nowThai,
+        studentName,
+        grade: activeProf?.grade || 'ป.4/1',
+        school: activeProf?.school || 'โรงเรียนอนุบาลนราธิวาส',
+        avatar: activeProf?.avatarEmoji || '🐱',
+        action: 'ลงชื่อเข้าใช้ด้วย Google และซิงก์ข้อมูลลง Google Sheet',
+        note: 'บันทึกข้อมูลผ่านระบบ Coder Kids Web App',
+        streak: `Streak ${activeProf?.streakDays || 1} วัน`,
+        activeModule: 'dashboard',
+        email: auth.currentUser?.email || activeProf?.contactEmail || '',
+      });
+    } catch {}
+  }
+
   if (localLogs.length === 0) {
     return { success: true, count: 0, message: 'ไม่มีข้อมูลประวัติเข้าเรียนที่รอซิงก์' };
   }
 
   await ensureSheetHeaders(spreadsheetId, LOGS_SHEET_TITLE, LOGS_HEADERS, token);
 
-  const rows = localLogs.map((l: any) => [
+  const rows = localLogs.slice(0, 20).map((l: any) => [
     l.timestamp || '',
     l.studentName || '',
     l.grade || 'ป.4/1',
@@ -1410,17 +1495,16 @@ export interface UniversalSyncResult {
 
 /**
  * Universal Sync: ซิงก์ข้อมูลทั้งหมด (ทั้งนักเรียนลงแท็บ Students และประวัติการเข้าเรียนลงแท็บ Logs)
- * พร้อมระบบสำรองข้อมูลลงเซิร์ฟเวอร์ Express อัตโนมัติ ป้องกันข้อมูลสูญหาย
  */
 export const syncAllToGoogleSheet = async (
   spreadsheetId: string = TARGET_SPREADSHEET_ID,
   profiles: UserProfile[] = []
 ): Promise<UniversalSyncResult> => {
-  // 1. สำรองข้อมูลนักเรียนลงเซิร์ฟเวอร์ Express เสมอ
+  // 1. สำรองข้อมูลนักเรียนลงเซิร์ฟเวอร์ API เสมอ
   let serverSavedCount = 0;
   try {
     for (const p of profiles) {
-      if (p && p.name && !String(p.id).startsWith('prof_')) {
+      if (p && p.name && !['prof_1', 'prof_2', 'prof_3'].includes(String(p.id))) {
         await fetch('/api/students/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1434,7 +1518,7 @@ export const syncAllToGoogleSheet = async (
             avatarId: p.avatarId,
             avatarEmoji: p.avatarEmoji,
             points: p.points || 50,
-            email: p.contactEmail || '',
+            email: p.contactEmail || auth.currentUser?.email || '',
             bio: p.bio,
             role: p.role,
           }),
@@ -1443,77 +1527,100 @@ export const syncAllToGoogleSheet = async (
       }
     }
   } catch (e) {
-    console.warn('Backup profiles to Express warning:', e);
+    console.warn('Backup profiles to server warning:', e);
   }
 
-  // 2. ตรวจสอบสิทธิ์ Google Sheets OAuth Token (ไม่บังคับเปิดป๊อปอัปซ้ำเพื่อป้องกัน 403 access_denied)
-  const token = await getAccessToken();
+  // 2. ตรวจสอบ OAuth Token สำหรับเขียนลง Google Sheets API
+  let token = await getAccessToken();
 
-  // 3. หากยังไม่มี OAuth Token ของ Sheets API ให้ส่งข้อมูลผ่าน Google Apps Script Web App (หากตั้งค่าไว้) และบันทึกในเซิร์ฟเวอร์เรียบร้อย
+  // หากยังไม่มี Token ให้ขอสิทธิ์ผ่าน Google Sign-In พร้อม Spreadsheets Scope
   if (!token) {
-    let localLogsCount = 0;
-    let localLogs: any[] = [];
     try {
-      const parsed = JSON.parse(localStorage.getItem('coderkids_classroom_logs') || '[]');
-      if (Array.isArray(parsed)) {
-        localLogs = parsed;
-        localLogsCount = parsed.length;
-      }
-    } catch {}
-
-    // ลองส่งผ่าน Google Apps Script Web App URL หากผู้ใช้ตั้งค่าไว้
-    try {
-      const gasUrl = localStorage.getItem('coderkids_gas_webapp_url');
-      if (gasUrl && gasUrl.startsWith('https://script.google.com/')) {
-        await fetch(gasUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'syncAll',
-            spreadsheetId,
-            students: profiles,
-            logs: localLogs.slice(0, 50),
-          }),
-        });
-        return {
-          success: true,
-          directSheetWrite: true,
-          requiresAuth: false,
-          studentsCount: profiles.length || serverSavedCount,
-          logsCount: localLogsCount,
-          message: `ซิงก์ข้อมูลนักเรียน ${profiles.length || serverSavedCount} คน และประวัติเข้าเรียน ${localLogsCount} รายการ ผ่าน Google Apps Script ลงชีตเรียบร้อยแล้ว!`,
-        };
-      }
-    } catch (gasErr) {
-      console.warn('GAS WebApp sync fallback:', gasErr);
+      const signInRes = await googleSignIn(true);
+      token = signInRes?.accessToken || null;
+    } catch (authErr) {
+      console.warn('Google Sign-In for Sheets sync:', authErr);
     }
+  }
 
+  if (!token) {
     return {
-      success: true,
-      directSheetWrite: true,
-      requiresAuth: false,
-      studentsCount: profiles.length || serverSavedCount,
-      logsCount: localLogsCount,
-      message: `บันทึกข้อมูลนักเรียน (${profiles.length || serverSavedCount} คน) และประวัติเข้าเรียน (${localLogsCount} รายการ) ในระบบคลาวด์เรียบร้อยแล้ว!`,
+      success: false,
+      directSheetWrite: false,
+      requiresAuth: true,
+      studentsCount: 0,
+      logsCount: 0,
+      message: `⚠️ ยังไม่ได้รับสิทธิ์เชื่อมต่อ Google Sheets กรุณากดลงชื่อเข้าใช้ด้วยบัญชี Google และอนุญาตสิทธิ์ Google Sheets เพื่อบันทึกข้อมูลลงชีต`,
     };
   }
 
-  // 4. หากมี Token ให้ซิงก์ตรงสู่ Google Sheets
+  // 3. ซิงก์ตรงสู่ Google Sheets (แท็บ Students และ Logs)
   let studentsCount = 0;
+  let logsCount = 0;
+  let sheetWriteError: string | null = null;
+
   try {
-    const sResult = await saveMultipleProfilesToGoogleSheet(spreadsheetId, profiles);
+    const sResult = await saveMultipleProfilesToGoogleSheet(
+      spreadsheetId,
+      profiles,
+      auth.currentUser?.email || ''
+    );
     studentsCount = sResult.count;
   } catch (sErr: any) {
-    console.warn('Sync students error:', sErr);
+    const errMsg = sErr?.message || '';
+    console.warn('Sync students error:', errMsg);
+    // If token expired or lacked scope, re-authenticate once with teacherSheetsProvider
+    if (
+      errMsg.includes('401') ||
+      errMsg.includes('UNAUTHENTICATED') ||
+      errMsg.includes('insufficient authentication scopes') ||
+      errMsg.includes('ACCESS_TOKEN_SCOPE_INSUFFICIENT')
+    ) {
+      try {
+        const refreshed = await googleSignIn(true);
+        if (refreshed?.accessToken) {
+          const retryRes = await saveMultipleProfilesToGoogleSheet(
+            spreadsheetId,
+            profiles,
+            auth.currentUser?.email || ''
+          );
+          studentsCount = retryRes.count;
+        }
+      } catch (retryErr: any) {
+        sheetWriteError = retryErr?.message || errMsg;
+      }
+    } else {
+      sheetWriteError = errMsg;
+    }
   }
 
-  let logsCount = 0;
   try {
     const lResult = await batchSyncLogsToGoogleSheet(spreadsheetId);
     logsCount = lResult.count;
   } catch (lErr: any) {
     console.warn('Sync logs error:', lErr);
+    if (!sheetWriteError) {
+      sheetWriteError = lErr?.message || '';
+    }
+  }
+
+  if (studentsCount === 0 && logsCount === 0 && sheetWriteError) {
+    const currentEmail = auth.currentUser?.email || 'บัญชีที่ล็อกอิน';
+    const isPermissionDenied =
+      sheetWriteError.includes('403') ||
+      sheetWriteError.includes('permission') ||
+      sheetWriteError.includes('PERMISSION_DENIED');
+
+    return {
+      success: false,
+      directSheetWrite: false,
+      requiresAuth: false,
+      studentsCount: 0,
+      logsCount: 0,
+      message: isPermissionDenied
+        ? `⚠️ บันทึกลง Google Sheet ไม่สำเร็จ: บัญชี "${currentEmail}" ยังไม่มีสิทธิ์แก้ไข (Editor) ในไฟล์ Google Sheet (${spreadsheetId}) กรุณาเปิดไฟล์ Google Sheet ➔ กดปุ่ม "แชร์ (Share)" ➔ ตั้งค่าให้ "โรงเรียนอนุบาลนราธิวาส" หรือ "ทุกคนที่มีลิงก์" เป็น "เอดิเตอร์ (Editor / แก้ไขได้)"`
+        : `⚠️ บันทึกลง Google Sheet ไม่สำเร็จ (${sheetWriteError})`,
+    };
   }
 
   return {
@@ -1522,6 +1629,6 @@ export const syncAllToGoogleSheet = async (
     requiresAuth: false,
     studentsCount,
     logsCount,
-    message: `ซิงก์ข้อมูลลง Google Sheet สำเร็จเรียบร้อย! (บันทึกนักเรียน ${studentsCount} คน ลงแท็บ Students และประวัติเข้าเรียน ${logsCount} รายการ ลงแท็บ Logs)`,
+    message: `ซิงก์ข้อมูลลง Google Sheet สำเร็จเรียบร้อย! (บันทึกผู้เรียน ${studentsCount} คน ลงแท็บ Students และบันทึกก้าวหน้า ${logsCount} รายการ ลงแท็บ Logs)`,
   };
 };

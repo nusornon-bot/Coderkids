@@ -144,13 +144,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setUnauthorizedDomain(null);
 
     try {
-      // Step 1: Authenticate identity strictly via Google OAuth Popup
-      const res = await googleSignIn(false);
+      // Step 1: Authenticate identity strictly via Google OAuth Popup (with Profile, Email & Sheets scopes)
+      const res = await googleSignIn(true);
       if (!res || !res.user) {
         setIsLoading(false);
         return;
       }
       const userEmail = (res.user.email || '').trim().toLowerCase();
+      const googleDisplayName = (
+        res.googleProfileName ||
+        res.user.displayName ||
+        res.user.providerData?.find((p) => p?.displayName)?.displayName ||
+        ''
+      ).trim();
 
       if (!userEmail) {
         await googleLogout();
@@ -164,8 +170,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         fetchTeachersFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => [] as TeacherRecord[]),
         fetchStudentsFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => ({
           students: [] as UserProfile[],
-          syncedCount: 0,
-          message: '',
+          rawRows: [] as string[][],
         })),
       ]);
 
@@ -174,8 +179,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const isTeacherAdmin = teacherCheck.isAdmin;
       const matchedTeacherName = teacherCheck.matchedTeacher?.name;
 
-      // Step 4: Check if the Google-verified email is in the Students tab
+      // Step 4: Check if the Google-verified email is in the Students tab or school domain (@anubalnara.ac.th)
       const emailPrefix = userEmail.split('@')[0];
+      const isSchoolDomain = userEmail.endsWith(`@${SCHOOL_DOMAIN}`);
       const sheetStudents = studentsRes.students.length > 0 ? studentsRes.students : profiles;
       const matchedStudentFromSheet = sheetStudents.find((s) => {
         const sEmail = (s.contactEmail || '').trim().toLowerCase();
@@ -183,12 +189,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         return (
           (sEmail && sEmail === userEmail) ||
           (sId && `${sId}@${SCHOOL_DOMAIN}` === userEmail) ||
-          (sId && userEmail.endsWith(`@${SCHOOL_DOMAIN}`) && sId === emailPrefix)
+          (sId && isSchoolDomain && sId === emailPrefix)
         );
       });
 
-      // Step 5: Deny access if the verified Google email is NOT found in Teachers or Students in the Google Sheet
-      if (!isTeacherAdmin && !matchedStudentFromSheet) {
+      // Step 5: Deny access if the verified Google email is NOT in Teachers, NOT in Students, and NOT @anubalnara.ac.th
+      if (!isTeacherAdmin && !matchedStudentFromSheet && !isSchoolDomain) {
         await googleLogout();
         setErrorMsg(
           `⚠️ ปฏิเสธการเข้าถึง: บัญชี Google "${userEmail}" ผ่านการยืนยันตัวตนจาก Google แล้ว แต่ไม่พบอีเมลนี้ในฐานข้อมูล Google Sheet (แท็บ ${TEACHERS_SHEET_TITLE} หรือ ${STUDENTS_SHEET_TITLE}) กรุณาตรวจสอบว่าอีเมลของคุณถูกเพิ่มลงใน Google Sheet ของโรงเรียนแล้ว`
@@ -197,16 +203,47 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         return;
       }
 
-      // Step 6: Build verified user profile from Google Sheet match
+      // Step 6: Build verified user profile using Google Profile Name (res.googleProfileName / displayName)
       let verifiedProfile: UserProfile;
       if (isTeacherAdmin) {
         verifiedProfile = getAdminProfileData(
           userEmail,
-          matchedTeacherName || res.user.displayName || undefined
+          googleDisplayName || matchedTeacherName || undefined
         );
       } else {
+        const sheetRealName =
+          matchedStudentFromSheet?.name && !matchedStudentFromSheet.name.startsWith('นักเรียน (')
+            ? matchedStudentFromSheet.name.trim()
+            : '';
+        const finalName = googleDisplayName || sheetRealName || emailPrefix;
+        const finalNickname =
+          (matchedStudentFromSheet?.nickname && matchedStudentFromSheet.nickname !== emailPrefix
+            ? matchedStudentFromSheet.nickname
+            : '') ||
+          (googleDisplayName ? googleDisplayName.split(' ')[0] : '');
+
         verifiedProfile = {
-          ...matchedStudentFromSheet!,
+          ...(matchedStudentFromSheet || {
+            id: `student_${emailPrefix}`,
+            studentId: emailPrefix,
+            school: 'โรงเรียนอนุบาลนราธิวาส',
+            grade: 'ประถมศึกษาปีที่ 4/1',
+            bio: 'พร้อมเริ่มต้นเรียนรู้วิทยาการคำนวณและสะสมแต้มผลงาน',
+            motto: 'เขียนโค้ดวันละนิด จิตแจ่มใส บั๊กหายวับ!',
+            avatarId: 'avatar_cat',
+            avatarEmoji: '🐱',
+            themeColor: 'indigo',
+            codingLevel: 'Intermediate',
+            techInterests: ['Scratch Game', 'Micro:bit IoT', 'Cyber Security'],
+            selectedTitle: 'นักประดิษฐ์รุ่นเยาว์ (Junior Innovator)',
+            joinedDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }),
+            streakDays: 1,
+            unlockedRewardIds: ['title_junior'],
+          }),
+          id: matchedStudentFromSheet?.id || `student_${emailPrefix}`,
+          studentId: matchedStudentFromSheet?.studentId || emailPrefix,
+          name: finalName,
+          nickname: finalNickname,
           contactEmail: userEmail,
           role: 'student',
         };
@@ -214,27 +251,26 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
       localStorage.setItem('coderkids_sync_to_sheets', 'sync');
 
-      // Step 7: Record verified Google login to Google Sheet (Logs & Students)
+      // Step 7: Immediately save/update Student Profile and Login Log to Google Sheet (Students & Logs tabs)
       try {
+        await saveProfileToGoogleSheet(
+          TARGET_SPREADSHEET_ID,
+          verifiedProfile,
+          75,
+          verifiedProfile.streakDays || 1,
+          [],
+          userEmail
+        ).catch((err) => console.warn('Save profile to Students tab on login:', err));
+
         await recordStudentLoginToGoogleSheet(
           TARGET_SPREADSHEET_ID,
           verifiedProfile,
           userEmail,
           isTeacherAdmin
             ? 'ครู/แอดมิน ยืนยันตัวตนผ่าน Google OAuth และตรวจสอบสิทธิ์จาก Google Sheet (Teachers)'
-            : 'นักเรียน ยืนยันตัวตนผ่าน Google OAuth และตรวจสอบรายชื่อจาก Google Sheet (Students)',
+            : 'นักเรียน ยืนยันตัวตนผ่าน Google OAuth และบันทึกข้อมูลลง Google Sheet (Students & Logs)',
           getModuleName(pendingDestinationModule)
-        );
-        if (!isTeacherAdmin) {
-          await saveProfileToGoogleSheet(
-            TARGET_SPREADSHEET_ID,
-            verifiedProfile,
-            70,
-            verifiedProfile.streakDays || 1,
-            [],
-            userEmail
-          ).catch(() => {});
-        }
+        ).catch((err) => console.warn('Record login to Logs tab on login:', err));
       } catch (sheetErr) {
         console.warn('Google Sheet background login recording:', sheetErr);
       }

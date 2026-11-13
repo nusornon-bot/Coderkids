@@ -225,13 +225,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setIsSyncingSheet(true);
     setSyncStatusMsg({ text: 'กำลังเชื่อมต่อและบันทึกข้อมูลลง Google Sheet...', type: 'info' });
     try {
-      const res = await syncAllToGoogleSheet(TARGET_SPREADSHEET_ID, profiles && profiles.length > 0 ? profiles : [profile]);
-      setSyncStatusMsg({ text: res.message, type: res.directSheetWrite ? 'success' : 'info' });
-      confetti({ particleCount: 65, spread: 75, origin: { y: 0.6 } });
-      soundEffects.play('badge');
+      const profilesToSync = [
+        profile,
+        ...(profiles || []).filter((p) => p.id !== profile.id),
+      ];
+      const res = await syncAllToGoogleSheet(TARGET_SPREADSHEET_ID, profilesToSync);
+      setSyncStatusMsg({
+        text: res.message,
+        type: res.directSheetWrite ? 'success' : res.success ? 'info' : 'error',
+      });
+      if (res.directSheetWrite) {
+        confetti({ particleCount: 65, spread: 75, origin: { y: 0.6 } });
+        soundEffects.play('badge');
+      }
     } catch (err: any) {
       console.warn('Dashboard sync warning:', err);
-      setSyncStatusMsg({ text: 'บันทึกข้อมูลในระบบเรียบร้อยแล้ว (สามารถลงชื่อเข้าใช้ด้วย Google เพื่อเชื่อมต่อ Google Sheet)', type: 'info' });
+      setSyncStatusMsg({
+        text: err?.message || 'บันทึกข้อมูลลง Google Sheet ไม่สำเร็จ กรุณาตรวจสอบการลงชื่อเข้าใช้ด้วย Google และสิทธิ์แก้ไข (Editor) ของไฟล์ชีต',
+        type: 'error',
+      });
     } finally {
       setIsSyncingSheet(false);
     }

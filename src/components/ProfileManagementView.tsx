@@ -364,13 +364,20 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
     setIsLoggingIn(true);
     setStatusMsg(null);
     try {
-      const res = await googleSignIn(false);
+      const res = await googleSignIn(true);
       if (!res) {
         setIsLoggingIn(false);
         return;
       }
 
       const userEmail = (res.user.email || '').trim().toLowerCase();
+      const googleDisplayName = (
+        res.googleProfileName ||
+        res.user.displayName ||
+        res.user.providerData?.find((p) => p?.displayName)?.displayName ||
+        ''
+      ).trim();
+
       if (!userEmail) {
         await googleLogout();
         setStatusMsg({
@@ -386,8 +393,7 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
         fetchTeachersFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => teachers),
         fetchStudentsFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => ({
           students: profiles,
-          syncedCount: 0,
-          message: '',
+          rawRows: [] as string[][],
         })),
       ]);
 
@@ -396,17 +402,18 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
 
       const check = checkIsTeacherAdmin(userEmail, activeTeachers);
       const emailPrefix = userEmail.split('@')[0];
+      const isSchoolDomain = userEmail.endsWith('@anubalnara.ac.th');
       const matchedStudent = activeStudents.find((s) => {
         const sEmail = (s.contactEmail || '').trim().toLowerCase();
         const sId = (s.studentId || '').trim().toLowerCase();
         return (
           (sEmail && sEmail === userEmail) ||
           (sId && `${sId}@anubalnara.ac.th` === userEmail) ||
-          (sId && userEmail.endsWith('@anubalnara.ac.th') && sId === emailPrefix)
+          (sId && isSchoolDomain && sId === emailPrefix)
         );
       });
 
-      if (!check.isAdmin && !matchedStudent) {
+      if (!check.isAdmin && !matchedStudent && !isSchoolDomain) {
         await googleLogout();
         setCurrentUser(null);
         setStatusMsg({
@@ -422,17 +429,43 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
       if (check.isAdmin) {
         if (onToggleAdmin) onToggleAdmin(true);
         setStatusMsg({
-          text: `ยืนยันตัวตนผ่าน Google และตรวจสอบสิทธิ์ครู/แอดมินสำเร็จจากแท็บ Teachers! (${userEmail})`,
+          text: `ยืนยันตัวตนผ่าน Google และตรวจสอบสิทธิ์ครู/แอดมินสำเร็จจากแท็บ Teachers! (${googleDisplayName || userEmail})`,
           type: 'success',
         });
-      } else if (matchedStudent) {
-        if (onSelectProfile) {
-          onSelectProfile(matchedStudent.id);
-        } else {
-          onUpdateProfile({ ...matchedStudent, contactEmail: userEmail });
-        }
+      } else {
+        const sheetRealName =
+          matchedStudent?.name && !matchedStudent.name.startsWith('นักเรียน (')
+            ? matchedStudent.name.trim()
+            : '';
+        const finalName = googleDisplayName || sheetRealName || emailPrefix;
+        const finalNickname =
+          (matchedStudent?.nickname && matchedStudent.nickname !== emailPrefix
+            ? matchedStudent.nickname
+            : '') ||
+          (googleDisplayName ? googleDisplayName.split(' ')[0] : '');
+
+        const studentProfileToSave: UserProfile = {
+          ...(matchedStudent || profile),
+          id: matchedStudent?.id || `student_${emailPrefix}`,
+          studentId: matchedStudent?.studentId || emailPrefix,
+          name: finalName,
+          nickname: finalNickname,
+          contactEmail: userEmail,
+          role: 'student',
+        };
+
+        onUpdateProfile(studentProfileToSave);
+        await saveProfileToGoogleSheet(
+          TARGET_SPREADSHEET_ID,
+          studentProfileToSave,
+          points || 75,
+          studentProfileToSave.streakDays || 1,
+          [],
+          userEmail
+        ).catch(() => {});
+
         setStatusMsg({
-          text: `ยืนยันตัวตนผ่าน Google และพบข้อมูลนักเรียนในแท็บ Students สำเร็จ: ${matchedStudent.name} (${userEmail})`,
+          text: `เข้าสู่ระบบด้วยบัญชี Google สำเร็จ: ${finalName} (${userEmail}) และบันทึกข้อมูลลงแท็บ Students แล้ว!`,
           type: 'success',
         });
       }
@@ -440,11 +473,13 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
       // Record verified login entry to tab "Logs"
       await recordStudentLoginToGoogleSheet(
         TARGET_SPREADSHEET_ID,
-        matchedStudent || profile,
+        matchedStudent
+          ? { ...matchedStudent, name: googleDisplayName || matchedStudent.name, contactEmail: userEmail }
+          : { ...profile, name: googleDisplayName || profile.name, contactEmail: userEmail },
         userEmail,
         check.isAdmin
           ? 'ครู/แอดมิน ยืนยันตัวตนผ่าน Google OAuth (ตรวจสอบจากแท็บ Teachers)'
-          : 'นักเรียน ยืนยันตัวตนผ่าน Google OAuth (ตรวจสอบจากแท็บ Students)',
+          : 'นักเรียน ยืนยันตัวตนผ่าน Google OAuth (บันทึกข้อมูลลงแท็บ Students & Logs)',
         'profileManage'
       );
 

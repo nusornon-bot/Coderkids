@@ -549,7 +549,8 @@ export default function App() {
     setIsSyncing(true);
     soundEffects.play('tick');
     try {
-      const res = await syncAllToGoogleSheet(TARGET_SPREADSHEET_ID, profiles);
+      const profilesToSync = [profile, ...profiles.filter((p) => p.id !== profile.id)];
+      const res = await syncAllToGoogleSheet(TARGET_SPREADSHEET_ID, profilesToSync);
       const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
       setLastSyncTime(timeStr);
       localStorage.setItem('coderkids_last_sync_time', timeStr);
@@ -875,12 +876,35 @@ export default function App() {
   };
 
   const handleLoginSuccess = (selectedProfile: UserProfile, googleUser?: any) => {
+    const googleDisplayName = (
+      googleUser?.displayName ||
+      googleUser?.providerData?.find?.((p: any) => p?.displayName)?.displayName ||
+      localStorage.getItem('coderkids_google_profile_name') ||
+      ''
+    ).trim();
+
+    const finalProfile: UserProfile = {
+      ...selectedProfile,
+      name:
+        googleDisplayName && (!selectedProfile.name || selectedProfile.name.startsWith('นักเรียน ('))
+          ? googleDisplayName
+          : selectedProfile.name,
+      nickname:
+        googleDisplayName && (!selectedProfile.nickname || selectedProfile.nickname === selectedProfile.studentId)
+          ? googleDisplayName.split(' ')[0]
+          : selectedProfile.nickname,
+    };
+
     setIsLoggedIn(true);
-    setProfile(selectedProfile);
+    setProfile(finalProfile);
     setProfiles((prev) => {
-      const exists = prev.some((p) => p.id === selectedProfile.id);
-      if (!exists) return [selectedProfile, ...prev];
-      return prev.map((p) => (p.id === selectedProfile.id ? selectedProfile : p));
+      const filtered = prev.filter(
+        (p) =>
+          p.id !== finalProfile.id &&
+          !(finalProfile.studentId && p.studentId === finalProfile.studentId) &&
+          !(finalProfile.contactEmail && p.contactEmail?.toLowerCase() === finalProfile.contactEmail.toLowerCase())
+      );
+      return [finalProfile, ...filtered];
     });
 
     if (pendingDestinationModule) {
@@ -1234,20 +1258,50 @@ export default function App() {
       }
     });
 
-    // 3. ติดตามสถานะ Firebase Auth
+    // 3. ติดตามสถานะ Firebase Auth และอัปเดตชื่อโปรไฟล์จาก Google Account จริง
     const unsub = initAuth((user) => {
       if (user?.email) {
+        const googleName = (
+          user.displayName ||
+          user.providerData?.find((p) => p?.displayName)?.displayName ||
+          localStorage.getItem('coderkids_google_profile_name') ||
+          ''
+        ).trim();
+        const emailPrefix = user.email.split('@')[0];
+
         const check = checkIsTeacherAdmin(user.email, teachersList);
         if (check.isAdmin) {
-          // แสดงโปรไฟล์ของแอดมิน
-          const adminProf = getAdminProfileData(user.email, check.matchedTeacher?.name || user.displayName || undefined);
+          // แสดงโปรไฟล์ของแอดมินพร้อมชื่อจริงจาก Google หรือแท็บ Teachers
+          const adminProf = getAdminProfileData(
+            user.email,
+            googleName || check.matchedTeacher?.name || undefined
+          );
           setProfile(adminProf);
           setProfiles((prev) => {
             const exists = prev.some((p) => p.id === adminProf.id);
-            return exists ? prev : [adminProf, ...prev];
+            return exists ? prev.map((p) => (p.id === adminProf.id ? adminProf : p)) : [adminProf, ...prev];
           });
         } else {
-          setProfile((prev) => ({ ...prev, contactEmail: user.email || undefined, role: 'student' }));
+          setProfile((prev) => {
+            const shouldReplaceName =
+              Boolean(googleName) &&
+              (!prev.name ||
+                prev.name.startsWith('นักเรียน (') ||
+                prev.name === emailPrefix ||
+                prev.id === 'prof_1');
+            const updatedName = shouldReplaceName ? googleName : prev.name;
+            const updatedNickname =
+              shouldReplaceName && googleName ? googleName.split(' ')[0] : prev.nickname;
+            return {
+              ...prev,
+              id: prev.id === 'prof_1' ? `student_${emailPrefix}` : prev.id,
+              studentId: prev.id === 'prof_1' ? emailPrefix : prev.studentId || emailPrefix,
+              name: updatedName,
+              nickname: updatedNickname,
+              contactEmail: user.email || undefined,
+              role: 'student',
+            };
+          });
         }
       }
     });
