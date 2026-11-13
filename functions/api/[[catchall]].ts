@@ -2,6 +2,7 @@
  * Cloudflare Pages Functions API route handler
  * Automatically executes for any /api/* request when deployed on Cloudflare Pages
  */
+import { GoogleGenAI } from '@google/genai';
 
 export interface KVNamespace {
   get: (key: string) => Promise<string | null>;
@@ -43,7 +44,16 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  // 1. AI TUTOR CHAT API
+  // 0. HEALTH CHECK ENDPOINT
+  if (url.pathname === '/api/health' && request.method === 'GET') {
+    return jsonResponse({
+      status: 'ok',
+      runtime: 'cloudflare-pages-functions',
+      geminiConfigured: Boolean(env.GEMINI_API_KEY),
+    });
+  }
+
+  // 1. AI TUTOR CHAT API (Server-side Gemini API using GEMINI_API_KEY secret)
   if (url.pathname === '/api/tutor' && request.method === 'POST') {
     try {
       const body = (await request.json().catch(() => ({}))) as any;
@@ -61,11 +71,11 @@ export async function onRequest(context: { request: Request; env: Env }): Promis
         });
       }
 
-      const systemInstructionText = `คุณคือ "ครูพี่โค้ดดิ้ง (Coder Kids AI Tutor)" ผู้ช่วยสอนวิชาวิทยาการคำนวณสำหรับนักเรียน ป.4-ป.6 สพฐ. และ สสวท.
+      const systemInstruction = `คุณคือ "ครูพี่โค้ดดิ้ง (Coder Kids AI Tutor)" ผู้ช่วยสอนวิชาวิทยาการคำนวณสำหรับนักเรียน ป.4-ป.6 สพฐ. และ สสวท.
 ใจดี อบอุ่น เป็นมิตร ตอบสั้น กระชับ มีตัวอย่างบล็อกคำสั่ง Scratch หรือคำสั่ง Micro:bit เข้าใจง่าย ใช้อิโมจิประกอบ
 ${studentContext ? `บริบทผู้เรียน: ${studentContext.name || 'ผู้เรียน'}, แต้ม: ${studentContext.points || 0}` : ''}`;
 
-      const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+      const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
 
       if (Array.isArray(history)) {
         for (const item of history.slice(-8)) {
@@ -83,26 +93,24 @@ ${studentContext ? `บริบทผู้เรียน: ${studentContext.na
         parts: [{ text: message }],
       });
 
-      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-      const apiRes = await fetch(geminiEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          systemInstruction: { parts: [{ text: systemInstructionText }] },
-          generationConfig: { temperature: 0.7, maxOutputTokens: 1000 },
-        }),
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
       });
 
-      if (!apiRes.ok) {
-        return jsonResponse({
-          reply: 'ครูพี่โค้ดดิ้งยินดีช่วยเหลือเสมอ! มีข้อสงสัยเกี่ยวกับโค้ดดิ้ง สอบถามได้เลยนะครับ 🤖✨',
-        });
-      }
+      const response = await ai.models.generateContent({
+        model: 'gemini-4-hydrogen',
+        contents,
+        config: {
+          systemInstruction,
+        },
+      });
 
-      const apiJson = (await apiRes.json()) as any;
-      const reply = apiJson.candidates?.[0]?.content?.parts?.[0]?.text || 'ครูพี่โค้ดดิ้งพร้อมตอบคำถามเสมอครับ 🚀';
+      const reply = response.text || 'ครูพี่โค้ดดิ้งพร้อมตอบคำถามเสมอครับ 🚀';
       return jsonResponse({ reply });
     } catch {
       return jsonResponse({

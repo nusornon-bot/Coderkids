@@ -3,6 +3,7 @@
  * Handles server-side Gemini AI Tutor API and persistent student/log endpoints
  * Fully compatible with Cloudflare Workers (Static Assets) and Cloudflare Pages
  */
+import { GoogleGenAI } from '@google/genai';
 
 export interface KVNamespace {
   get: (key: string) => Promise<string | null>;
@@ -22,7 +23,7 @@ export interface Env {
   ASSETS?: { fetch: (request: Request) => Promise<Response> };
 }
 
-// In-memory memory fallback if KV namespaces are not bound
+// In-memory fallback if KV namespaces are not bound
 const inMemoryLogs: any[] = [];
 const inMemoryStudents: any[] = [];
 
@@ -43,7 +44,7 @@ function jsonResponse(data: any, status: number = 200): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: Env, _ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     // Handle CORS preflight
@@ -53,7 +54,16 @@ export default {
 
     // ------------------ API ROUTES ------------------
     if (url.pathname.startsWith('/api/')) {
-      // 1. AI TUTOR CHAT API
+      // 0. HEALTH CHECK ENDPOINT
+      if (url.pathname === '/api/health' && request.method === 'GET') {
+        return jsonResponse({
+          status: 'ok',
+          runtime: 'cloudflare-workers',
+          geminiConfigured: Boolean(env.GEMINI_API_KEY),
+        });
+      }
+
+      // 1. AI TUTOR CHAT API (Server-side Gemini API using GEMINI_API_KEY secret)
       if (url.pathname === '/api/tutor' && request.method === 'POST') {
         try {
           const body = (await request.json().catch(() => ({}))) as any;
@@ -83,8 +93,8 @@ export default {
             return jsonResponse({ reply });
           }
 
-          // Call Google Gemini REST API server-side
-          const systemInstructionText = `คุณคือ "ครูพี่โค้ดดิ้ง (Coder Kids AI Tutor)" ผู้ช่วยสอนและที่ปรึกษาโครงงานวิชาวิทยาการคำนวณและเทคโนโลยี (สพฐ. และ สสวท.) สำหรับนักเรียนชั้นประถมศึกษาและมัธยมศึกษาตอนต้น
+          // Server-side Gemini call using @google/genai SDK
+          const systemInstruction = `คุณคือ "ครูพี่โค้ดดิ้ง (Coder Kids AI Tutor)" ผู้ช่วยสอนและที่ปรึกษาโครงงานวิชาวิทยาการคำนวณและเทคโนโลยี (สพฐ. และ สสวท.) สำหรับนักเรียนชั้นประถมศึกษาและมัธยมศึกษาตอนต้น
 บุคลิกภาพ: อบอุ่น ใจดี เป็นมิตร สนุกสนาน แทนตัวเองว่า "ครูพี่โค้ดดิ้ง" และเรียกผู้เรียนอย่างน่ารัก เช่น "น้องๆ", "น้องคนเก่ง"
 ความรู้ใน 4 โมดูลหลัก:
 1. ความปลอดภัยดิจิทัล & PDPA
@@ -94,7 +104,7 @@ export default {
 ใช้อิโมจิน่ารักประกอบการอธิบาย สั้น กระชับ เข้าใจง่าย
 ${studentContext ? `\nข้อมูลบริบทผู้เรียน: ชื่อ: ${studentContext.name || 'ผู้เรียน'}, ชั้น: ${studentContext.grade || 'ป.4-ป.6'}, แต้ม: ${studentContext.points || 0}` : ''}`;
 
-          const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+          const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
 
           if (Array.isArray(history)) {
             for (const item of history.slice(-8)) {
@@ -112,38 +122,24 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
             parts: [{ text: message }],
           });
 
-          // Server-side call to Google Generative Language REST API (Using gemini-2.5-flash / gemini-1.5-flash)
-          const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-
-          const apiRes = await fetch(geminiEndpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
+          const ai = new GoogleGenAI({
+            apiKey,
+            httpOptions: {
+              headers: {
+                'User-Agent': 'aistudio-build',
+              },
             },
-            body: JSON.stringify({
-              contents,
-              systemInstruction: {
-                parts: [{ text: systemInstructionText }],
-              },
-              generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 1000,
-              },
-            }),
           });
 
-          if (!apiRes.ok) {
-            const errData = (await apiRes.json().catch(() => ({}))) as any;
-            console.error('Gemini REST API error:', errData);
-            return jsonResponse({
-              reply: 'สวัสดีครับน้องๆ! ครูพี่โค้ดดิ้งพร้อมช่วยเหลือเรื่องบทเรียนวิทยาการคำนวณเสมอ ลองพิมพ์สอบถามเรื่อง Scratch หรือ Micro:bit ได้เลยครับ! 🤖✨',
-            });
-          }
+          const response = await ai.models.generateContent({
+            model: 'gemini-4-hydrogen',
+            contents,
+            config: {
+              systemInstruction,
+            },
+          });
 
-          const apiJson = (await apiRes.json()) as any;
-          const candidateText = apiJson.candidates?.[0]?.content?.parts?.[0]?.text;
-          const reply = candidateText || 'ขออภัยครับ ครูพี่โค้ดดิ้งกำลังประมวลผล ลองถามคำถามใหม่อีกครั้งนะครับ! 🤖';
-
+          const reply = response.text || 'ขออภัยครับ ครูพี่โค้ดดิ้งกำลังประมวลผล ลองถามคำถามใหม่อีกครั้งนะครับ! 🤖';
           return jsonResponse({ reply });
         } catch (err: any) {
           console.error('Cloudflare Worker Tutor Error:', err);

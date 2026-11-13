@@ -37,14 +37,25 @@ const host = '0.0.0.0';
 
 app.use(express.json());
 
-// Initialize Gemini Client via @google/genai SDK
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Helper to get Gemini Client via @google/genai SDK (server-side only)
+function getGeminiClient(apiKey: string) {
+  return new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      },
     },
-  },
+  });
+}
+
+// ------------------ HEALTH CHECK ENDPOINT ------------------
+app.get('/api/health', (_req, res) => {
+  return res.json({
+    status: 'ok',
+    runtime: 'node-express',
+    geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
+  });
 });
 
 // ------------------ AI TUTOR CHAT API ROUTE ------------------
@@ -56,8 +67,10 @@ app.post('/api/tutor', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
+    const apiKey = process.env.GEMINI_API_KEY;
+
     // If GEMINI_API_KEY is not configured yet, provide immediate friendly educational response
-    if (!process.env.GEMINI_API_KEY) {
+    if (!apiKey) {
       const lower = message.toLowerCase();
       let reply = 'สวัสดีครับน้องๆ! ครูพี่โค้ดดิ้งพร้อมช่วยตอบคำถามเสมอนะครับ 🤖✨\n\n';
       if (lower.includes('pdpa') || lower.includes('ความปลอดภัย') || lower.includes('รหัสผ่าน') || lower.includes('ส่วนตัว')) {
@@ -110,16 +123,17 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน�
       parts: [{ text: message }],
     });
 
+    const ai = getGeminiClient(apiKey);
+
     const timeoutPromise = new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Gemini API timeout')), 8000)
     );
 
     const generatePromise = ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-4-hydrogen',
       contents,
       config: {
         systemInstruction,
-        temperature: 0.7,
       },
     });
 
