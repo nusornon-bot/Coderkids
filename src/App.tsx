@@ -1416,6 +1416,7 @@ export default function App() {
             profiles={profiles}
             moduleProgress={moduleProgress}
             points={points}
+            transactions={transactions}
             isLoggedIn={isLoggedIn}
             onOpenLogin={() => setIsLoginModalOpen(true)}
             todayGoal={todayGoal}

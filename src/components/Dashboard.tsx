@@ -42,8 +42,9 @@ import { WeeklyQuestsWidget } from './WeeklyQuestsWidget.tsx';
 import { PersonalizedLearningMap } from './PersonalizedLearningMap.tsx';
 import { DailyLearningActivityStreakChart } from './DailyLearningActivityStreakChart.tsx';
 import { VisualSyllabusOverview } from './VisualSyllabusOverview.tsx';
+import { PointsSummaryCard } from './PointsSummaryCard.tsx';
 import { INITIAL_LEADERBOARD, QUICK_GOAL_SUGGESTIONS } from '../data/learningData.ts';
-import { UserProfile, TodayLearningGoal } from '../types/index.ts';
+import { UserProfile, TodayLearningGoal, PointTransaction } from '../types/index.ts';
 import { TARGET_SPREADSHEET_ID, syncAllToGoogleSheet } from '../services/googleSheetsService.ts';
 
 interface DashboardProps {
@@ -59,6 +60,7 @@ interface DashboardProps {
     showcase: boolean;
   };
   points: number;
+  transactions?: PointTransaction[];
   isLoggedIn?: boolean;
   onOpenLogin?: () => void;
   todayGoal?: TodayLearningGoal | null;
@@ -186,6 +188,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   profiles = [],
   moduleProgress,
   points,
+  transactions = [],
   isLoggedIn = false,
   onOpenLogin,
   todayGoal,
@@ -595,6 +598,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </button>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* ----------------- 2.5. POINTS SUMMARY CARD (SAFETY, CODING, THINKING, SHOWCASE) ----------------- */}
+      {(activeCategory === 'all' || activeCategory === 'curriculum') && (
+        <section>
+          <PointsSummaryCard
+            points={points}
+            transactions={transactions}
+            moduleProgress={moduleProgress}
+            profile={profile}
+            onNavigate={onNavigate}
+          />
         </section>
       )}
 

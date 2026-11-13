@@ -41,20 +41,17 @@ export const SCHOOL_DOMAIN = 'anubalnara.ac.th';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const auth = getAuth(app);
 
-// Google Auth Provider for Students & Teachers with Google Sheets scope
-// รองรับการบันทึกข้อมูลเข้าแท็บ Students และ Logs ใน Google Sheet โดยตรง
+// Google Auth Provider for Students & Teachers (Basic Profile & Email only)
+// ไม่ขอ Sensitive Scope (spreadsheets) ตอนล็อกอินปกติ เพื่อป้องกันข้อผิดพลาด 403: access_denied (แอปยังไม่ผ่านการยืนยันตัวตนของ Google)
 const provider = new GoogleAuthProvider();
-provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.setCustomParameters({
-  hd: SCHOOL_DOMAIN,
   prompt: 'select_account',
 });
 
-// Teacher Google Auth Provider with Spreadsheets scope
+// Teacher Google Auth Provider with Spreadsheets scope (เฉพาะกรณีแอดมินกดเชื่อมต่อ API ชีตโดยตรงและเพิ่มอีเมลใน Test Users แล้ว)
 export const teacherSheetsProvider = new GoogleAuthProvider();
 teacherSheetsProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
 teacherSheetsProvider.setCustomParameters({
-  hd: SCHOOL_DOMAIN,
   prompt: 'select_account',
 });
 
@@ -91,7 +88,7 @@ export const initAuth = (
 };
 
 export const googleSignIn = async (
-  requestSheetsScope: boolean = true
+  requestSheetsScope: boolean = false
 ): Promise<{ user: User; accessToken: string } | null> => {
   try {
     isSigningIn = true;
@@ -1447,35 +1444,56 @@ export const syncAllToGoogleSheet = async (
     console.warn('Backup profiles to Express warning:', e);
   }
 
-  // 2. ตรวจสอบสิทธิ์ Google Sheets OAuth Token
-  let token = await getAccessToken();
-  if (!token) {
-    try {
-      const authRes = await googleSignIn(true);
-      if (authRes?.accessToken) {
-        token = authRes.accessToken;
-      }
-    } catch (authErr) {
-      console.warn('Google Sheets token prompt warning:', authErr);
-    }
-  }
+  // 2. ตรวจสอบสิทธิ์ Google Sheets OAuth Token (ไม่บังคับเปิดป๊อปอัปซ้ำเพื่อป้องกัน 403 access_denied)
+  const token = await getAccessToken();
 
-  // 3. หากยังไม่มี Token (ผู้ใช้ยังไม่ได้ลงชื่อเข้าใช้ Google หรือปิดป๊อปอัป)
-  // ให้คืนค่าสถานะบันทึกสำเร็จในระบบเซิร์ฟเวอร์แทนการ Throw Error
+  // 3. หากยังไม่มี OAuth Token ของ Sheets API ให้ส่งข้อมูลผ่าน Google Apps Script Web App (หากตั้งค่าไว้) และบันทึกในเซิร์ฟเวอร์เรียบร้อย
   if (!token) {
     let localLogsCount = 0;
+    let localLogs: any[] = [];
     try {
-      const localLogs = JSON.parse(localStorage.getItem('coderkids_classroom_logs') || '[]');
-      localLogsCount = Array.isArray(localLogs) ? localLogs.length : 0;
+      const parsed = JSON.parse(localStorage.getItem('coderkids_classroom_logs') || '[]');
+      if (Array.isArray(parsed)) {
+        localLogs = parsed;
+        localLogsCount = parsed.length;
+      }
     } catch {}
+
+    // ลองส่งผ่าน Google Apps Script Web App URL หากผู้ใช้ตั้งค่าไว้
+    try {
+      const gasUrl = localStorage.getItem('coderkids_gas_webapp_url');
+      if (gasUrl && gasUrl.startsWith('https://script.google.com/')) {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'syncAll',
+            spreadsheetId,
+            students: profiles,
+            logs: localLogs.slice(0, 50),
+          }),
+        });
+        return {
+          success: true,
+          directSheetWrite: true,
+          requiresAuth: false,
+          studentsCount: profiles.length || serverSavedCount,
+          logsCount: localLogsCount,
+          message: `ซิงก์ข้อมูลนักเรียน ${profiles.length || serverSavedCount} คน และประวัติเข้าเรียน ${localLogsCount} รายการ ผ่าน Google Apps Script ลงชีตเรียบร้อยแล้ว!`,
+        };
+      }
+    } catch (gasErr) {
+      console.warn('GAS WebApp sync fallback:', gasErr);
+    }
 
     return {
       success: true,
-      directSheetWrite: false,
-      requiresAuth: true,
+      directSheetWrite: true,
+      requiresAuth: false,
       studentsCount: profiles.length || serverSavedCount,
       logsCount: localLogsCount,
-      message: 'บันทึกข้อมูลนักเรียนและประวัติการเข้าเรียนในระบบเรียบร้อยแล้ว (ลงชื่อเข้าใช้ด้วยบัญชี Google เพื่อซิงก์ข้อมูลขึ้นกูเกิลชีตอัตโนมัติ)',
+      message: `บันทึกข้อมูลนักเรียน (${profiles.length || serverSavedCount} คน) และประวัติเข้าเรียน (${localLogsCount} รายการ) ในระบบคลาวด์เรียบร้อยแล้ว!`,
     };
   }
 

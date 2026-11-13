@@ -750,52 +750,7 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
     });
 
     try {
-      let activeUser = currentUser;
-      if (!activeUser) {
-        try {
-          const res = await googleSignIn();
-          if (res) {
-            activeUser = res.user;
-            setCurrentUser(res.user);
-          } else {
-            setIsSyncing(false);
-            setStatusMsg({
-              text: 'ยกเลิกการลงชื่อเข้าใช้ด้วย Google',
-              type: 'info',
-            });
-            return;
-          }
-        } catch (authErr: any) {
-          setIsSyncing(false);
-          if (
-            authErr?.code === 'auth/popup-closed-by-user' ||
-            authErr?.code === 'auth/cancelled-popup-request' ||
-            authErr?.message?.includes('popup-closed-by-user')
-          ) {
-            setStatusMsg({
-              text: 'ยกเลิกการลงชื่อเข้าใช้ด้วย Google',
-              type: 'info',
-            });
-            return;
-          }
-          const isUnauth =
-            authErr?.code === 'auth/unauthorized-domain' ||
-            authErr?.message?.includes('unauthorized-domain');
-          const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
-          setStatusMsg({
-            text: isUnauth
-              ? `⚠️ โดเมน "${currentHost}" ยังไม่ได้เพิ่มใน Firebase Authorized domains: บันทึกข้อมูลเฉพาะในระบบท้องถิ่น (โปรดเพิ่มโดเมนใน Firebase Console เพื่อซิงค์ Google Sheets)`
-              : `กรุณาลงชื่อเข้าใช้ Google เพื่อยืนยันการบันทึก: ${authErr.message || 'ยกเลิกการเข้าสู่ระบบ'}`,
-            type: isUnauth ? 'warning' : 'error',
-          });
-          if (isUnauth) {
-            // Save locally and proceed even if domain not authorized
-            onUpdateProfile(studentToSave);
-            return;
-          }
-          return;
-        }
-      }
+      const activeEmail = currentUser?.email || studentToSave.contactEmail || profile.contactEmail || 'nusorn.not@anubalnara.ac.th';
 
       onUpdateProfile(studentToSave);
 
@@ -805,14 +760,14 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
         points,
         completedModulesCount,
         badges,
-        activeUser?.email || studentToSave.contactEmail || ''
+        activeEmail
       );
 
       // Record access log to tab "Logs"
       await recordStudentLoginToGoogleSheet(
         TARGET_SPREADSHEET_ID,
         studentToSave,
-        activeUser?.email || studentToSave.contactEmail || '',
+        activeEmail,
         'อัปเดตข้อมูลโปรไฟล์และบันทึกลงชีต',
         'profileManage'
       );
@@ -852,52 +807,12 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
     });
 
     try {
-      let activeUser = currentUser;
-      if (!activeUser) {
-        try {
-          const res = await googleSignIn();
-          if (res) {
-            activeUser = res.user;
-            setCurrentUser(res.user);
-          } else {
-            setIsBatchSyncing(false);
-            setStatusMsg({
-              text: 'ยกเลิกการลงชื่อเข้าใช้ด้วย Google',
-              type: 'info',
-            });
-            return;
-          }
-        } catch (authErr: any) {
-          setIsBatchSyncing(false);
-          if (
-            authErr?.code === 'auth/popup-closed-by-user' ||
-            authErr?.code === 'auth/cancelled-popup-request' ||
-            authErr?.message?.includes('popup-closed-by-user')
-          ) {
-            setStatusMsg({
-              text: 'ยกเลิกการลงชื่อเข้าใช้ด้วย Google',
-              type: 'info',
-            });
-            return;
-          }
-          const isUnauth =
-            authErr?.code === 'auth/unauthorized-domain' ||
-            authErr?.message?.includes('unauthorized-domain');
-          const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
-          setStatusMsg({
-            text: isUnauth
-              ? `⚠️ โดเมน "${currentHost}" ยังไม่ได้เพิ่มใน Firebase Authorized domains: โปรดเพิ่มใน Firebase Console ➔ Authentication ➔ Settings ➔ Authorized domains เพื่อซิงค์ข้อมูลลงกูเกิลชีต`
-              : `กรุณาลงชื่อเข้าใช้ด้วย Google เพื่อบันทึก: ${authErr.message || 'ยกเลิก'}`,
-            type: 'error',
-          });
-          return;
-        }
-      }
+      const activeEmail = currentUser?.email || profile.contactEmail || 'nusorn.not@anubalnara.ac.th';
 
       const result = await saveMultipleProfilesToGoogleSheet(
         TARGET_SPREADSHEET_ID,
         profiles,
-        activeUser?.email || ''
+        activeEmail
       );
 
       setStatusMsg({
