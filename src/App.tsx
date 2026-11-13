@@ -80,6 +80,8 @@ import { SmartSocraticDebuggerModal } from './components/SmartSocraticDebuggerMo
 import { StudentReportCardModal } from './components/StudentReportCardModal.tsx';
 import { ComputingGlossaryModal } from './components/ComputingGlossaryModal.tsx';
 import { soundEffects } from './utils/soundEffects.ts';
+import { ThemeMode, getTargetThemeFromTime } from './utils/dayNightCycle.ts';
+import { DayNightTransitionOverlay, TransitionPayload } from './components/DayNightTransitionOverlay.tsx';
 
 import {
   INITIAL_SHOWCASE_PROJECTS,
@@ -392,15 +394,40 @@ export default function App() {
     }
   }, [todayGoal]);
 
-  // Theme state (สลับโหมดสว่างและโหมดมืด Dark Mode พร้อมบันทึกลง localStorage)
+  // Theme & Day/Night Cycle State (สลับธีมอัตโนมัติตามเวลาจริง + โหมดสว่าง/มืดคงที่ พร้อมเอฟเฟกต์เปลี่ยนผ่าน)
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    const savedMode = localStorage.getItem('coderkids_theme_mode');
+    if (savedMode === 'auto' || savedMode === 'light' || savedMode === 'dark') {
+      return savedMode;
+    }
+    return 'auto';
+  });
+
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const savedMode = localStorage.getItem('coderkids_theme_mode');
+    if (savedMode === 'light' || savedMode === 'dark') return savedMode;
+    if (savedMode === 'auto' || !savedMode) {
+      return getTargetThemeFromTime();
+    }
     const saved = localStorage.getItem('coderkids_theme');
     if (saved === 'dark' || saved === 'light') return saved;
-    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
+    return getTargetThemeFromTime();
   });
+
+  const [transitionEvent, setTransitionEvent] = useState<TransitionPayload | null>(null);
+
+  const triggerThemeTransition = (targetTheme: 'light' | 'dark', reason: 'auto' | 'manual' = 'manual') => {
+    setTransitionEvent({
+      toTheme: targetTheme,
+      reason,
+      timestamp: Date.now(),
+    });
+    setTheme(targetTheme);
+  };
+
+  useEffect(() => {
+    localStorage.setItem('coderkids_theme_mode', themeMode);
+  }, [themeMode]);
 
   useEffect(() => {
     localStorage.setItem('coderkids_theme', theme);
@@ -413,8 +440,60 @@ export default function App() {
     }
   }, [theme]);
 
+  // ตรวจสอบเวลาจริงทุก 30 วินาที เมื่ออยู่ในโหมดสลับอัตโนมัติ (Day/Night Cycle Auto)
+  useEffect(() => {
+    if (themeMode !== 'auto') return;
+
+    const syncThemeWithClock = () => {
+      const target = getTargetThemeFromTime(new Date());
+      setTheme((prev) => {
+        if (prev !== target) {
+          setTransitionEvent({
+            toTheme: target,
+            reason: 'auto',
+            timestamp: Date.now(),
+          });
+          return target;
+        }
+        return prev;
+      });
+    };
+
+    syncThemeWithClock();
+    const interval = setInterval(syncThemeWithClock, 30000);
+    return () => clearInterval(interval);
+  }, [themeMode]);
+
   const handleToggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setThemeMode(nextTheme);
+    triggerThemeTransition(nextTheme, 'manual');
+    soundEffects.play('click');
+  };
+
+  const handleSelectThemeMode = (mode: ThemeMode) => {
+    setThemeMode(mode);
+    soundEffects.play('click');
+    const target = mode === 'auto' ? getTargetThemeFromTime() : mode;
+    if (target !== theme) {
+      triggerThemeTransition(target, mode === 'auto' ? 'auto' : 'manual');
+    }
+  };
+
+  const handlePreviewTransition = () => {
+    soundEffects.play('click');
+    const oppositeTheme: 'light' | 'dark' = theme === 'light' ? 'dark' : 'light';
+    triggerThemeTransition(oppositeTheme, 'manual');
+    if (themeMode === 'auto') {
+      setTimeout(() => {
+        const realTarget = getTargetThemeFromTime();
+        if (realTarget !== oppositeTheme) {
+          triggerThemeTransition(realTarget, 'auto');
+        }
+      }, 2200);
+    } else {
+      setThemeMode(oppositeTheme);
+    }
   };
 
   // App Color Tone (ฟีเจอร์เปลี่ยนโทนสีของแอป: indigo, emerald, purple, amber, rose, teal)
@@ -1252,7 +1331,10 @@ export default function App() {
         onToggleAdmin={handleToggleAdmin}
         onOpenAITutor={() => setIsAITutorOpen(true)}
         theme={theme}
+        themeMode={themeMode}
         onToggleTheme={handleToggleTheme}
+        onSelectThemeMode={handleSelectThemeMode}
+        onPreviewTransition={handlePreviewTransition}
         colorTone={colorTone}
         onChangeColorTone={handleSetColorTone}
         onOpenGasExport={() => setIsGasExportModalOpen(true)}
@@ -2170,6 +2252,12 @@ export default function App() {
       <ComputingGlossaryModal
         isOpen={isComputingGlossaryOpen}
         onClose={() => setIsComputingGlossaryOpen(false)}
+      />
+
+      {/* Day / Night Smooth Transition Effect Overlay */}
+      <DayNightTransitionOverlay
+        transitionEvent={transitionEvent}
+        onTransitionEnd={() => setTransitionEvent(null)}
       />
 
       {/* Offline Mode Indicator Toast */}

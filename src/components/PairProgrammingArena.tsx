@@ -90,6 +90,54 @@ const DUEL_CHALLENGES: DuelChallenge[] = [
       { label: 'password >= 8', isCorrect: false, explanation: 'ไม่สามารถเปรียบเทียบสตริงกับตัวเลขได้โดยตรง' },
     ],
   },
+  {
+    id: 5,
+    title: 'ภารกิจที่ 5: หยิบไอเทมชิ้นสุดท้ายในกระเป๋า (Python List)',
+    scenario: 'ต้องการแสดงไอเทมชิ้นแรกในลิสต์ inventory ต้องใส่เลขดัชนี (Index) ใด?',
+    buggyCode: `inventory = ["เกราะ", "โล่", "คบเพลิง"]\nfirst_item = inventory[?????]\nprint("หยิบ:", first_item)`,
+    options: [
+      { label: '1', isCorrect: false, explanation: 'inventory[1] จะได้ "โล่" เพราะคอมพิวเตอร์เริ่มนับตำแหน่งที่ 0' },
+      { label: '0', isCorrect: true, explanation: 'ถูกต้อง! โครงสร้างข้อมูล List/Array เริ่มนับ Index ตัวแรกที่เลข 0 เสมอ' },
+      { label: 'first', isCorrect: false, explanation: 'ต้องระบุเป็นตัวเลขจำนวนเต็ม ไม่ใช่คำว่า first' },
+      { label: '3', isCorrect: false, explanation: 'Index 3 จะเกิดข้อผิดพลาด IndexError เพราะเกินขนาดลิสต์' },
+    ],
+  },
+  {
+    id: 6,
+    title: 'ภารกิจที่ 6: ประตูเซฟห้องแล็บลับ (ตรรกะ AND / OR)',
+    scenario: 'ประตูจะเปิดเมื่อ "มีคีย์การ์ด (has_card)" และ "รหัส PIN ถูกต้อง (pin_ok)" พร้อมกันทั้งสองอย่าง',
+    buggyCode: `if has_card ????? pin_ok:\n    door.unlock()\nelse:\n    alarm.ring()`,
+    options: [
+      { label: 'or', isCorrect: false, explanation: 'การใช้ or จะเปิดประตูแม้ขาดอย่างใดอย่างหนึ่ง ซึ่งไม่ปลอดภัย' },
+      { label: 'not', isCorrect: false, explanation: 'not เป็นตัวดำเนินการกลับค่าจริง-เท็จ ใช้เชื่อมสองเงื่อนไขแบบนี้ไม่ได้' },
+      { label: 'and', isCorrect: true, explanation: 'ถูกต้อง! ตัวดำเนินการ and จะเป็นจริงก็ต่อเมื่อเงื่อนไขทั้งซ้ายและขวาเป็นจริงทั้งคู่' },
+      { label: '+', isCorrect: false, explanation: 'เครื่องหมาย + ใช้บวกเลข ไม่ใช่ตัวเชื่อมตรรกะ' },
+    ],
+  },
+  {
+    id: 7,
+    title: 'ภารกิจที่ 7: แยกเลขคู่-เลขคี่ด้วย Modulo (%)',
+    scenario: 'ต้องการตรวจว่าตัวแปร score เป็น "เลขคู่" เพื่อแจกโบนัสพิเศษ เงื่อนไขใดถูกต้อง?',
+    buggyCode: `score = 24\nif ?????:\n    print("โบนัสเลขคู่ +50!")`,
+    options: [
+      { label: 'score / 2 == 0', isCorrect: false, explanation: '24 / 2 ได้ 12 ไม่ใช่ 0 ต้องใช้เครื่องหมายหารเอาเศษ (%)' },
+      { label: 'score % 2 == 1', isCorrect: false, explanation: 'หาร 2 เหลือเศษ 1 คือ "เลขคี่"' },
+      { label: 'score * 2 == 0', isCorrect: false, explanation: 'คูณ 2 จะได้ 48 ไม่ใช่การตรวจเลขคู่' },
+      { label: 'score % 2 == 0', isCorrect: true, explanation: 'ถูกต้อง! เลขคู่ทุกตัวเมื่อหารด้วย 2 จะเหลือเศษเท่ากับ 0 เสมอ' },
+    ],
+  },
+  {
+    id: 8,
+    title: 'ภารกิจที่ 8: นิยามฟังก์ชันบวกพลังชีวิตฮีโร่ (Function)',
+    scenario: 'ต้องใช้คำสำคัญ (Keyword) ใดขึ้นต้นการสร้างฟังก์ชันใหม่ในภาษา Python?',
+    buggyCode: `????? heal_hero(hp, bonus):\n    return hp + bonus\n\nprint(heal_hero(80, 20))`,
+    options: [
+      { label: 'function', isCorrect: false, explanation: 'คำว่า function ใช้ใน JavaScript ส่วนภาษา Python ใช้คำสั้นกว่านี้' },
+      { label: 'def', isCorrect: true, explanation: 'ถูกต้อง! ใน Python ใช้ keyword "def" (define) เพื่อประกาศสร้างฟังก์ชัน' },
+      { label: 'func', isCorrect: false, explanation: 'คำว่า func ใช้ในภาษา Go หรือ Swift ไม่ใช่ Python' },
+      { label: 'create', isCorrect: false, explanation: 'ไม่มี keyword create ในภาษา Python' },
+    ],
+  },
 ];
 
 export const PairProgrammingArena: React.FC<PairProgrammingArenaProps> = ({

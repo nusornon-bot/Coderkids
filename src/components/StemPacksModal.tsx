@@ -45,6 +45,10 @@ interface StemProjectDetail {
     unit: string;
     defaultVal: number;
     threshold: number;
+    mode?: 'increase_until_threshold' | 'toggle_low' | 'toggle_high' | 'counter';
+    step?: number;
+    activeText?: string;
+    idleText?: string;
   };
   flowchartSteps: string[];
   pythonCode: string;
@@ -168,6 +172,295 @@ while True:
     elif button_a.is_pressed() and button_b.is_pressed():
         armed = not armed # เปิด/ปิดระบบ`,
   },
+  {
+    id: 'flood_beacon',
+    title: '🌊 ทุ่นเตือนภัยน้ำท่วมไร้สาย (Smart Flood Warning)',
+    subtitle: 'ตรวจจับระดับน้ำหลากในชุมชนและส่งคลื่นวิทยุแจ้งเตือนบ้านเรือนทันที',
+    grade: 'ป.6 - ว 4.2 ป.6/2',
+    icon: '🌊',
+    badgeColor: 'blue',
+    science: 'การไหลของน้ำ พลังงานศักย์-จลน์ และกลไกการลอยตัวของวัตถุ (Archimedes)',
+    technology: 'เซ็นเซอร์ระดับน้ำ (Water Level Sensor) และวิทยุสื่อสารไร้สาย Micro:bit Radio',
+    engineering: 'ออกแบบทุ่นลอยกันน้ำพร้อมท่อป้องกันคลื่นซัดเพื่อให้เซ็นเซอร์อ่านค่าได้เสถียร',
+    math: 'ความสูงระดับน้ำวิกฤต (ซม.) และการเปรียบเทียบค่ามากกว่า threshold',
+    hardware: ['Micro:bit V2 x 2 บอร์ด', 'Water Level Sensor (Pin P0)', 'กล่องทุ่นลอยกันน้ำ'],
+    simulationState: {
+      label: 'ระดับน้ำในคลองจำลอง',
+      actionLabel: '🌧️ จำลองน้ำเพิ่มสูงขึ้น',
+      unit: 'ซม.',
+      defaultVal: 35,
+      threshold: 80,
+      mode: 'toggle_high',
+      step: 20,
+      activeText: 'น้ำเกินขีดอันตราย! ส่งสัญญาณเตือนอพยพ (ALERT)',
+      idleText: 'ระดับน้ำอยู่ในเกณฑ์ปลอดภัย (NORMAL)',
+    },
+    flowchartSteps: [
+      '1. กำหนดคลื่นวิทยุ radio.set_group(88)',
+      '2. อ่านค่าระดับน้ำจากขา P0 แปลงเป็นเซนติเมตร',
+      '3. ตรวจสอบ: water_cm >= 80 ซม. หรือไม่?',
+      '4. ถ้าจริง: ส่ง radio.send("FLOOD") และร้องเสียงเตือนไซเรน',
+      '5. ถ้าเท็จ: แสดงไอคอนติ๊กถูก ✅ สถานะปลอดภัย',
+    ],
+    pythonCode: `from microbit import *
+import radio
+
+radio.on()
+radio.config(group=88)
+
+while True:
+    level = pin0.read_analog() * 100 // 1023
+    if level >= 80:
+        radio.send("FLOOD")
+        display.show(Image.SURPRISED)
+    else:
+        display.show(Image.YES)
+    sleep(1000)`,
+  },
+  {
+    id: 'air_guard',
+    title: '🌫️ สถานีวัดฝุ่น PM2.5 อัจฉริยะ (Smart Air Quality Guard)',
+    subtitle: 'วัดความหนาแน่นของฝุ่นละอองในอากาศ แจ้งเตือนธงสีเขียว-เหลือง-แดงหน้าเสาธง',
+    grade: 'ป.6 - ว 4.2 ป.6/1',
+    icon: '🌫️',
+    badgeColor: 'teal',
+    science: 'องค์ประกอบของอากาศ อนุภาคฝุ่น PM2.5 และผลกระทบต่อระบบทางเดินหายใจ',
+    technology: 'เซ็นเซอร์แสงอินฟราเรดวัดฝุ่นละออง (Optical Dust Sensor) และหลอด LED 3 สี',
+    engineering: 'ออกแบบช่องดักลมและพัดลมดูดอากาศจิ๋วเข้าสู่ห้องวัดแสงให้แม่นยำ',
+    math: 'ช่วงดัชนีคุณภาพอากาศ (AQI) และหน่วยวัดไมโครกรัมต่อลูกบาศก์เมตร (µg/m³)',
+    hardware: ['Micro:bit V2', 'Optical Dust Sensor (P0)', 'ชุด LED จราจร 3 สี'],
+    simulationState: {
+      label: 'ค่าฝุ่น PM2.5 จำลอง',
+      actionLabel: '💨 จำลองค่าฝุ่นเปลี่ยนแปลง',
+      unit: 'µg/m³',
+      defaultVal: 24,
+      threshold: 50,
+      mode: 'toggle_high',
+      step: 18,
+      activeText: 'ค่าฝุ่นเกินมาตรฐาน! งดกิจกรรมกลางแจ้ง (MASK ON)',
+      idleText: 'อากาศสดใส เหมาะทำกิจกรรมกลางแจ้ง (GOOD)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าความขุ่นมัวของฝุ่นจาก Dust Sensor',
+      '2. แปลงค่าเป็นหน่วย µg/m³',
+      '3. ถ้าเกิน 50 µg/m³: เปิดไฟแดงและแจ้งเตือนสวมหน้ากาก',
+      '4. ถ้าไม่เกิน: เปิดไฟเขียวและแสดงหน้ายิ้ม',
+    ],
+    pythonCode: `from microbit import *
+
+while True:
+    pm25 = pin0.read_analog() // 8
+    if pm25 >= 50:
+        pin1.write_digital(1) # ไฟแดง
+        display.scroll("MASK")
+    else:
+        pin1.write_digital(0)
+        display.show(Image.HAPPY)
+    sleep(2000)`,
+  },
+  {
+    id: 'smart_bin',
+    title: '🗑️ ถังขยะเปิด-ปิดอัตโนมัติ (Touchless Ultrasonic Bin)',
+    subtitle: 'ตรวจจับมือที่ยื่นเข้ามาทิ้งขยะด้วยคลื่นเสียง Ultrasonic แล้วหมุน Servo เปิดฝา',
+    grade: 'ป.5 - ว 4.2 ป.5/2',
+    icon: '🗑️',
+    badgeColor: 'sky',
+    science: 'การสะท้อนของคลื่นเสียงความถี่สูง (Ultrasound) เหมือนค้างคาวใช้บอกตำแหน่ง',
+    technology: 'HC-SR04 Ultrasonic Sensor และ Micro Servo SG90',
+    engineering: 'คำนวณจุดยึดก้านโยกServo ให้เปิดฝาได้กว้าง 90 องศาโดยไม่ติดขัด',
+    math: 'สูตรคำนวณระยะทางจากเวลาสะท้อนกลับ: Distance = (Time × 340 m/s) / 2',
+    hardware: ['Micro:bit V2', 'Ultrasonic HC-SR04', 'Servo Motor SG90'],
+    simulationState: {
+      label: 'ระยะห่างจากมือถึงฝาถัง',
+      actionLabel: '✋ ยื่นมือเข้าใกล้ถังขยะ',
+      unit: 'ซม.',
+      defaultVal: 45,
+      threshold: 15,
+      mode: 'toggle_low',
+      step: 15,
+      activeText: 'พบมือระยะใกล้! หมุน Servo เปิดฝาถัง 90° (OPEN)',
+      idleText: 'ฝาถังขยะปิดสนิท ป้องกันกลิ่น (CLOSED)',
+    },
+    flowchartSteps: [
+      '1. ส่งคลื่นเสียง Ultrasonic ออกไปและจับเวลาสะท้อนกลับ',
+      '2. คำนวณระยะห่างเป็นเซนติเมตร (distance)',
+      '3. ถ้า distance < 15 ซม.: หมุน Servo ไปที่ 90° รอ 3 วินาที',
+      '4. ครบเวลา: หมุน Servo กลับที่ 0° เพื่อปิดฝา',
+    ],
+    pythonCode: `from microbit import *
+
+while True:
+    # จำลองการวัดระยะห่าง Ultrasonic
+    dist = pin0.read_analog() // 10
+    if dist < 15:
+        pin1.write_analog(128) # เปิดฝา 90 องศา
+        sleep(3000)
+    else:
+        pin1.write_analog(26)  # ปิดฝา 0 องศา`,
+  },
+  {
+    id: 'solar_tracker',
+    title: '☀️ แผงโซลาร์เซลล์หันตามดวงอาทิตย์ (Dual-Sensor Solar Tracker)',
+    subtitle: 'เปรียบเทียบค่าแสงซ้าย-ขวาแล้วหมุนแผงรับแสงอาทิตย์ให้ผลิตไฟฟ้าได้สูงสุดตลอดวัน',
+    grade: 'ป.6 - ว 4.2 ป.6/2',
+    icon: '☀️',
+    badgeColor: 'amber',
+    science: 'การเคลื่อนที่ปรากฏของดวงอาทิตย์บนท้องฟ้าและการเปลี่ยนพลังงานแสงเป็นพลังงานไฟฟ้า',
+    technology: 'Photoresistor LDR 2 ตัว, Servo Motor และแผ่นโซลาร์เซลล์',
+    engineering: 'สร้างฉากกั้นแสงตรงกลางระหว่างเซ็นเซอร์ซ้าย-ขวาเพื่อสร้างความต่างค่าแสง',
+    math: 'การเปรียบเทียบผลต่างค่าตัวแปร |Light_Left - Light_Right| > 20',
+    hardware: ['Micro:bit V2', 'LDR เซ็นเซอร์แสง x 2', 'Micro Servo Motor'],
+    simulationState: {
+      label: 'ความเข้มพลังงานไฟฟ้าที่ผลิตได้',
+      actionLabel: '🔄 ปรับมุมรับแสงตามอาทิตย์',
+      unit: '%',
+      defaultVal: 48,
+      threshold: 85,
+      mode: 'increase_until_threshold',
+      step: 20,
+      activeText: 'มุมรับแสงตั้งฉาก 90° ประสิทธิภาพสูงสุด! (MAX POWER)',
+      idleText: 'กำลังหมุนปรับองศาแผงโซลาร์เซลล์ (TRACKING)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าแสงซ้าย (P0) และขวา (P1)',
+      '2. เปรียบเทียบค่าแสงทั้งสองด้าน',
+      '3. ถ้าซ้ายสว่างกว่า: หมุน Servo ไปทางซ้าย +5 องศา',
+      '4. ถ้าขวาและซ้ายเท่ากัน: หยุดนิ่งเพื่อรับพลังงานเต็มที่',
+    ],
+    pythonCode: `from microbit import *
+
+angle = 90
+while True:
+    left = pin0.read_analog()
+    right = pin1.read_analog()
+    if left - right > 30:
+        angle = max(0, angle - 5)
+    elif right - left > 30:
+        angle = min(180, angle + 5)
+    sleep(200)`,
+  },
+  {
+    id: 'posture_coach',
+    title: '🪑 เข็มขัดเตือนท่านั่งหลังตรง (Smart Posture Coach)',
+    subtitle: 'ตรวจจับมุมเอียงการก้มตัวขณะอ่านหนังสือ ป้องกันอาการปวดหลังในวัยเรียน',
+    grade: 'ป.5 - ว 4.2 ป.5/1',
+    icon: '🪑',
+    badgeColor: 'indigo',
+    science: 'โครงสร้างกระดูกสันหลังและแรงกดทับของหมอนรองกระดูกเมื่อนั่งผิดท่า',
+    technology: 'เซ็นเซอร์ตรวจจับมุมเอียง Accelerometer Pitch Angle และลำโพงแจ้งเตือน',
+    engineering: 'ออกแบบตัวล็อกติดกับคอเสื้อด้านหลังที่มีน้ำหนักเบาและสวมใส่สบาย',
+    math: 'การวัดมุมเอียงเป็นองศา (Degrees: 0° ถึง ±90°) และการใช้ค่าสัมบูรณ์ |angle|',
+    hardware: ['Micro:bit V2', 'แบตเตอรี่ 3V น้ำหนักเบา', 'คลิปหนีบเสื้อ'],
+    simulationState: {
+      label: 'มุมเอียงของลำตัวขณะนั่งเรียน',
+      actionLabel: '🧘 ทดสอบปรับท่านั่ง/ก้มตัว',
+      unit: '°',
+      defaultVal: 38,
+      threshold: 25,
+      mode: 'toggle_high',
+      step: 15,
+      activeText: 'ก้มตัวมากเกินไป! โปรดยืดหลังตรง (POSTURE ALERT)',
+      idleText: 'ท่านั่งหลังตรง สง่างาม ปลอดภัย! (GOOD POSTURE)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าความเอียงแกน Y ของ Accelerometer',
+      '2. คำนวณเป็นมุมก้มตัว (องศา)',
+      '3. ถ้ามุมเอียง > 25°: ส่งเสียงติ๊ดเบาๆ และแสดงลูกศรชี้ขึ้น',
+      '4. ถ้านั่งตรง: แสดงรูปหัวใจให้กำลังใจ',
+    ],
+    pythonCode: `from microbit import *
+import music
+
+while True:
+    y = accelerometer.get_y()
+    if abs(y) > 400:
+        display.show(Image.ARROW_N)
+        music.pitch(440, 200)
+    else:
+        display.show(Image.HEART)
+    sleep(500)`,
+  },
+  {
+    id: 'sound_noise_meter',
+    title: '🔇 เครื่องวัดเสียงรบกวนในห้องสมุด (Smart Library Noise Meter)',
+    subtitle: 'ใช้ไมโครโฟนวัดระดับความดังเสียงในห้องเรียนและเปลี่ยนไฟสัญญาณเตือนให้ลดเสียง',
+    grade: 'ป.4 - ว 4.2 ป.4/2',
+    icon: '🔇',
+    badgeColor: 'purple',
+    science: 'ลักษณะของคลื่นเสียง แอมพลิจูด และผลกระทบของมลพิษทางเสียงต่อสมาธิ',
+    technology: 'ไมโครโฟน MEMS ในตัว Micro:bit V2 และหน้าจอ LED Matrix 5x5',
+    engineering: 'ออกแบบป้ายตั้งโต๊ะรูปใบหน้าแสดงอารมณ์ตามระดับเสียงในห้องสมุด',
+    math: 'ระดับความเข้มเสียง (0-255 หน่วย) และการหาค่าเฉลี่ยเคลื่อนที่ (Moving Average)',
+    hardware: ['Micro:bit V2 (มีไมโครโฟนในตัว)', 'ป้ายตั้งโต๊ะอะคริลิกหรือกระดาษแข็ง'],
+    simulationState: {
+      label: 'ความดังเสียงในห้องสมุด',
+      actionLabel: '🗣️ จำลองเสียงพูดคุยดังขึ้น/เงียบลง',
+      unit: 'dB',
+      defaultVal: 42,
+      threshold: 65,
+      mode: 'toggle_high',
+      step: 20,
+      activeText: 'เสียงดังเกินกำหนด! กรุณาใช้เสียงกระซิบ (QUIET PLEASE)',
+      idleText: 'บรรยากาศเงียบสงบ เหมาะกับการอ่านหนังสือ (QUIET)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าความดังจากไมโครโฟนในตัว Micro:bit V2',
+      '2. เปรียบเทียบกับค่าขีดจำกัดความเงียบ (Threshold)',
+      '3. ถ้าระดับเสียงเกิน 65 dB: แสดงหน้าบึ้งและส่งเสียงเตือนเบาๆ',
+      '4. ถ้าระดับเสียงปกติ: แสดงจุดยิ้มสีเขียวสงบ',
+    ],
+    pythonCode: `from microbit import *
+
+while True:
+    sound = microphone.sound_level()
+    if sound > 140:
+        display.show(Image.ANGRY)
+        sleep(1000)
+    else:
+        display.show(Image.HAPPY)
+    sleep(200)`,
+  },
+  {
+    id: 'smart_temp_fan',
+    title: '🌬️ พัดลมห้องเรียนอัจฉริยะประหยัดไฟ (Smart Auto Fan)',
+    subtitle: 'ตรวจวัดอุณหภูมิห้องเรียนอัตโนมัติ หากอากาศร้อนเกิน 30°C ให้สั่งพัดลมหมุนทันที',
+    grade: 'ป.5 - ว 4.2 ป.5/2',
+    icon: '🌬️',
+    badgeColor: 'emerald',
+    science: 'การถ่ายโอนความร้อน (Heat Transfer) และการระบายความร้อนด้วยการพาความร้อน',
+    technology: 'เซ็นเซอร์วัดอุณหภูมิใน CPU ของ Micro:bit และมอเตอร์พัดลม DC 5V',
+    engineering: 'ติดตั้งใบพัดขนาดเล็กอย่างสมดุลในโครงกันกระแทกที่ปลอดภัยสำหรับเด็ก',
+    math: 'หน่วยวัดอุณหภูมิองศาเซลเซียส (°C) และการเปรียบเทียบช่วงอุณหภูมิ',
+    hardware: ['Micro:bit V2', 'โมดูลรีเลย์/มอเตอร์พัดลม USB 5V'],
+    simulationState: {
+      label: 'อุณหภูมิห้องเรียนปัจจุบัน',
+      actionLabel: '🌡️ จำลองอากาศร้อน/เย็นลง',
+      unit: '°C',
+      defaultVal: 33,
+      threshold: 30,
+      mode: 'toggle_high',
+      step: 3,
+      activeText: 'อุณหภูมิสูงกว่า 30°C! พัดลมกำลังทำงาน (FAN ON)',
+      idleText: 'ห้องเย็นสบาย ปิดพัดลมประหยัดไฟ (FAN OFF)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าอุณหภูมิห้องจาก temperature()',
+      '2. ตรวจสอบ: temp >= 30°C หรือไม่?',
+      '3. ถ้าจริง: สั่งมอเตอร์พัดลมหมุน (Pin P0 = 1)',
+      '4. ถ้าไม่ถึง 30°C: หยุดพัดลมเพื่อประหยัดพลังงาน',
+    ],
+    pythonCode: `from microbit import *
+
+while True:
+    temp = temperature()
+    if temp >= 30:
+        pin0.write_digital(1) # เปิดพัดลม
+        display.show("F")
+    else:
+        pin0.write_digital(0) # ปิดพัดลม
+        display.show(temp)
+    sleep(1000)`,
+  },
 ];
 
 export const StemPacksModal: React.FC<StemPacksModalProps> = ({
@@ -186,30 +479,40 @@ export const StemPacksModal: React.FC<StemPacksModalProps> = ({
   // Handle Simulation Trigger
   const handleTriggerSim = () => {
     soundEffects.play('click');
-    if (currentPack.id === 'smart_farm') {
-      // Pour water simulation
-      const newVal = Math.min(100, simValue + 25);
+    const sim = currentPack.simulationState;
+    const step = sim.step || 15;
+    const mode =
+      sim.mode ||
+      (currentPack.id === 'smart_farm'
+        ? 'increase_until_threshold'
+        : currentPack.id === 'pedometer'
+        ? 'counter'
+        : 'toggle_low');
+
+    if (mode === 'increase_until_threshold') {
+      const newVal = Math.min(100, simValue + step);
       setSimValue(newVal);
-      if (newVal >= currentPack.simulationState.threshold) {
+      if (newVal >= sim.threshold) {
         soundEffects.play('correct');
       }
-    } else if (currentPack.id === 'pedometer') {
-      // Step increment
-      const newVal = simValue + 15;
+    } else if (mode === 'counter') {
+      const newVal = simValue + step;
       setSimValue(newVal);
       soundEffects.play('click');
-      if (newVal >= currentPack.simulationState.threshold) {
+      if (newVal >= sim.threshold) {
         soundEffects.play('victory');
       }
-    } else if (currentPack.id === 'laser_alarm') {
-      // Break laser beam simulation
-      const newVal = simValue > 30 ? 12 : 85;
-      setSimValue(newVal);
-      if (newVal < 30) {
-        soundEffects.play('error');
-      } else {
-        soundEffects.play('correct');
-      }
+    } else if (mode === 'toggle_high') {
+      const isCurrentlyHigh = simValue >= sim.threshold;
+      const nextVal = isCurrentlyHigh ? Math.max(0, sim.threshold - step) : sim.threshold + step;
+      setSimValue(nextVal);
+      soundEffects.play(nextVal >= sim.threshold ? 'error' : 'correct');
+    } else {
+      // toggle_low (e.g., laser_alarm or smart_bin)
+      const isCurrentlyLow = simValue < sim.threshold;
+      const nextVal = isCurrentlyLow ? sim.threshold + step : Math.max(0, sim.threshold - step);
+      setSimValue(nextVal);
+      soundEffects.play(nextVal < sim.threshold ? 'error' : 'correct');
     }
   };
 
@@ -400,22 +703,44 @@ ${currentPack.pythonCode}
                       <span>ดินชุ่มชื้นพอดี (OFF)</span>
                     </div>
                   )
-                ) : currentPack.id === 'laser_alarm' ? (
-                  simValue < currentPack.simulationState.threshold ? (
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold animate-bounce">
+                ) : currentPack.id === 'pedometer' ? (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold">
+                    <Footprints className="w-4 h-4 text-cyan-400" />
+                    <span>เผาผลาญ {(simValue * 0.04).toFixed(1)} kcal</span>
+                  </div>
+                ) : currentPack.simulationState.mode === 'toggle_high' ? (
+                  simValue >= currentPack.simulationState.threshold ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold animate-pulse">
                       <Bell className="w-4 h-4 text-rose-400" />
-                      <span>ไซเรนเตือนภัยดัง! (ALARM)</span>
+                      <span>{currentPack.simulationState.activeText || 'แจ้งเตือนทำงาน (ACTIVE)'}</span>
                     </div>
                   ) : (
                     <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>ระบบตรวจการณ์ปกติ (SECURE)</span>
+                      <span>{currentPack.simulationState.idleText || 'สภาวะปกติ (NORMAL)'}</span>
                     </div>
                   )
+                ) : currentPack.simulationState.mode === 'increase_until_threshold' ? (
+                  simValue >= currentPack.simulationState.threshold ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>{currentPack.simulationState.activeText || 'ถึงเป้าหมายสูงสุด (READY)'}</span>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold animate-pulse">
+                      <Activity className="w-4 h-4 text-amber-400" />
+                      <span>{currentPack.simulationState.idleText || 'กำลังปรับค่า (CALIBRATING)'}</span>
+                    </div>
+                  )
+                ) : simValue < currentPack.simulationState.threshold ? (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold animate-bounce">
+                    <Bell className="w-4 h-4 text-rose-400" />
+                    <span>{currentPack.simulationState.activeText || 'ไซเรนเตือนภัยดัง! (ALARM)'}</span>
+                  </div>
                 ) : (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold">
-                    <Footprints className="w-4 h-4 text-cyan-400" />
-                    <span>เผาผลาญ {(simValue * 0.04).toFixed(1)} kcal</span>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>{currentPack.simulationState.idleText || 'ระบบตรวจการณ์ปกติ (SECURE)'}</span>
                   </div>
                 )}
               </div>

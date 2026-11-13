@@ -49,6 +49,46 @@ const TEMPLATES: CodeTemplate[] = [
     code: `// Micro:bit V2 JavaScript Simulation\nlet temp = input.temperature();\nbasic.showString("TEMP: " + temp + "C");\n\nif (temp > 30) {\n    basic.showIcon(IconNames.Sad);\n    music.playTone(440, music.beat(BeatFraction.Whole));\n    console.log("[Alert] อุณหภูมิสูงเกินเกณฑ์!");\n} else {\n    basic.showIcon(IconNames.Happy);\n    console.log("[Normal] สภาพอากาศปกติ รดน้ำต้นไม้สมบูรณ์");\n}`,
     expectedOutput: `[Micro:bit Booting...] V2.2 System Ready\nReading Temperature Sensor -> 32 C\n[Alert] อุณหภูมิสูงเกินเกณฑ์! หน้าจอแสดงไอคอน Sad :( \nส่งเสียง Buzzer แจ้งเตือนความถี่ 440 Hz สำเร็จ`,
   },
+  {
+    id: 'py_dice_game',
+    lang: 'python',
+    title: 'Python: เกมทอยลูกเต๋า & แต้มโบนัส',
+    description: 'ใช้โมดูล random สุ่มแต้มลูกเต๋า 2 ลูกและตรวจสอบโบนัสเลขเบิ้ล',
+    code: `import random\n\nd1 = 6\nd2 = 6\ntotal = d1 + d2\nprint(f"🎲 ลูกเต๋าที่ 1: {d1} | ลูกเต๋าที่ 2: {d2}")\nprint(f"แต้มรวมทั้งหมด = {total}")\nif d1 == d2:\n    print("✨ ว้าว! ออกเลขเบิ้ล รับโบนัสเดินเพิ่ม +10 ช่อง!")`,
+    expectedOutput: `🎲 ลูกเต๋าที่ 1: 6 | ลูกเต๋าที่ 2: 6\nแต้มรวมทั้งหมด = 12\n✨ ว้าว! ออกเลขเบิ้ล รับโบนัสเดินเพิ่ม +10 ช่อง!`,
+  },
+  {
+    id: 'py_list_sum',
+    lang: 'python',
+    title: 'Python: คำนวณราคารวมในตะกร้าด้วย List',
+    description: 'ฝึกสร้างลิสต์ราคาสินค้าและใช้ลูป for หาผลรวมและราคาเฉลี่ย',
+    code: `cart = [25, 40, 15, 60, 20]\ntotal = 0\nfor price in cart:\n    total += price\navg = total / len(cart)\nprint("จำนวนสินค้า:", len(cart), "ชิ้น")\nprint("ราคารวมทั้งหมด:", total, "บาท")\nprint("ราคาเฉลี่ยต่อชิ้น:", avg, "บาท")`,
+    expectedOutput: `จำนวนสินค้า: 5 ชิ้น\nราคารวมทั้งหมด: 160 บาท\nราคาเฉลี่ยต่อชิ้น: 32.0 บาท`,
+  },
+  {
+    id: 'py_binary_convert',
+    lang: 'python',
+    title: 'Python: ตัวแปลงเลขฐานสิบเป็นฐานสอง (Binary)',
+    description: 'แปลงตัวเลขอายุหรือคะแนนสอบเป็นรหัสไบนารี 8 บิตด้วยฟังก์ชัน bin()',
+    code: `decimal_num = 25\nbinary_str = bin(decimal_num)[2:].zfill(8)\nprint(f"เลขฐานสิบ: {decimal_num}")\nprint(f"รหัสเลขฐานสอง (8-bit): {binary_str}")`,
+    expectedOutput: `เลขฐานสิบ: 25\nรหัสเลขฐานสอง (8-bit): 00011001\n[Info] 25 = 16 + 8 + 1`,
+  },
+  {
+    id: 'js_step_counter',
+    lang: 'javascript',
+    title: 'Micro:bit JS: เครื่องนับก้าวเดินอัจฉริยะ',
+    description: 'ใช้เซ็นเซอร์ตรวจจับแรงสั่น (onGesture Shake) นับจำนวนก้าวเดินออกกำลังกาย',
+    code: `let steps = 0;\ninput.onGesture(Gesture.Shake, function () {\n    steps += 1;\n    basic.showNumber(steps);\n    if (steps % 10 == 0) {\n        music.playSoundEffect(SoundExpression.Happy);\n    }\n});`,
+    expectedOutput: `[Accelerometer Active] ตรวจจับการเดิน...\nGesture: Shake -> Steps = 1\nGesture: Shake -> Steps = 2 ... 10!\n🎉 ถึงเป้า 10 ก้าวแล้ว เล่นเสียงฉลอง Happy!`,
+  },
+  {
+    id: 'js_soil_pump',
+    lang: 'javascript',
+    title: 'Micro:bit JS: ระบบรดน้ำต้นไม้อัตโนมัติ',
+    description: 'อ่านค่าความชื้นดินผ่าน Pin 0 แล้วสั่งเปิดรีเลย์ปั๊มน้ำที่ Pin 1 เมื่อดินแห้ง',
+    code: `basic.forever(function () {\n    let soil = pins.analogReadPin(AnalogPin.P0);\n    if (soil < 400) {\n        pins.digitalWritePin(DigitalPin.P1, 1);\n        basic.showIcon(IconNames.Umbrella);\n    } else {\n        pins.digitalWritePin(DigitalPin.P1, 0);\n        basic.showIcon(IconNames.Yes);\n    }\n    basic.pause(2000);\n});`,
+    expectedOutput: `[Pin 0 Soil Sensor] ค่าความชื้นที่อ่านได้ = 315 (ดินแห้ง)\n[Pin 1 Relay] สถานะ = ON (กำลังสูบน้ำรดต้นไม้ 5 วินาที...)\n💧 ดินชุ่มชื้นแล้ว ระบบสลับเข้าสู่โหมดเฝ้าระวัง`,
+  },
 ];
 
 interface JuniorCodePlaygroundProps {

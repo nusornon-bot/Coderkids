@@ -26,12 +26,21 @@ const INITIAL_TRAINING_DATA: DataSample[] = [
   { id: 'd1', name: 'ขวดพลาสติก PET', emoji: '🧴', category: 'recycle' },
   { id: 'd2', name: 'กระป๋องอะลูมิเนียม', emoji: '🥫', category: 'recycle' },
   { id: 'd3', name: 'กล่องกระดาษลัง', emoji: '📦', category: 'recycle' },
+  { id: 'd10', name: 'ขวดแก้วใส', emoji: '🍾', category: 'recycle' },
+  { id: 'd11', name: 'หนังสือพิมพ์เก่า', emoji: '📰', category: 'recycle' },
+  { id: 'd12', name: 'ฝาขวดพลาสติก HDPE', emoji: '🔵', category: 'recycle' },
   { id: 'd4', name: 'เปลือกกล้วยหอม', emoji: '🍌', category: 'organic' },
   { id: 'd5', name: 'ก้างปลาทู', emoji: '🐟', category: 'organic' },
   { id: 'd6', name: 'ใบไม้แห้ง', emoji: '🍂', category: 'organic' },
+  { id: 'd13', name: 'เปลือกส้มและผลไม้', emoji: '🍊', category: 'organic' },
+  { id: 'd14', name: 'เศษข้าวและผัก', emoji: '🥬', category: 'organic' },
+  { id: 'd15', name: 'เปลือกไข่ไก่', emoji: '🥚', category: 'organic' },
   { id: 'd7', name: 'ถ่านไฟฉายเก่า', emoji: '🔋', category: 'hazardous' },
   { id: 'd8', name: 'หลอดไฟฟลูออเรสเซนต์', emoji: '💡', category: 'hazardous' },
   { id: 'd9', name: 'กระป๋องยาฆ่าแมลง', emoji: '🧪', category: 'hazardous' },
+  { id: 'd16', name: 'กระป๋องสีสเปรย์', emoji: '🎨', category: 'hazardous' },
+  { id: 'd17', name: 'ขวดน้ำยาล้างห้องน้ำ', emoji: '🧼', category: 'hazardous' },
+  { id: 'd18', name: 'เข็มฉีดยาใช้แล้ว', emoji: '💉', category: 'hazardous' },
 ];
 
 const TEST_ITEMS = [
@@ -39,6 +48,10 @@ const TEST_ITEMS = [
   { id: 't2', name: 'เศษแอปเปิ้ลกินเหลือ', emoji: '🍎', expected: 'organic', hint: 'ย่อยสลายได้ตามธรรมชาติ นำไปทำปุ๋ยหมักได้' },
   { id: 't3', name: 'แบตเตอรี่มือถือบวม', emoji: '📱', expected: 'hazardous', hint: 'มีสารเคมีและลิเธียมอันตราย ต้องแยกทิ้งถังสีแดง' },
   { id: 't4', name: 'กล่องนม UHT', emoji: '🧃', expected: 'recycle', hint: 'กระดาษเคลือบฟอยล์ นำไปรีไซเคิลเป็นแผ่นหลังคาได้' },
+  { id: 't5', name: 'เปลือกแตงโม', emoji: '🍉', expected: 'organic', hint: 'เป็นเศษผลไม้สด ย่อยสลายเป็นปุ๋ยอินทรีย์ได้ดี' },
+  { id: 't6', name: 'เพาเวอร์แบงค์เสื่อมสภาพ', emoji: '🔌', expected: 'hazardous', hint: 'ขยะอิเล็กทรอนิกส์ (E-Waste) มีแบตเตอรี่ลิเธียมติดไฟได้' },
+  { id: 't7', name: 'ขวดแยมแก้ว', emoji: '🫙', expected: 'recycle', hint: 'ล้างให้สะอาดแล้วนำไปหลอมเป็นขวดแก้วใบใหม่ได้ 100%' },
+  { id: 't8', name: 'ดอกไม้เหี่ยวบูชาพระ', emoji: '💐', expected: 'organic', hint: 'เป็นพืชธรรมชาติ ย่อยสลายได้ในถังขยะอินทรีย์สีเขียว' },
 ];
 
 interface KidsAILabProps {

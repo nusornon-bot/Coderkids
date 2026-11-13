@@ -16,6 +16,9 @@ import {
   RotateCcw,
   Sparkles,
   Info,
+  Wind,
+  CloudRain,
+  Ruler,
 } from 'lucide-react';
 import { AudioReaderButton } from './AudioReaderButton.tsx';
 
@@ -24,7 +27,7 @@ interface MicrobitDataLoggerProps {
   addPoints: (amount: number, reason: string, category: 'thinking') => void;
 }
 
-type SensorChannel = 'temp' | 'light' | 'moisture' | 'sound';
+type SensorChannel = 'temp' | 'light' | 'moisture' | 'sound' | 'humidity' | 'pm25' | 'distance' | 'co2';
 
 interface DataPoint {
   time: string;
@@ -33,6 +36,10 @@ interface DataPoint {
   light: number;
   moisture: number;
   sound: number;
+  humidity: number;
+  pm25: number;
+  distance: number;
+  co2: number;
 }
 
 export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, addPoints }) => {
@@ -42,30 +49,37 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
   const [dataPoints, setDataPoints] = useState<DataPoint[]>([]);
 
   // Simulated live sensor values
-  const [simulatedValues, setSimulatedValues] = useState<{
-    temp: number;
-    light: number;
-    moisture: number;
-    sound: number;
-  }>({
+  const [simulatedValues, setSimulatedValues] = useState<Record<SensorChannel, number>>({
     temp: 28.5,
     light: 140,
     moisture: 65,
     sound: 45,
+    humidity: 62,
+    pm25: 18,
+    distance: 85,
+    co2: 460,
   });
 
   const [activeExperiment, setActiveExperiment] = useState<string>('smart_farm');
   const [exportedStatus, setExportedStatus] = useState<boolean>(false);
 
-  // Sensor definitions
-  const sensorConfig = {
+  // Sensor definitions (8 channels)
+  const sensorConfig: Record<SensorChannel, {
+    name: string;
+    unit: string;
+    min: number;
+    max: number;
+    icon: typeof Thermometer;
+    color: string;
+    step: number;
+  }> = {
     temp: {
       name: 'อุณหภูมิ (Temperature)',
       unit: '°C',
       min: 15,
       max: 45,
       icon: Thermometer,
-      color: '#ef4444', // red
+      color: '#ef4444',
       step: 0.5,
     },
     light: {
@@ -74,7 +88,7 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
       min: 0,
       max: 255,
       icon: Sun,
-      color: '#f59e0b', // amber
+      color: '#f59e0b',
       step: 5,
     },
     moisture: {
@@ -83,7 +97,7 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
       min: 0,
       max: 100,
       icon: Droplets,
-      color: '#06b6d4', // cyan
+      color: '#06b6d4',
       step: 1,
     },
     sound: {
@@ -92,8 +106,44 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
       min: 20,
       max: 110,
       icon: Volume2,
-      color: '#8b5cf6', // purple
+      color: '#8b5cf6',
       step: 2,
+    },
+    humidity: {
+      name: 'ความชื้นอากาศ (Air Humidity)',
+      unit: '%RH',
+      min: 20,
+      max: 95,
+      icon: CloudRain,
+      color: '#0ea5e9',
+      step: 1,
+    },
+    pm25: {
+      name: 'ฝุ่นละออง (PM2.5 Air Quality)',
+      unit: 'µg/m³',
+      min: 0,
+      max: 150,
+      icon: Wind,
+      color: '#10b981',
+      step: 2,
+    },
+    distance: {
+      name: 'ระยะทางอัลตราโซนิก (Distance)',
+      unit: 'cm',
+      min: 5,
+      max: 250,
+      icon: Ruler,
+      color: '#f97316',
+      step: 5,
+    },
+    co2: {
+      name: 'ก๊าซ CO₂ ในห้องเรียน (CO2)',
+      unit: 'ppm',
+      min: 350,
+      max: 1400,
+      icon: Activity,
+      color: '#ec4899',
+      step: 20,
     },
   };
 
@@ -110,6 +160,10 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
         light: Math.round(120 + Math.cos(i) * 30 + Math.random() * 10),
         moisture: Math.round(65 - i * 0.4 + Math.random() * 3),
         sound: Math.round(40 + Math.random() * 15),
+        humidity: Math.round(60 + Math.sin(i * 0.7) * 5 + Math.random() * 3),
+        pm25: Math.round(16 + Math.cos(i * 0.5) * 4 + Math.random() * 3),
+        distance: Math.round(80 + Math.sin(i * 0.8) * 20 + Math.random() * 5),
+        co2: Math.round(450 + Math.cos(i * 0.6) * 40 + Math.random() * 20),
       });
     }
     setDataPoints(initialData);
@@ -123,10 +177,14 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
       const now = new Date();
       // Slight natural jitter
       setSimulatedValues((prev) => ({
-        temp: +(prev.temp + (Math.random() - 0.49) * 0.4).toFixed(1),
+        temp: +Math.min(45, Math.max(15, prev.temp + (Math.random() - 0.49) * 0.4)).toFixed(1),
         light: Math.min(255, Math.max(0, Math.round(prev.light + (Math.random() - 0.5) * 8))),
         moisture: Math.min(100, Math.max(0, Math.round(prev.moisture + (Math.random() - 0.5) * 2))),
         sound: Math.min(110, Math.max(20, Math.round(prev.sound + (Math.random() - 0.5) * 6))),
+        humidity: Math.min(95, Math.max(20, Math.round(prev.humidity + (Math.random() - 0.5) * 2))),
+        pm25: Math.min(150, Math.max(0, Math.round(prev.pm25 + (Math.random() - 0.5) * 3))),
+        distance: Math.min(250, Math.max(5, Math.round(prev.distance + (Math.random() - 0.5) * 6))),
+        co2: Math.min(1400, Math.max(350, Math.round(prev.co2 + (Math.random() - 0.5) * 18))),
       }));
 
       setDataPoints((prev) => {
@@ -137,6 +195,10 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
           light: simulatedValues.light,
           moisture: simulatedValues.moisture,
           sound: simulatedValues.sound,
+          humidity: simulatedValues.humidity,
+          pm25: simulatedValues.pm25,
+          distance: simulatedValues.distance,
+          co2: simulatedValues.co2,
         };
         const updated = [...prev, newPoint];
         if (updated.length > 25) {
@@ -159,9 +221,9 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = 'Time,Timestamp,Temperature(C),Light(0-255),SoilMoisture(%),Sound(dB)\n';
+    const headers = 'Time,Timestamp,Temperature(C),Light(0-255),SoilMoisture(%),Sound(dB),AirHumidity(%RH),PM2.5(ug/m3),Distance(cm),CO2(ppm)\n';
     const rows = dataPoints
-      .map((d) => `${d.time},${d.timestamp},${d.temp},${d.light},${d.moisture},${d.sound}`)
+      .map((d) => `${d.time},${d.timestamp},${d.temp},${d.light},${d.moisture},${d.sound},${d.humidity},${d.pm25},${d.distance},${d.co2}`)
       .join('\n');
     const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -238,9 +300,9 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
           </div>
         </div>
 
-        {/* Channel Selector Pills */}
+        {/* Channel Selector Pills (8 Channels) */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-6 pt-6 border-t border-white/15">
-          {(['temp', 'light', 'moisture', 'sound'] as SensorChannel[]).map((ch) => {
+          {(['temp', 'light', 'moisture', 'sound', 'humidity', 'pm25', 'distance', 'co2'] as SensorChannel[]).map((ch) => {
             const conf = sensorConfig[ch];
             const Icon = conf.icon;
             const isSelected = activeChannel === ch;
@@ -459,38 +521,100 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
                   className="w-full accent-cyan-500"
                 />
               </div>
+
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-600 font-medium">🍃 ฝุ่น PM2.5:</span>
+                  <span className="font-mono font-bold text-emerald-600">{simulatedValues.pm25} µg/m³</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="150"
+                  value={simulatedValues.pm25}
+                  onChange={(e) => setSimulatedValues({ ...simulatedValues, pm25: +e.target.value })}
+                  className="w-full accent-emerald-500"
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-600 font-medium">📏 ระยะอัลตราโซนิก:</span>
+                  <span className="font-mono font-bold text-orange-600">{simulatedValues.distance} cm</span>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="250"
+                  value={simulatedValues.distance}
+                  onChange={(e) => setSimulatedValues({ ...simulatedValues, distance: +e.target.value })}
+                  className="w-full accent-orange-500"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Science Experiment Cards */}
+          {/* Science Experiment Cards (6 Presets) */}
           <div className="bg-gradient-to-br from-indigo-50 to-teal-50 rounded-3xl p-6 border border-indigo-100">
             <h4 className="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
               <Info className="w-4 h-4 text-indigo-600" />
-              ตัวอย่างการทดลองวิทยาศาสตร์ในโรงเรียน
+              ตัวอย่างการทดลองวิทยาศาสตร์ในโรงเรียน (6 ชุดทดลอง)
             </h4>
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {[
                 {
                   id: 'smart_farm',
+                  channel: 'moisture' as SensorChannel,
                   title: '🌱 การทดลองรดน้ำแปลงผักชี',
                   desc: 'วัดความชื้นในดินและอุณหภูมิรอบกระถางต้นไม้ตลอด 24 ชั่วโมง',
                 },
                 {
                   id: 'insulation',
+                  channel: 'temp' as SensorChannel,
                   title: '🧊 เปรียบเทียบกระติกเก็บความเย็น',
                   desc: 'วัดอัตราการเปลี่ยนแปลงอุณหภูมิเมื่อใส่ฉนวนแต่ละชนิด',
                 },
                 {
                   id: 'solar',
+                  channel: 'light' as SensorChannel,
                   title: '☀️ พลังงานแสงกับการสังเคราะห์แสง',
                   desc: 'บันทึกความเข้มแสงแดดช่วงเช้า กลางวัน และเย็น',
                 },
+                {
+                  id: 'noise_library',
+                  channel: 'sound' as SensorChannel,
+                  title: '🤫 วัดระดับเสียงห้องสมุดโรงเรียน',
+                  desc: 'ติดตามระดับเดซิเบลช่วงพักเที่ยงเพื่อออกแบบไฟเตือนเสียงดัง',
+                },
+                {
+                  id: 'pm25_schoolyard',
+                  channel: 'pm25' as SensorChannel,
+                  title: '😷 สำรวจค่าฝุ่น PM2.5 หน้าเสาธง vs ใต้ร่มไม้',
+                  desc: 'เปรียบเทียบคุณภาพอากาศบริเวณถนนหน้าโรงเรียนและสวนเกษตร',
+                },
+                {
+                  id: 'greenhouse_co2',
+                  channel: 'co2' as SensorChannel,
+                  title: '🏫 คุณภาพอากาศ CO₂ ในห้องเรียนปรับอากาศ',
+                  desc: 'ตรวจวัดการระบายอากาศและระดับ CO₂ ช่วงคาบเรียนบ่าย',
+                },
               ].map((exp) => (
-                <div key={exp.id} className="p-3 bg-white/90 rounded-2xl border border-slate-200/60">
+                <button
+                  key={exp.id}
+                  onClick={() => {
+                    setActiveExperiment(exp.id);
+                    setActiveChannel(exp.channel);
+                  }}
+                  className={`w-full text-left p-3 rounded-2xl border transition-all cursor-pointer ${
+                    activeExperiment === exp.id
+                      ? 'bg-white border-indigo-400 ring-2 ring-indigo-200 shadow-xs'
+                      : 'bg-white/90 border-slate-200/60 hover:border-indigo-300'
+                  }`}
+                >
                   <div className="text-xs font-bold text-slate-800">{exp.title}</div>
                   <div className="text-[11px] text-slate-600 mt-0.5">{exp.desc}</div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

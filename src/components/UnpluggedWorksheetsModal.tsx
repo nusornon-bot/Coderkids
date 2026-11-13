@@ -24,7 +24,7 @@ export const UnpluggedWorksheetsModal: React.FC<UnpluggedWorksheetsModalProps> =
   onClose,
   onCompleteWorksheet,
 }) => {
-  const [selectedSheet, setSelectedSheet] = useState<'flowchart' | 'pixel' | 'maze' | 'pdpa'>('flowchart');
+  const [selectedSheet, setSelectedSheet] = useState<'flowchart' | 'pixel' | 'maze' | 'pdpa' | 'logic' | 'sort' | 'cipher' | 'ct'>('flowchart');
 
   if (!isOpen) return null;
 
@@ -115,6 +115,54 @@ export const UnpluggedWorksheetsModal: React.FC<UnpluggedWorksheetsModalProps> =
               <ShieldAlert className="w-4 h-4" />
               <span>4. สำรวจ PDPA ในโรงเรียน</span>
             </button>
+
+            <button
+              onClick={() => setSelectedSheet('logic')}
+              className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                selectedSheet === 'logic'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-500'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>5. ประตูตรรกะ AND / OR</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedSheet('sort')}
+              className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                selectedSheet === 'sort'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-500'
+              }`}
+            >
+              <ArrowRight className="w-4 h-4" />
+              <span>6. เรียงลำดับ Bubble Sort</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedSheet('cipher')}
+              className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                selectedSheet === 'cipher'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-500'
+              }`}
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>7. รหัสลับ Caesar Cipher</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedSheet('ct')}
+              className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                selectedSheet === 'ct'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-emerald-500'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>8. 4 เสาหลักจัดงานกีฬาสี</span>
+            </button>
           </div>
 
           <button
@@ -145,6 +193,10 @@ export const UnpluggedWorksheetsModal: React.FC<UnpluggedWorksheetsModalProps> =
                   {selectedSheet === 'pixel' && 'กิจกรรมที่ 2: การแทนค่าข้อมูลดิจิทัลด้วยเลขฐานสอง (8x8 Binary Pixel Art)'}
                   {selectedSheet === 'maze' && 'กิจกรรมที่ 3: ออกแบบชุดคำสั่งนำทางหุ่นยนต์กู้ภัย (Robot Navigation Algorithm)'}
                   {selectedSheet === 'pdpa' && 'กิจกรรมที่ 4: นักสืบไซเบอร์ สำรวจและปกป้องข้อมูลส่วนบุคคล (PDPA Detective)'}
+                  {selectedSheet === 'logic' && 'กิจกรรมที่ 5: ประตูตรรกะแอนด์-ออร์-นอต (Logic Gates: AND, OR, NOT)'}
+                  {selectedSheet === 'sort' && 'กิจกรรมที่ 6: อัลกอริทึมเรียงลำดับข้อมูล (Bubble Sort Comparison)'}
+                  {selectedSheet === 'cipher' && 'กิจกรรมที่ 7: นักสืบถอดรหัสลับซีซาร์ (Caesar Cipher +3 Cryptography)'}
+                  {selectedSheet === 'ct' && 'กิจกรรมที่ 8: ประยุกต์ 4 เสาหลักการคิดเชิงคำนวณวางแผนงานโรงเรียน'}
                 </p>
               </div>
 
@@ -402,6 +454,113 @@ export const UnpluggedWorksheetsModal: React.FC<UnpluggedWorksheetsModalProps> =
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* SHEET 5: LOGIC GATES */}
+            {selectedSheet === 'logic' && (
+              <div className="space-y-6">
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs sm:text-sm space-y-1 text-amber-950">
+                  <p className="font-bold">คำชี้แจง: เติมผลลัพธ์ (เปิดประตู / ปิดประตู) ลงในตารางความจริงของ Logic Gate</p>
+                  <p>กฎ: AND = ต้องจริงทั้งคู่จึงจะเปิด | OR = จริงอย่างน้อย 1 ข้อก็เปิด | NOT = กลับค่าตรงข้าม</p>
+                </div>
+                <table className="w-full border-collapse border border-slate-400 text-xs">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-400">
+                      <th className="p-2.5 border-r border-slate-300 text-left">เงื่อนไขประตูห้องสมุดดิจิทัล</th>
+                      <th className="p-2.5 border-r border-slate-300 text-center">มีบัตรนักเรียน (A)</th>
+                      <th className="p-2.5 border-r border-slate-300 text-center">สแกนนิ้วผ่าน (B)</th>
+                      <th className="p-2.5 text-center">ผลลัพธ์ (เปิด / ปิด)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-300">
+                    <tr><td className="p-2.5 border-r border-slate-300">1. ประตูแบบ AND (A AND B)</td><td className="p-2.5 border-r text-center">จริง (1)</td><td className="p-2.5 border-r text-center">เท็จ (0)</td><td className="p-2.5 text-center">................................</td></tr>
+                    <tr><td className="p-2.5 border-r border-slate-300">2. ประตูแบบ AND (A AND B)</td><td className="p-2.5 border-r text-center">จริง (1)</td><td className="p-2.5 border-r text-center">จริง (1)</td><td className="p-2.5 text-center">................................</td></tr>
+                    <tr><td className="p-2.5 border-r border-slate-300">3. ประตูแบบ OR (A OR B)</td><td className="p-2.5 border-r text-center">เท็จ (0)</td><td className="p-2.5 border-r text-center">จริง (1)</td><td className="p-2.5 text-center">................................</td></tr>
+                    <tr><td className="p-2.5 border-r border-slate-300">4. ประตูแบบ OR (A OR B)</td><td className="p-2.5 border-r text-center">เท็จ (0)</td><td className="p-2.5 border-r text-center">เท็จ (0)</td><td className="p-2.5 text-center">................................</td></tr>
+                    <tr><td className="p-2.5 border-r border-slate-300">5. ประตูแบบ NOT (NOT A)</td><td className="p-2.5 border-r text-center">จริง (1)</td><td className="p-2.5 border-r text-center">-</td><td className="p-2.5 text-center">................................</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* SHEET 6: BUBBLE SORT */}
+            {selectedSheet === 'sort' && (
+              <div className="space-y-6">
+                <div className="p-4 bg-sky-50 rounded-xl border border-sky-200 text-xs sm:text-sm space-y-1 text-sky-950">
+                  <p className="font-bold">คำชี้แจง: แสดงขั้นตอนการเรียงตัวเลขจากน้อยไปมากด้วยวิธี Bubble Sort (เปรียบเทียบทีละคู่ติดกัน)</p>
+                  <p>โจทย์ตั้งต้น: <strong>[ 42 , 15 , 30 , 8 , 25 ]</strong> (ถ้าตัวซ้ายมากกว่าตัวขวา ให้สลับที่กัน!)</p>
+                </div>
+                <div className="space-y-3 text-xs">
+                  {['รอบที่ 1 (Pass 1)', 'รอบที่ 2 (Pass 2)', 'รอบที่ 3 (Pass 3)', 'ผลลัพธ์สุดท้ายเรียงจากน้อยไปมาก'].map((label, i) => (
+                    <div key={i} className="p-4 border border-slate-300 rounded-xl space-y-2">
+                      <div className="font-bold text-slate-800">{label}:</div>
+                      <div className="grid grid-cols-5 gap-3">
+                        {[1, 2, 3, 4, 5].map((box) => (
+                          <div key={box} className="h-12 border-2 border-dashed border-slate-400 rounded-lg flex items-center justify-center text-slate-300">
+                            ?
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-slate-700 font-semibold pt-2">คำถามชวนคิด: เราสลับตำแหน่งตัวเลขทั้งหมดกี่ครั้ง? ตอบ .......................... ครั้ง</p>
+                </div>
+              </div>
+            )}
+
+            {/* SHEET 7: CAESAR CIPHER */}
+            {selectedSheet === 'cipher' && (
+              <div className="space-y-6">
+                <div className="p-4 bg-purple-50 rounded-xl border border-purple-200 text-xs sm:text-sm space-y-1 text-purple-950">
+                  <p className="font-bold">คำชี้แจง: ใช้รหัสเลื่อน Caesar Cipher (Shift +3) ถอดรหัสข้อความลับของสายลับ!</p>
+                  <p className="font-mono text-xs bg-white p-2 rounded border border-purple-200">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z (ถอยหลัง 3 ตัวเพื่อถอดรหัส)</p>
+                </div>
+                <div className="space-y-3 text-xs">
+                  <div className="p-4 border border-slate-300 rounded-xl flex items-center justify-between">
+                    <span className="font-mono font-bold text-base">1. K H O O R</span>
+                    <span>คำตอบที่ถอดรหัสได้: .........................................................</span>
+                  </div>
+                  <div className="p-4 border border-slate-300 rounded-xl flex items-center justify-between">
+                    <span className="font-mono font-bold text-base">2. F R G H</span>
+                    <span>คำตอบที่ถอดรหัสได้: .........................................................</span>
+                  </div>
+                  <div className="p-4 border border-slate-300 rounded-xl flex items-center justify-between">
+                    <span className="font-mono font-bold text-base">3. V F U D W F K</span>
+                    <span>คำตอบที่ถอดรหัสได้: .........................................................</span>
+                  </div>
+                  <div className="p-4 border border-slate-300 rounded-xl space-y-2">
+                    <div className="font-bold">4. ภารกิจสร้างรหัสเอง: เข้ารหัสชื่อเล่นภาษาอังกฤษของคุณด้วย Shift +3:</div>
+                    <div className="pt-2">ชื่อปกติ: .............................. ➔ ข้อความเข้ารหัส: ........................................................</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SHEET 8: 4 PILLARS OF CT */}
+            {selectedSheet === 'ct' && (
+              <div className="space-y-5">
+                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-200 text-xs sm:text-sm space-y-1 text-indigo-950">
+                  <p className="font-bold">คำชี้แจง: จับกลุ่มกับเพื่อนวางแผน "จัดงานสัปดาห์วิทยาการคำนวณและกีฬาสีโรงเรียน" โดยใช้ 4 เสาหลัก CT</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  {[
+                    { title: '1. Decomposition (การแยกย่อยปัญหา)', prompt: 'แบ่งงานใหญ่ออกเป็นฝ่ายย่อยๆ มีหน้าที่อะไรบ้าง?' },
+                    { title: '2. Pattern Recognition (การหารูปแบบ)', prompt: 'งานหรือปัญหาอะไรบ้างที่เกิดขึ้นซ้ำๆ ทุกปี?' },
+                    { title: '3. Abstraction (การคัดเลือกสาระสำคัญ)', prompt: 'ข้อมูลจำเป็นที่ต้องแจ้งนักกีฬาคืออะไร (ตัดสิ่งไม่จำเป็นออก)?' },
+                    { title: '4. Algorithm Design (การออกแบบขั้นตอน)', prompt: 'เขียนลำดับขั้นตอนวันงาน 1-2-3-4 ตั้งแต่เช้าจนจบงาน:' },
+                  ].map((item, idx) => (
+                    <div key={idx} className="p-4 border-2 border-slate-300 rounded-xl space-y-3 min-h-[160px]">
+                      <div className="font-bold text-slate-900">{item.title}</div>
+                      <div className="text-slate-600">{item.prompt}</div>
+                      <div className="space-y-3 pt-2 text-slate-400">
+                        <div className="border-b border-dotted border-slate-400 h-4" />
+                        <div className="border-b border-dotted border-slate-400 h-4" />
+                        <div className="border-b border-dotted border-slate-400 h-4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

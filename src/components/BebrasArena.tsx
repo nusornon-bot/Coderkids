@@ -37,7 +37,10 @@ interface BebrasTask {
   difficulty: 'ง่าย (ป.4)' | 'ปานกลาง (ป.5)' | 'ท้าทาย (ป.6)';
   story: string;
   question: string;
-  interactiveType: 'dam_order' | 'rail_switches' | 'bead_pattern' | 'abstraction_filter';
+  interactiveType: 'dam_order' | 'rail_switches' | 'bead_pattern' | 'abstraction_filter' | 'choice_puzzle';
+  visualScenario?: string;
+  choices?: { id: string; label: string; emoji: string }[];
+  correctChoiceId?: string;
   hint: string;
   explanation: string;
   csConcept: string;
@@ -115,6 +118,98 @@ export const BebrasArena: React.FC<BebrasArenaProps> = ({ onBack, addPoints, onC
       explanation: 'ข้อมูลจำเป็นคือ: 1. ป้ายจอดรถและลำดับสถานี 2. สายรถเมล์และทิศทาง 3. อัตราค่าโดยสาร ส่วนสีเสาไฟฟ้าหรือยี่ห้อยางรถเป็นรายละเอียดที่ไม่จำเป็นต่อเป้าหมาย',
       csConcept: 'Abstraction (การกรองสาระสำคัญ): การคัดเลือกเฉพาะข้อมูลที่จำเป็นต่อการแก้ปัญหา และละเว้นรายละเอียดที่ไม่เกี่ยวข้อง ทำให้ระบบไม่ซับซ้อนและมีประสิทธิภาพสูง',
     },
+    {
+      id: 'task_5',
+      pillar: 'Decomposition',
+      pillarTh: 'การแยกย่อยปัญหา (Decomposition)',
+      pillarIcon: Layers,
+      pillarColor: 'text-indigo-600 bg-indigo-50 border-indigo-200',
+      title: 'ภารกิจที่ 5: โรงงานพับกล่องส่งพัสดุอัจฉริยะ',
+      difficulty: 'ปานกลาง (ป.5)',
+      story: 'แขนกลของโรงงานต้องเตรียมพัสดุ 1 กล่อง โดยมีขั้นตอนย่อย: (ก) ปิดเทปกาวด้านบน, (ข) พับขึ้นรูปกล่อง, (ค) ใส่สินค้าลงในกล่อง, (ง) แปะบาร์โค้ดจัดส่ง',
+      question: 'หากต้องการให้แขนกลทำงานถูกต้องโดยกล่องไม่พังและสินค้าไม่หล่น ต้องจัดลำดับขั้นตอนย่อยอย่างไร?',
+      interactiveType: 'choice_puzzle',
+      visualScenario: '📦 ก = ปิดเทป | 📐 ข = พับกล่อง | 🧸 ค = ใส่สินค้า | 🏷️ ง = แปะบาร์โค้ด',
+      choices: [
+        { id: 'c1', label: 'ก ➔ ข ➔ ค ➔ ง (ปิดเทปก่อนพับกล่อง)', emoji: '1️⃣' },
+        { id: 'c2', label: 'ข ➔ ค ➔ ก ➔ ง (พับกล่อง ➔ ใส่สินค้า ➔ ปิดเทป ➔ แปะบาร์โค้ด)', emoji: '2️⃣' },
+        { id: 'c3', label: 'ค ➔ ข ➔ ง ➔ ก (ใส่สินค้าก่อนพับกล่อง)', emoji: '3️⃣' },
+        { id: 'c4', label: 'ง ➔ ก ➔ ค ➔ ข (แปะบาร์โค้ดก่อนพับ)', emoji: '4️⃣' },
+      ],
+      correctChoiceId: 'c2',
+      hint: 'แยกงานใหญ่เป็นงานย่อยแล้วเช็กว่าขั้นตอนไหนต้องทำก่อนขั้นตอนถัดไป (Dependency Order)',
+      explanation: 'ต้องพับขึ้นรูปกล่อง (ข) ก่อนจึงจะใส่สินค้า (ค) ได้ จากนั้นปิดเทปกาวให้แน่น (ก) แล้วจึงแปะบาร์โค้ดบนกล่องที่ปิดเรียบร้อย (ง)',
+      csConcept: 'Task Decomposition & Dependency: นอกจากแบ่งงานเป็นส่วนย่อยแล้ว นักเขียนโค้ดต้องจัดลำดับการทำงานที่มีเงื่อนไขพึ่งพากัน (Dependencies) ให้ถูกต้อง',
+    },
+    {
+      id: 'task_6',
+      pillar: 'Pattern Recognition',
+      pillarTh: 'การจดจำและหารูปแบบ (Pattern Recognition)',
+      pillarIcon: Search,
+      pillarColor: 'text-amber-600 bg-amber-50 border-amber-200',
+      title: 'ภารกิจที่ 6: รหัสลับตราประทับบีเวอร์ (Binary Card)',
+      difficulty: 'ปานกลาง (ป.5)',
+      story: 'ชาวเมืองบีเวอร์ใช้บัตรเจาะรู 4 ช่องแทนตัวเลข โดยเรียงค่าจากซ้ายไปขวาคือ [8] [4] [2] [1] ถ้าช่องใดระบายสีดำ (●) ให้นำค่านั้นมาบวก ถ้าสีขาว (○) ไม่ต้องบวก เช่น ●○○● = 8 + 1 = 9',
+      question: 'บัตรรหัส "● ● ○ ●" แทนตัวเลขฐานสิบใดในระบบบีเวอร์?',
+      interactiveType: 'choice_puzzle',
+      visualScenario: 'ตารางน้ำหนัก: [8] [4] [2] [1]  |  รหัสที่พบ: [ ● ] [ ● ] [ ○ ] [ ● ]',
+      choices: [
+        { id: 'c1', label: '11 (8 + 2 + 1)', emoji: '🔢' },
+        { id: 'c2', label: '13 (8 + 4 + 1)', emoji: '🎯' },
+        { id: 'c3', label: '14 (8 + 4 + 2)', emoji: '🧮' },
+        { id: 'c4', label: '15 (8 + 4 + 2 + 1)', emoji: '🎲' },
+      ],
+      correctChoiceId: 'c2',
+      hint: 'สังเกตตำแหน่งที่ 1 (ค่า 8), ตำแหน่งที่ 2 (ค่า 4), และตำแหน่งที่ 4 (ค่า 1) เป็นสีดำ (●)',
+      explanation: 'รูปแบบค่าประจำหลักของเลขฐานสอง 4 บิต คือ 8, 4, 2, 1 เมื่อ ●●○● เท่ากับ (8×1) + (4×1) + (2×0) + (1×1) = 13 พอดี!',
+      csConcept: 'Binary Representation & Pattern: คอมพิวเตอร์ใช้รูปแบบกำลังของ 2 (1, 2, 4, 8, ...) เพื่อแทนตัวเลขทุกจำนวนด้วยสถานะเปิด-ปิดเพียง 2 แบบ',
+    },
+    {
+      id: 'task_7',
+      pillar: 'Algorithm Design',
+      pillarTh: 'การออกแบบอัลกอริทึม (Algorithm Design)',
+      pillarIcon: GitBranch,
+      pillarColor: 'text-emerald-600 bg-emerald-50 border-emerald-200',
+      title: 'ภารกิจที่ 7: หุ่นยนต์ดูดฝุ่นเก็บถ้วยรางวัลน้อยก้าวที่สุด',
+      difficulty: 'ท้าทาย (ป.6)',
+      story: 'หุ่นยนต์อยู่ที่ช่อง (1,1) หันหน้าไปทางทิศเหนือ (ขึ้นบน) ต้องการไปเก็บดาวที่ช่อง (3,3) โดยชุดคำสั่งมี: F = เดินหน้า 1 ช่อง, R = หมุนขวา 90°, L = หมุนซ้าย 90°',
+      question: 'ชุดคำสั่งใดนำหุ่นยนต์จาก (1,1) ไปถึง (3,3) ได้ถูกต้องโดยใช้จำนวนคำสั่งน้อยที่สุด?',
+      interactiveType: 'choice_puzzle',
+      visualScenario: '📍 เริ่ม (1,1) หันขึ้นบน (North) ➔ 🎯 เป้าหมาย (3,3) (ขวา 2 ช่อง, ขึ้น 2 ช่อง)',
+      choices: [
+        { id: 'c1', label: 'F, F, R, F, F (5 คำสั่ง)', emoji: '🤖' },
+        { id: 'c2', label: 'R, F, F, R, F, F (6 คำสั่ง)', emoji: '🔄' },
+        { id: 'c3', label: 'F, R, F, L, F, F (6 คำสั่ง)', emoji: '⚡' },
+        { id: 'c4', label: 'F, F, L, F, F (5 คำสั่ง)', emoji: '🧭' },
+      ],
+      correctChoiceId: 'c1',
+      hint: 'เดินขึ้นหน้า (North) 2 ก้าวจากแถว 1 ไปแถว 3 แล้วหมุนขวา (Right) หันตะวันออก เดินอีก 2 ก้าวถึงคอลัมน์ 3!',
+      explanation: 'F, F จะพาหุ่นยนต์ขึ้นจาก (1,1) ไป (1,3) จากนั้นหมุนขวา (R) เพื่อหันไปทางขวา แล้วเดิน F, F ไปหยุดที่ (3,3) ใช้เพียง 5 คำสั่งเท่านั้น (หากหมุนซ้าย L จะเดินตกซ้ายแทน)',
+      csConcept: 'Algorithm Optimization: การออกแบบขั้นตอนวิธีไม่เพียงต้องได้ผลลัพธ์ถูกต้อง แต่ควรใช้จำนวนคำสั่งและพลังงานน้อยที่สุดเท่าที่จะเป็นไปได้',
+    },
+    {
+      id: 'task_8',
+      pillar: 'Abstraction',
+      pillarTh: 'การคิดเชิงนามธรรม (Abstraction)',
+      pillarIcon: Cpu,
+      pillarColor: 'text-purple-600 bg-purple-50 border-purple-200',
+      title: 'ภารกิจที่ 8: เครือข่ายเส้นทางส่งจดหมายนกพิราบ',
+      difficulty: 'ท้าทาย (ป.6)',
+      story: 'เราต้องการย่อแผนที่หมู่บ้าน 4 หลัง (A, B, C, D) ให้เป็นกราฟ (Graph Model) เพื่อวางแผนส่งจดหมาย โดย A ส่งถึง B, B ส่งถึง C และ D, ส่วน C กับ D ส่งหากันได้',
+      question: 'ถ้าต้องการส่งจดหมายจากบ้าน A ไปบ้าน D โดยผ่านจุดเชื่อมน้อยที่สุด เส้นทางใดถูกต้องในแบบจำลอง Graph?',
+      interactiveType: 'choice_puzzle',
+      visualScenario: 'เส้นทางเชื่อมต่อ: [A — B] , [B — C] , [B — D] , [C — D]',
+      choices: [
+        { id: 'c1', label: 'A ➔ D (เชื่อมตรง)', emoji: '🚫' },
+        { id: 'c2', label: 'A ➔ B ➔ D (ผ่าน 2 เส้นเชื่อม)', emoji: '🕊️' },
+        { id: 'c3', label: 'A ➔ B ➔ C ➔ D (ผ่าน 3 เส้นเชื่อม)', emoji: '🛤️' },
+        { id: 'c4', label: 'A ➔ C ➔ D (ผ่าน 2 เส้นเชื่อม)', emoji: '❓' },
+      ],
+      correctChoiceId: 'c2',
+      hint: 'A ไม่ได้เชื่อมกับ C หรือ D โดยตรง ต้องออกจาก A ไป B ก่อน แล้วดูว่าจาก B มีเส้นตรงไป D หรือไม่!',
+      explanation: 'แบบจำลอง Graph ตัดรายละเอียดเรื่องระยะทางคดเคี้ยวของถนนทิ้ง เหลือเพียงโหนด (จุดบ้าน) และเส้นเชื่อม (Edges) จะเห็นว่าจาก A ไป B แล้วตรงไป D ใช้เพียง 2 ต่อเท่านั้น!',
+      csConcept: 'Graph Abstraction: อินเทอร์เน็ต, GPS นำทาง และเครือข่ายสังคม ล้วนใช้แนวคิด Graph Abstraction แทนความสัมพันธ์ด้วยจุด (Nodes) และเส้นเชื่อม (Edges)',
+    },
   ];
 
   const currentTask = tasks[selectedTaskIndex];
@@ -177,6 +272,10 @@ export const BebrasArena: React.FC<BebrasArenaProps> = ({ onBack, addPoints, onC
       const ans = taskAnswers.task_4;
       const valid = ['ป้ายจอดและลำดับสถานี', 'สายรถเมล์และจุดต่อขบวน', 'อัตราค่าโดยสาร'];
       if (ans.length === 3 && ans.every((a: string) => valid.includes(a))) {
+        isCorrect = true;
+      }
+    } else if (currentTask.interactiveType === 'choice_puzzle') {
+      if (taskAnswers[currentTask.id] && taskAnswers[currentTask.id] === currentTask.correctChoiceId) {
         isCorrect = true;
       }
     }
@@ -560,6 +659,42 @@ export const BebrasArena: React.FC<BebrasArenaProps> = ({ onBack, addPoints, onC
                       >
                         <span>{item.text}</span>
                         {isSelected && <Check className="w-4 h-4 text-purple-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TASK 5-8: Interactive Choice Puzzle */}
+            {currentTask.interactiveType === 'choice_puzzle' && (
+              <div className="space-y-4">
+                {currentTask.visualScenario && (
+                  <div className="p-4 rounded-2xl bg-slate-900 text-amber-300 font-mono text-xs sm:text-sm font-bold text-center border border-slate-700 shadow-inner">
+                    {currentTask.visualScenario}
+                  </div>
+                )}
+                <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  เลือกคำตอบที่ถูกต้องที่สุด:
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(currentTask.choices || []).map((choice) => {
+                    const isSelected = taskAnswers[currentTask.id] === choice.id;
+                    return (
+                      <button
+                        key={choice.id}
+                        onClick={() => setTaskAnswers({ ...taskAnswers, [currentTask.id]: choice.id })}
+                        className={`p-3.5 rounded-xl border text-left text-xs sm:text-sm font-medium transition-all flex items-center justify-between gap-2 cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-50 text-indigo-900 border-indigo-500 font-bold shadow-sm ring-2 ring-indigo-200'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="text-base">{choice.emoji}</span>
+                          <span>{choice.label}</span>
+                        </span>
+                        {isSelected && <Check className="w-4 h-4 text-indigo-600 shrink-0" />}
                       </button>
                     );
                   })}

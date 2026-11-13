@@ -70,6 +70,30 @@ const INITIAL_SUBMISSIONS: HomeworkSubmission[] = [
     gradeScore: 5,
     teacherFeedback: 'เกมสนุกและโค้ดสะอาดมาก มีการใช้ตัวแปรได้ถูกต้องและมีระบบเช็คเงื่อนไขชนะ-แพ้',
   },
+  {
+    id: 'sub_3',
+    topic: 'โค้ด Micro:bit วัดอุณหภูมิ & ส่งสัญญาณเตือน',
+    title: 'ระบบเตือนอากาศร้อนในห้องคอมพิวเตอร์ด้วย LED 5×5',
+    studentName: 'ด.ช. ธนกฤต ศรีสุวรรณ',
+    studentClass: 'ป.5/1',
+    projectUrl: 'https://makecode.microbit.org/',
+    reflection: 'ใช้บล็อก input.temperature() เปรียบเทียบกับค่า 32 องศา ถ้าเกินจะร้องเตือนเสียงดัง',
+    submittedAt: '10/11/2026 10:15 น.',
+    status: 'graded',
+    gradeScore: 5,
+    teacherFeedback: 'การกำหนดเงื่อนไข Threshold ชัดเจนมาก ช่วยประหยัดไฟในห้องเรียนได้จริงครับ!',
+  },
+  {
+    id: 'sub_4',
+    topic: 'รหัสลับเลขฐานสอง Binary Pixel Art 8×8',
+    title: 'ภาพพิกเซลอาร์ทจรวดอวกาศ 8×8 พร้อมรหัสเลขฐานสิบหก (Hex)',
+    studentName: 'ด.ญ. นภัสสร วงศ์สุวรรณ',
+    studentClass: 'ป.6/1',
+    imageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=600&q=80',
+    reflection: 'เรียนรู้วิธีแปลงเลขฐานสอง 8 บิตเป็นตัวเลขฐานสิบและแสดงภาพกราฟิกด้วยตนเองค่ะ',
+    submittedAt: '11/11/2026 15:40 น.',
+    status: 'pending',
+  },
 ];
 
 const ASSIGNMENT_TOPICS = [
@@ -79,6 +103,12 @@ const ASSIGNMENT_TOPICS = [
   'โค้ด Micro:bit วัดอุณหภูมิ & ส่งสัญญาณเตือน',
   'โครงงานสะเต็มศึกษา STEM 5E Project Canvas',
   'การออกแบบโปสเตอร์ความปลอดภัยดิจิทัล & PDPA',
+  'รหัสลับเลขฐานสอง Binary Pixel Art 8×8',
+  'การวิเคราะห์ข้อมูลเชิงสถิติ IoT Data Logger (CSV)',
+  'ชุดฝึกเขียนโค้ดภาษา Python & JavaScript (Junior Playground)',
+  'การสร้างโมเดลแยกภาพ AI Machine Learning Lab',
+  'การประดิษฐ์ทำนองเพลงดิจิทัลบน Micro:bit Music Lab',
+  'แบบฝึกทักษะแนวคิดเชิงคำนวณสากล Bebras Thailand',
 ];
 
 export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({

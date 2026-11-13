@@ -26,7 +26,13 @@ interface BlockMazeRunnerProps {
   onAwardPoints?: (amount: number, reason: string) => void;
 }
 
-export type CommandType = 'forward' | 'turn_left' | 'turn_right' | 'repeat_3_forward' | 'repeat_4_forward';
+export type CommandType =
+  | 'forward'
+  | 'turn_left'
+  | 'turn_right'
+  | 'repeat_3_forward'
+  | 'repeat_4_forward'
+  | 'repeat_5_forward';
 
 export interface CommandBlock {
   id: string;
@@ -55,6 +61,7 @@ const COMMAND_TEMPLATES: Record<CommandType, { label: string; icon: string; colo
   turn_right: { label: 'หันขวา 90°', icon: '↪️', color: 'bg-purple-600 hover:bg-purple-500' },
   repeat_3_forward: { label: 'ทำซ้ำ 3 ครั้ง: เดินหน้า', icon: '🔁', color: 'bg-emerald-600 hover:bg-emerald-500' },
   repeat_4_forward: { label: 'ทำซ้ำ 4 ครั้ง: เดินหน้า', icon: '🔁', color: 'bg-teal-600 hover:bg-teal-500' },
+  repeat_5_forward: { label: 'ทำซ้ำ 5 ครั้ง: เดินหน้า', icon: '🔁', color: 'bg-cyan-600 hover:bg-cyan-500' },
 };
 
 const MAZE_LEVELS: LevelConfig[] = [
@@ -220,7 +227,176 @@ const MAZE_LEVELS: LevelConfig[] = [
     ],
     stars: [{ x: 0, y: 4 }, { x: 4, y: 1 }, { x: 6, y: 5 }],
     optimalSteps: 18,
-    hint: 'ด่านสุดท้าย! วางแผนอัลกอริทึมอย่างรอบคอบเพื่อคว้าแชมป์ Coder Master!',
+    hint: 'วางแผนอัลกอริทึมเป็นช่วงๆ เพื่อผ่านด่านครึ่งทางสู่ระดับ Advanced!',
+  },
+  {
+    id: 11,
+    title: 'ด่าน 11: ทางเดินงูเลื้อย (Serpent Corridor)',
+    concept: 'Pattern Loop & การวางแผนระยะไกล',
+    gridSize: 8,
+    startPos: { x: 0, y: 0, dir: 2 }, // South
+    targetPos: { x: 7, y: 7 },
+    walls: [
+      { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 1, y: 2 }, { x: 1, y: 3 }, { x: 1, y: 4 }, { x: 1, y: 5 },
+      { x: 3, y: 7 }, { x: 3, y: 6 }, { x: 3, y: 5 }, { x: 3, y: 4 }, { x: 3, y: 3 }, { x: 3, y: 2 },
+      { x: 5, y: 0 }, { x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 3 }, { x: 5, y: 4 }, { x: 5, y: 5 },
+    ],
+    stars: [{ x: 0, y: 6 }, { x: 2, y: 1 }, { x: 4, y: 6 }],
+    optimalSteps: 16,
+    hint: 'ใช้บล็อก "ทำซ้ำ 4 ก้าว / 5 ก้าว" ช่วยลดจำนวนบล็อกในการเดินขึ้นลงระหว่างช่องทางคดเคี้ยว',
+  },
+  {
+    id: 12,
+    title: 'ด่าน 12: กุญแจไขป้อมปราการ (Fortress Gate)',
+    concept: 'Decomposition แยกย่อยเส้นทาง',
+    gridSize: 8,
+    startPos: { x: 0, y: 4, dir: 1 }, // East
+    targetPos: { x: 7, y: 4 },
+    walls: [
+      { x: 2, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 4 }, { x: 2, y: 5 }, { x: 2, y: 6 },
+      { x: 4, y: 0 }, { x: 4, y: 1 }, { x: 4, y: 2 }, { x: 4, y: 3 }, { x: 4, y: 4 },
+      { x: 6, y: 2 }, { x: 6, y: 3 }, { x: 6, y: 4 }, { x: 6, y: 5 }, { x: 6, y: 6 },
+    ],
+    stars: [{ x: 2, y: 1 }, { x: 4, y: 6 }, { x: 6, y: 1 }],
+    optimalSteps: 17,
+    hint: 'สลับเดินอ้อมด้านบน-ด้านล่าง-ด้านบน เพื่ออ้อมแนวกำแพงปราการทั้ง 3 ชั้น!',
+  },
+  {
+    id: 13,
+    title: 'ด่าน 13: เขาวงกตหอยโข่ง (Golden Spiral)',
+    concept: 'วงวนซ้อน (Nested Pattern)',
+    gridSize: 8,
+    startPos: { x: 0, y: 7, dir: 0 }, // North
+    targetPos: { x: 4, y: 4 },
+    walls: [
+      { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 },
+      { x: 6, y: 2 }, { x: 6, y: 3 }, { x: 6, y: 4 }, { x: 6, y: 5 }, { x: 6, y: 6 },
+      { x: 2, y: 6 }, { x: 3, y: 6 }, { x: 4, y: 6 }, { x: 5, y: 6 },
+      { x: 2, y: 3 }, { x: 2, y: 4 }, { x: 2, y: 5 },
+      { x: 3, y: 3 }, { x: 4, y: 3 },
+    ],
+    stars: [{ x: 0, y: 0 }, { x: 7, y: 0 }, { x: 7, y: 7 }, { x: 1, y: 7 }],
+    optimalSteps: 18,
+    hint: 'เดินตามขอบนอกทวนเข็มนาฬิกาแล้ววนเข้าด้านในทางช่องว่างมุมล่างซ้าย (1,7)!',
+  },
+  {
+    id: 14,
+    title: 'ด่าน 14: ทุ่งกับระเบิดหิน (Minefield Zigzag)',
+    concept: 'การตรวจสอบเส้นทางปลอดภัย (Lookahead)',
+    gridSize: 8,
+    startPos: { x: 0, y: 7, dir: 1 }, // East
+    targetPos: { x: 7, y: 0 },
+    walls: [
+      { x: 1, y: 6 }, { x: 2, y: 7 }, { x: 2, y: 5 }, { x: 3, y: 4 },
+      { x: 4, y: 6 }, { x: 4, y: 3 }, { x: 5, y: 5 }, { x: 5, y: 2 },
+      { x: 6, y: 3 }, { x: 6, y: 1 }, { x: 1, y: 3 }, { x: 3, y: 1 },
+    ],
+    stars: [{ x: 3, y: 6 }, { x: 5, y: 3 }, { x: 7, y: 2 }],
+    optimalSteps: 16,
+    hint: 'หลบหินที่เรียงสลับฟันปลา ค่อยๆ เดินไต่ขึ้นมุมขวาบนทีละขั้น',
+  },
+  {
+    id: 15,
+    title: 'ด่าน 15: ทางแยกวิศวกร (Engineer Crossroad)',
+    concept: 'Optimal Pathfinding (หาทางสั้นสุด)',
+    gridSize: 8,
+    startPos: { x: 3, y: 7, dir: 0 }, // North
+    targetPos: { x: 3, y: 0 },
+    walls: [
+      { x: 2, y: 5 }, { x: 3, y: 5 }, { x: 4, y: 5 },
+      { x: 1, y: 3 }, { x: 2, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3 },
+      { x: 3, y: 2 }, { x: 2, y: 1 }, { x: 4, y: 1 },
+      { x: 0, y: 4 }, { x: 6, y: 4 },
+    ],
+    stars: [{ x: 1, y: 5 }, { x: 6, y: 2 }, { x: 1, y: 1 }],
+    optimalSteps: 19,
+    hint: 'ผ่านช่องกลางแถว 3 ไม่ได้ง่ายๆ ต้องเลาะอ้อมกำแพงเพื่อเก็บดาวทั้งสองฝั่งแล้วพุ่งเข้าเส้นชัย!',
+  },
+  {
+    id: 16,
+    title: 'ด่าน 16: หอคอย 4 ชั้น (Quad-Layer Tower)',
+    concept: 'Loop Optimization (ลดบล็อกซ้ำซ้อน)',
+    gridSize: 9,
+    startPos: { x: 0, y: 8, dir: 1 }, // East
+    targetPos: { x: 8, y: 0 },
+    walls: [
+      { x: 0, y: 6 }, { x: 1, y: 6 }, { x: 2, y: 6 }, { x: 3, y: 6 }, { x: 4, y: 6 }, { x: 5, y: 6 }, { x: 6, y: 6 },
+      { x: 2, y: 4 }, { x: 3, y: 4 }, { x: 4, y: 4 }, { x: 5, y: 4 }, { x: 6, y: 4 }, { x: 7, y: 4 }, { x: 8, y: 4 },
+      { x: 0, y: 2 }, { x: 1, y: 2 }, { x: 2, y: 2 }, { x: 3, y: 2 }, { x: 4, y: 2 }, { x: 5, y: 2 }, { x: 6, y: 2 },
+    ],
+    stars: [{ x: 7, y: 7 }, { x: 1, y: 5 }, { x: 7, y: 3 }, { x: 1, y: 1 }],
+    optimalSteps: 16,
+    hint: 'ใช้ "ทำซ้ำ 5 ก้าว" และ "ทำซ้ำ 3 ก้าว" สลับขึ้นบันไดข้ามกำแพงทั้ง 3 ชั้น!',
+  },
+  {
+    id: 17,
+    title: 'ด่าน 17: เขาวงกตเขี้ยวเสือ (Dragon Fangs)',
+    concept: 'Algorithm Precision (ความแม่นยำ)',
+    gridSize: 9,
+    startPos: { x: 0, y: 0, dir: 1 }, // East
+    targetPos: { x: 0, y: 8 },
+    walls: [
+      { x: 2, y: 0 }, { x: 2, y: 1 }, { x: 2, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 4 },
+      { x: 4, y: 8 }, { x: 4, y: 7 }, { x: 4, y: 6 }, { x: 4, y: 5 }, { x: 4, y: 4 }, { x: 4, y: 3 },
+      { x: 6, y: 1 }, { x: 6, y: 2 }, { x: 6, y: 3 }, { x: 6, y: 4 }, { x: 6, y: 5 },
+      { x: 1, y: 6 }, { x: 2, y: 6 }, { x: 3, y: 6 },
+    ],
+    stars: [{ x: 1, y: 5 }, { x: 3, y: 1 }, { x: 5, y: 7 }, { x: 7, y: 3 }],
+    optimalSteps: 20,
+    hint: 'ต้องเลือกเส้นทางอ้อมจากฝั่งขวาหรือซอกกลางเพื่อเชื่อมไปมุมล่างซ้าย (0,8)',
+  },
+  {
+    id: 18,
+    title: 'ด่าน 18: วงแหวนดาวเคราะห์ (Orbit Ring)',
+    concept: 'Sub-routine Thinking',
+    gridSize: 9,
+    startPos: { x: 4, y: 4, dir: 0 }, // North (center)
+    targetPos: { x: 8, y: 8 },
+    walls: [
+      { x: 3, y: 3 }, { x: 4, y: 3 }, { x: 5, y: 3 },
+      { x: 3, y: 4 }, { x: 5, y: 4 },
+      { x: 3, y: 5 }, { x: 5, y: 5 },
+      { x: 1, y: 1 }, { x: 2, y: 1 }, { x: 6, y: 1 }, { x: 7, y: 1 },
+      { x: 1, y: 7 }, { x: 2, y: 7 }, { x: 6, y: 7 }, { x: 7, y: 7 },
+    ],
+    stars: [{ x: 4, y: 7 }, { x: 0, y: 4 }, { x: 8, y: 4 }, { x: 4, y: 0 }],
+    optimalSteps: 20,
+    hint: 'ออกจากป้อมตรงกลางลงด้านล่าง (4,5) แล้วโคจรเก็บดาวตามจุดทิศทั้ง 4!',
+  },
+  {
+    id: 19,
+    title: 'ด่าน 19: รหัสลับสายลับไซเบอร์ (Cyber Vault)',
+    concept: 'Multi-turn Debugging',
+    gridSize: 9,
+    startPos: { x: 0, y: 8, dir: 0 }, // North
+    targetPos: { x: 4, y: 0 },
+    walls: [
+      { x: 1, y: 8 }, { x: 1, y: 7 }, { x: 1, y: 6 }, { x: 1, y: 4 }, { x: 1, y: 3 }, { x: 1, y: 2 },
+      { x: 3, y: 1 }, { x: 3, y: 2 }, { x: 3, y: 3 }, { x: 3, y: 5 }, { x: 3, y: 6 }, { x: 3, y: 7 },
+      { x: 5, y: 0 }, { x: 5, y: 1 }, { x: 5, y: 2 }, { x: 5, y: 4 }, { x: 5, y: 5 }, { x: 5, y: 6 },
+      { x: 7, y: 2 }, { x: 7, y: 3 }, { x: 7, y: 4 }, { x: 7, y: 6 }, { x: 7, y: 7 },
+    ],
+    stars: [{ x: 0, y: 1 }, { x: 2, y: 4 }, { x: 4, y: 4 }, { x: 6, y: 3 }],
+    optimalSteps: 22,
+    hint: 'มองหาช่องประตูที่เปิดไว้ตามแนวกำแพงคอลัมน์คี่ แล้ววางแผนลำดับการเลี้ยวให้แม่นยำ!',
+  },
+  {
+    id: 20,
+    title: 'ด่าน 20: มหาวิหารจอมปราชญ์โค้ด (Grandmaster Citadel)',
+    concept: 'สุดยอดอัลกอริทึม 9×9 (Grandmaster CT)',
+    gridSize: 9,
+    startPos: { x: 0, y: 8, dir: 1 }, // East
+    targetPos: { x: 4, y: 4 },
+    walls: [
+      { x: 0, y: 6 }, { x: 1, y: 6 }, { x: 2, y: 6 }, { x: 4, y: 6 }, { x: 5, y: 6 }, { x: 6, y: 6 }, { x: 7, y: 6 },
+      { x: 7, y: 5 }, { x: 7, y: 4 }, { x: 7, y: 2 }, { x: 7, y: 1 },
+      { x: 2, y: 1 }, { x: 3, y: 1 }, { x: 4, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 },
+      { x: 2, y: 2 }, { x: 2, y: 3 }, { x: 2, y: 4 }, { x: 2, y: 5 },
+      { x: 4, y: 3 }, { x: 5, y: 3 }, { x: 5, y: 4 }, { x: 5, y: 5 }, { x: 3, y: 5 },
+    ],
+    stars: [{ x: 8, y: 7 }, { x: 8, y: 0 }, { x: 0, y: 0 }, { x: 3, y: 3 }],
+    optimalSteps: 24,
+    hint: 'บททดสอบสุดท้าย! เดินไปมุมขวาล่าง ขึ้นไปขวาบน ข้ามมาซ้ายบน แล้วเจาะเข้าห้องโถงกลาง (3,4) -> (4,4)!',
   },
 ];
 
@@ -328,6 +504,9 @@ export const BlockMazeRunner: React.FC<BlockMazeRunnerProps> = ({
       } else if (cmd.type === 'repeat_4_forward') {
         stepsToExecute = 4;
         actionType = 'forward';
+      } else if (cmd.type === 'repeat_5_forward') {
+        stepsToExecute = 5;
+        actionType = 'forward';
       }
 
       for (let s = 0; s < stepsToExecute; s++) {
@@ -430,7 +609,7 @@ export const BlockMazeRunner: React.FC<BlockMazeRunnerProps> = ({
                   🐱 Coder Maze Runner: ตะลุยด่านตรรกะอัลกอริทึม
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
-                  10 ด่าน
+                  20 ด่าน
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -643,6 +822,26 @@ export const BlockMazeRunner: React.FC<BlockMazeRunnerProps> = ({
                   >
                     <span>🔁</span>
                     <span>ทำซ้ำ 3 ก้าว</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddCommand('repeat_4_forward')}
+                    disabled={isRunning}
+                    className="p-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <span>🔁</span>
+                    <span>ทำซ้ำ 4 ก้าว</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddCommand('repeat_5_forward')}
+                    disabled={isRunning}
+                    className="p-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <span>🔁</span>
+                    <span>ทำซ้ำ 5 ก้าว</span>
                   </button>
                 </div>
               </div>

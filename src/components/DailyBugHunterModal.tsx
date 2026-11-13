@@ -128,6 +128,100 @@ const DAILY_BUG_CHALLENGES: BugChallenge[] = [
       },
     ],
   },
+  {
+    id: 'bug_4',
+    title: 'ภารกิจที่ 4: บั๊กเซนเซอร์รดน้ำทำงานสลับข้าง (Inverted Pin Signal)',
+    scenario: 'เมื่อดินเปียกชุ่ม (moisture = 900) ปั๊มน้ำกลับเปิดทำงานจนน้ำท่วมกระถาง แต่ตอนดินแห้งปั๊มน้ำกลับปิด!',
+    codeSnippet: [
+      '1. forever:',
+      '2.   let moisture = pins.analogReadPin(AnalogPin.P0)',
+      '3.   if (moisture > 600) {',
+      '4.     pins.digitalWritePin(DigitalPin.P1, 1) // เปิดปั๊ม',
+      '5.   } else {',
+      '6.     pins.digitalWritePin(DigitalPin.P1, 0) // ปิดปั๊ม',
+      '7.   }',
+    ],
+    buggyLineIndex: 2,
+    explanation: 'ค่า moisture ยิ่งมากแปลว่าดินยิ่งเปียก แต่บรรทัดที่ 3 ดันสั่งเปิดปั๊มเมื่อ moisture > 600',
+    fixOptions: [
+      {
+        text: 'เปลี่ยนเงื่อนไขในบรรทัดที่ 3 เป็น if (moisture < 400)',
+        isCorrect: true,
+        feedback: 'ถูกต้อง! เมื่อค่าความชื้นต่ำกว่าเกณฑ์ (ดินแห้ง) จึงค่อยสั่งเปิดปั๊มน้ำรดต้นไม้',
+      },
+      {
+        text: 'เปลี่ยน AnalogPin.P0 เป็น DigitalPin.P2',
+        isCorrect: false,
+        feedback: 'เซนเซอร์ความชื้นดินต้องอ่านแบบ Analog จึงจะวัดระดับเปียก-แห้งได้ละเอียด',
+      },
+      {
+        text: 'ลบคำสั่ง else ทิ้งทั้งหมด',
+        isCorrect: false,
+        feedback: 'ถ้าไม่มี else สั่งปิดปั๊ม ปั๊มน้ำจะเปิดค้างตลอดเวลาไม่มีวันหยุด!',
+      },
+    ],
+  },
+  {
+    id: 'bug_5',
+    title: 'ภารกิจที่ 5: บั๊ก Python รวมคะแนนผิดเพี้ยน (String vs Int Bug)',
+    scenario: 'นักเรียนรับค่าคะแนนคณิตฯ 40 และวิทย์ฯ 50 แล้วนำมาบวกกัน ผลลัพธ์กลับพิมพ์ออกมาว่า "4050" แทนที่จะเป็น 90!',
+    codeSnippet: [
+      '1. math_score = input("คะแนนคณิต: ")',
+      '2. sci_score = input("คะแนนวิทย์: ")',
+      '3. total = math_score + sci_score',
+      '4. print("คะแนนรวม =", total)',
+    ],
+    buggyLineIndex: 2,
+    explanation: 'ฟังก์ชัน input() ใน Python คืนค่าเป็นข้อความ (String) เสมอ การนำข้อความ "40" + "50" จะได้ "4050"',
+    fixOptions: [
+      {
+        text: 'ใช้คำสั่ง multiply (*) แทนเครื่องหมายบวก (+)',
+        isCorrect: false,
+        feedback: 'ข้อความคูณข้อความใน Python จะเกิด TypeError ทันที',
+      },
+      {
+        text: 'แปลงชนิดข้อมูลด้วย int(): total = int(math_score) + int(sci_score)',
+        isCorrect: true,
+        feedback: 'ถูกต้องแม่นยำ! การแปลง String เป็น Integer ด้วย int() ทำให้คำนวณบวกเลขได้ถูกต้อง = 90',
+      },
+      {
+        text: 'เปลี่ยนชื่อตัวแปร total เป็น sum_all',
+        isCorrect: false,
+        feedback: 'ชื่อตัวแปรไม่มีผลต่อชนิดข้อมูลที่ input() ส่งกลับมา',
+      },
+    ],
+  },
+  {
+    id: 'bug_6',
+    title: 'ภารกิจที่ 6: บั๊กแอนิเมชัน Micro:bit กระพริบไม่เห็นภาพ (Missing Pause)',
+    scenario: 'ต้องการแสดงรูปหัวใจใหญ่สลับหัวใจเล็กเต้นตุ๊บๆ แต่เปิดบอร์ดแล้วเห็นแค่รูปหัวใจเล็กค้างนิ่ง!',
+    codeSnippet: [
+      '1. basic.forever(function () {',
+      '2.   basic.showIcon(IconNames.Heart)',
+      '3.   basic.showIcon(IconNames.SmallHeart)',
+      '4.   basic.pause(500)',
+      '5. })',
+    ],
+    buggyLineIndex: 1,
+    explanation: 'คอมพิวเตอร์ทำงานเร็วมาก หลังแสดง Heart ในบรรทัดที่ 2 จะถูก SmallHeart ในบรรทัดที่ 3 ทับทันทีในเสี้ยววินาทีโดยไม่มีเวลาหยุดพัก',
+    fixOptions: [
+      {
+        text: 'ลบ basic.pause(500) ในบรรทัดที่ 4 ออก',
+        isCorrect: false,
+        feedback: 'ถ้าไม่มี pause เลย ทั้งสองภาพจะยิ่งเปลี่ยนเร็วจนตาคนมองไม่ทัน',
+      },
+      {
+        text: 'เปลี่ยน basic.forever เป็น on start',
+        isCorrect: false,
+        feedback: 'จะทำให้แอนิเมชันเล่นเพียงรอบเดียวแล้วหยุด',
+      },
+      {
+        text: 'เพิ่ม basic.pause(500) คั่นระหว่างบรรทัดที่ 2 และบรรทัดที่ 3',
+        isCorrect: true,
+        feedback: 'สุดยอด! การใส่ pause(500) หลังโชว์หัวใจใหญ่ ทำให้ตามนุษย์มองเห็นจังหวะเต้นสลับกันชัดเจน',
+      },
+    ],
+  },
 ];
 
 interface DailyBugHunterModalProps {

@@ -93,7 +93,142 @@ const PRESETS: Record<string, { name: string; icon: string; rows: number[] }> = 
       0b00111100,
     ],
   },
+  rocket: {
+    name: 'จรวดอวกาศ',
+    icon: '🚀',
+    rows: [
+      0b00011000,
+      0b00111100,
+      0b01111110,
+      0b01100110,
+      0b01111110,
+      0b11111111,
+      0b10011001,
+      0b00100100,
+    ],
+  },
+  cat: {
+    name: 'แมวน้อยโค้ดเดอร์',
+    icon: '🐱',
+    rows: [
+      0b11000011,
+      0b11100111,
+      0b11111111,
+      0b10111101,
+      0b11111111,
+      0b01100110,
+      0b01111110,
+      0b00111100,
+    ],
+  },
+  house: {
+    name: 'บ้านอัจฉริยะ IoT',
+    icon: '🏠',
+    rows: [
+      0b00011000,
+      0b00111100,
+      0b01111110,
+      0b11111111,
+      0b01100110,
+      0b01100110,
+      0b01111110,
+      0b01111110,
+    ],
+  },
+  tree: {
+    name: 'ต้นไม้รักษ์โลก',
+    icon: '🎄',
+    rows: [
+      0b00011000,
+      0b00111100,
+      0b01111110,
+      0b00111100,
+      0b01111110,
+      0b11111111,
+      0b00011000,
+      0b00111100,
+    ],
+  },
+  ghost: {
+    name: 'ผีน้อยแพคแมน',
+    icon: '👻',
+    rows: [
+      0b00111100,
+      0b01111110,
+      0b11011011,
+      0b11011011,
+      0b11111111,
+      0b11111111,
+      0b11111111,
+      0b10101010,
+    ],
+  },
 };
+
+const CIPHER_MISSIONS: {
+  id: string;
+  title: string;
+  cipherText: string;
+  shift: number;
+  answer: string;
+  hint: string;
+  points: number;
+}[] = [
+  {
+    id: 'm1',
+    title: 'ภารกิจที่ 1: รหัสพื้นฐาน',
+    cipherText: 'F R G H',
+    shift: 3,
+    answer: 'CODE',
+    hint: 'ข้อความนี้ถูกเข้ารหัสด้วย Caesar Cipher เลื่อนไปข้างหน้า +3 ตำแหน่ง ให้ถอยหลัง 3 ก้าว (เช่น F -> E -> D -> C)',
+    points: 15,
+  },
+  {
+    id: 'm2',
+    title: 'ภารกิจที่ 2: ข้อมูลดิจิทัล',
+    cipherText: 'G D W D',
+    shift: 3,
+    answer: 'DATA',
+    hint: 'เลื่อนไปข้างหน้า +3 ตำแหน่ง คำตอบเป็นคำ 4 ตัวอักษรที่แปลว่า "ข้อมูล" ในวิทยาการคำนวณ',
+    points: 15,
+  },
+  {
+    id: 'm3',
+    title: 'ภารกิจที่ 3: สายลับลูปวนซ้ำ',
+    cipherText: 'N Q Q R',
+    shift: 2,
+    answer: 'LOOP',
+    hint: 'เลื่อน +2 ตำแหน่ง (ถอยหลัง 2 ก้าว เช่น N -> M -> L) คำศัพท์ที่ใช้ทำซ้ำในโค้ดดิ้ง',
+    points: 20,
+  },
+  {
+    id: 'm4',
+    title: 'ภารกิจที่ 4: รหัสไบต์',
+    cipherText: 'F C X I',
+    shift: 4,
+    answer: 'BYTE',
+    hint: 'เลื่อน +4 ตำแหน่ง (ถอยหลัง 4 ก้าว: F -> B, C -> Y, X -> T, I -> E) หน่วยความจำ 8 บิต!',
+    points: 20,
+  },
+  {
+    id: 'm5',
+    title: 'ภารกิจที่ 5: หุ่นยนต์ผู้พิทักษ์',
+    cipherText: 'W T G T Y',
+    shift: 5,
+    answer: 'ROBOT',
+    hint: 'เลื่อนไปข้างหน้า +5 ตำแหน่ง ถอยหลัง 5 ก้าว (R+5=W, O+5=T, B+5=G, O+5=T, T+5=Y)',
+    points: 25,
+  },
+  {
+    id: 'm6',
+    title: 'ภารกิจที่ 6: โลกไซเบอร์',
+    cipherText: 'H D G J W',
+    shift: 5,
+    answer: 'CYBER',
+    hint: 'เลื่อนไปข้างหน้า +5 ตำแหน่ง (C+5=H, Y+5=D, B+5=G, E+5=J, R+5=W) เกี่ยวกับความปลอดภัยบนอินเทอร์เน็ต!',
+    points: 25,
+  },
+];
 
 interface BinaryPixelArtLabProps {
   onBack?: () => void;
@@ -127,6 +262,7 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
   // Messenger State
   const [plainMessage, setPlainMessage] = useState('HELLO CODER');
   const [cipherShift, setCipherShift] = useState(3);
+  const [cipherMissionIdx, setCipherMissionIdx] = useState(0);
   const [decryptInput, setDecryptInput] = useState('');
   const [decryptSuccess, setDecryptSuccess] = useState<boolean | null>(null);
 
@@ -200,11 +336,16 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
   };
 
   // Start puzzle challenge
-  const handleStartPuzzle = () => {
+  const handleStartPuzzle = (presetKey?: string) => {
     soundEffects.playClick();
+    const keys = Object.keys(PRESETS);
+    const chosenKey =
+      presetKey && PRESETS[presetKey]
+        ? presetKey
+        : keys[(keys.indexOf(targetPresetKey) + 1) % keys.length] || 'robot';
     setIsPuzzleMode(true);
     setPuzzleSolved(false);
-    setTargetPresetKey('robot');
+    setTargetPresetKey(chosenKey);
     // Start with blank grid
     setGrid(Array.from({ length: 8 }, () => Array(8).fill(0)));
   };
@@ -270,15 +411,20 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
   }, [plainMessage, cipherShift]);
 
   // Check Decrypt Mission
-  // Mission: Decrypt "FRGH" with shift=3 -> "CODE"
+  const currentMission = CIPHER_MISSIONS[cipherMissionIdx] || CIPHER_MISSIONS[0];
+
   const handleCheckDecrypt = () => {
     soundEffects.playClick();
-    if (decryptInput.trim().toUpperCase() === 'CODE') {
+    if (decryptInput.trim().toUpperCase() === currentMission.answer) {
       setDecryptSuccess(true);
       soundEffects.playFanfare();
       fireConfetti('burst');
       if (addPoints) {
-        addPoints(15, 'ถอดรหัสลับสายลับคอมพิวเตอร์ Caesar Cipher สำเร็จ!', 'safety');
+        addPoints(
+          currentMission.points,
+          `ถอดรหัสลับสายลับ (${currentMission.answer}) สำเร็จ!`,
+          'safety'
+        );
       }
       if (onCelebrate) {
         onCelebrate();
@@ -406,7 +552,7 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
 
             {/* Puzzle Mode Banner */}
             {isPuzzleMode ? (
-              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 flex items-center justify-between gap-3">
+              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/80 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="text-3xl animate-bounce">{PRESETS[targetPresetKey].icon}</div>
                   <div>
@@ -414,32 +560,40 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
                       ภารกิจปริศนา: จำลองภาพ "{PRESETS[targetPresetKey].name}"
                     </h4>
                     <p className="text-[11px] text-amber-800 dark:text-amber-300">
-                      คลิกเปิดพิกเซล (1) ให้ตรงกับรหัสฐานสองด้านขวาเพื่อรับ <strong>+20 Coins</strong>!
+                      คลิกเปิดพิกเซล (1) ให้ตรงกับต้นแบบทั้ง 10 แบบ เพื่อรับ <strong>+20 Coins</strong>!
                     </p>
                   </div>
                 </div>
 
-                {puzzleSolved ? (
-                  <span className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>สำเร็จแล้ว! (+20 แต้ม)</span>
-                  </span>
-                ) : (
+                <div className="flex items-center gap-2">
+                  {puzzleSolved ? (
+                    <span className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>สำเร็จแล้ว! (+20 แต้ม)</span>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleLoadPreset(targetPresetKey)}
+                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-amber-300 text-amber-900 dark:text-amber-200 text-xs font-semibold hover:bg-amber-100 cursor-pointer"
+                    >
+                      ดูเฉลย
+                    </button>
+                  )}
                   <button
-                    onClick={() => handleLoadPreset(targetPresetKey)}
-                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-amber-300 text-amber-900 dark:text-amber-200 text-xs font-semibold hover:bg-amber-100 cursor-pointer"
+                    onClick={() => handleStartPuzzle()}
+                    className="px-3 py-1.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 cursor-pointer"
                   >
-                    ดูเฉลย
+                    สุ่มโจทย์ถัดไป ➔
                   </button>
-                )}
+                </div>
               </div>
             ) : (
               <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-xs">
                 <span className="text-indigo-950 dark:text-indigo-200">
-                  💡 คลิกที่ช่องเพื่อสลับค่า <strong>0 (ปิด)</strong> และ <strong>1 (เปิด)</strong>
+                  💡 คลิกที่ช่องเพื่อสลับค่า <strong>0 (ปิด)</strong> และ <strong>1 (เปิด)</strong> (มีต้นแบบ {Object.keys(PRESETS).length} ภาพ)
                 </span>
                 <button
-                  onClick={handleStartPuzzle}
+                  onClick={() => handleStartPuzzle('robot')}
                   className="px-3 py-1 rounded-lg bg-indigo-600 text-white font-bold text-[11px] hover:bg-indigo-700 cursor-pointer"
                 >
                   เริ่มโหมดเกมปริศนา (+20 แต้ม)
@@ -661,22 +815,44 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="p-2 rounded-xl bg-teal-500/20 text-teal-300">🕵️</span>
                   <div>
-                    <h4 className="text-sm font-bold text-white">ภารกิจสายลับ: ถอดรหัสลับ</h4>
-                    <span className="text-[10px] text-teal-400">Cyber Agent Challenge</span>
+                    <h4 className="text-sm font-bold text-white">{currentMission.title}</h4>
+                    <span className="text-[10px] text-teal-400">Cyber Agent Challenge ({cipherMissionIdx + 1}/{CIPHER_MISSIONS.length})</span>
                   </div>
                 </div>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  +15 แต้ม
+                  +{currentMission.points} แต้ม
                 </span>
               </div>
 
+              {/* Mission Selector Tabs */}
+              <div className="flex flex-wrap gap-1.5">
+                {CIPHER_MISSIONS.map((m, idx) => (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      soundEffects.playClick();
+                      setCipherMissionIdx(idx);
+                      setDecryptInput('');
+                      setDecryptSuccess(null);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      idx === cipherMissionIdx
+                        ? 'bg-teal-500 text-slate-950 shadow-xs'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    ด่าน {idx + 1}
+                  </button>
+                ))}
+              </div>
+
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="text-[11px] text-slate-400 block">ข้อความลับที่ดักจับได้ (Intercepted Cipher):</span>
+                <span className="text-[11px] text-slate-400 block">ข้อความลับที่ดักจับได้ (Intercepted Cipher • Shift +{currentMission.shift}):</span>
                 <div className="text-xl font-mono font-black text-amber-400 tracking-widest text-center py-2 bg-slate-900 rounded-xl border border-slate-800">
-                  " F R G H "
+                  " {currentMission.cipherText} "
                 </div>
                 <div className="text-[11px] text-slate-400 leading-relaxed pt-1">
-                  💡 <strong>คำใบ้จากศูนย์บัญชาการ:</strong> ข้อความนี้ถูกเข้ารหัสด้วย Caesar Cipher ที่เลื่อนไปข้างหน้า 3 ตำแหน่ง (Shift = +3). ให้ถอยหลัง 3 ก้าวเพื่อหาคำศัพท์ภาษาอังกฤษที่มีความหมาย!
+                  💡 <strong>คำใบ้จากศูนย์บัญชาการ:</strong> {currentMission.hint}
                 </div>
               </div>
 
@@ -690,7 +866,7 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
                     type="text"
                     value={decryptInput}
                     onChange={(e) => setDecryptInput(e.target.value.toUpperCase())}
-                    placeholder="ใส่คำตอบ เช่น CODE"
+                    placeholder="พิมพ์คำตอบภาษาอังกฤษ"
                     className="flex-1 p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white font-mono font-bold uppercase text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
                   />
                   <button
@@ -704,14 +880,28 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
 
               {/* Feedback State */}
               {decryptSuccess === true && (
-                <div className="p-3 rounded-xl bg-emerald-950/70 border border-emerald-500 text-emerald-300 text-xs font-bold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>🎉 ถูกต้องแล้ว! คำตอบคือ "CODE" คุณได้รับ +15 Coder Coins!</span>
+                <div className="p-3 rounded-xl bg-emerald-950/70 border border-emerald-500 text-emerald-300 text-xs font-bold flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>🎉 ถูกต้อง! คำตอบคือ "{currentMission.answer}" (+{currentMission.points} Coins)</span>
+                  </div>
+                  {cipherMissionIdx < CIPHER_MISSIONS.length - 1 && (
+                    <button
+                      onClick={() => {
+                        setCipherMissionIdx(cipherMissionIdx + 1);
+                        setDecryptInput('');
+                        setDecryptSuccess(null);
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500 text-slate-950 font-black text-[11px] cursor-pointer shrink-0"
+                    >
+                      ด่านถัดไป ➔
+                    </button>
+                  )}
                 </div>
               )}
               {decryptSuccess === false && (
                 <div className="p-3 rounded-xl bg-rose-950/70 border border-rose-500 text-rose-300 text-xs font-bold flex items-center gap-2">
-                  <span>❌ ยังไม่ถูกต้องนะ ลองถอยหลังตัวอักษรทีละตัว เช่น F -&gt; E -&gt; D -&gt; C</span>
+                  <span>❌ ยังไม่ถูกต้องนะ ลองถอยหลังตัวอักษรทีละ {currentMission.shift} ตำแหน่ง</span>
                 </div>
               )}
             </div>

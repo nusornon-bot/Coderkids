@@ -26,7 +26,19 @@ import {
 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects.ts';
 
-export type HardwareModelType = 'microbit' | 'ultrasonic' | 'dht11' | 'servo' | 'soil' | 'pir';
+export type HardwareModelType =
+  | 'microbit'
+  | 'ultrasonic'
+  | 'dht11'
+  | 'servo'
+  | 'soil'
+  | 'pir'
+  | 'ldr'
+  | 'buzzer'
+  | 'oled'
+  | 'relay'
+  | 'neopixel'
+  | 'ir_line';
 
 export interface ComponentHotspot {
   id: string;
@@ -442,6 +454,260 @@ while True:
         display.show(Image.ASLEEP)
     sleep(200)`,
   },
+  ldr: {
+    id: 'ldr',
+    title: 'LDR เซนเซอร์วัดความเข้มแสง (Photoresistor)',
+    subtitle: 'ตัวต้านทานเปลี่ยนค่าตามแสงสว่าง สำหรับโครงงานไฟถนนอัตโนมัติ',
+    category: 'Light Sensor',
+    description: 'โมดูลวัดความสว่างด้วยตัวต้านทานไวแสง (LDR) ยิ่งแสงสว่างมาก ความต้านทานยิ่งลดลง นิยมใช้สร้างระบบเปิด-ปิดไฟอัตโนมัติหรือเครื่องติดตามแสงอาทิตย์',
+    specs: [
+      { label: 'แรงดันไฟฟ้า', value: '3.3V - 5V DC' },
+      { label: 'ประเภทสัญญาณ', value: 'Analog (AO) & Digital (DO)' },
+      { label: 'ช่วงค่า Analog', value: '0 - 1023' },
+    ],
+    wiringGuide: [
+      { pin: 'VCC', target: '3V', color: '#ef4444', notes: 'ไฟเลี้ยงบวก 3.3V' },
+      { pin: 'GND', target: 'GND', color: '#334155', notes: 'กราวด์' },
+      { pin: 'AO', target: 'Pin 0', color: '#eab308', notes: 'อ่านค่าระดับแสง' },
+    ],
+    hotspots: [
+      {
+        id: 'ldr_cell',
+        name: 'แผ่นรับแสง CdS (Photoresistor Cell)',
+        position: [0, 0.35, 1.3],
+        description: 'ขดเส้นซิกแซกสีส้มแดงที่เปลี่ยนความต้านทานไฟฟ้าตามปริมาณโฟตอนของแสงที่ตกกระทบ',
+        pinout: 'เชื่อมต่อเข้าขา AO ผ่านวงจรแบ่งแรงดัน',
+        codeSnippet: 'let lux = pins.analogReadPin(AnalogPin.P0)',
+        voltage: '3.3V Analog',
+        tip: 'หากต้องการสร้างไฟถนนอัตโนมัติ ให้เช็กค่าแสงขณะปิดไฟห้องแล้วตั้งเป็นเกณฑ์ (Threshold)',
+      },
+    ],
+    sampleMakeCode: `basic.forever(function () {
+    let lightVal = pins.analogReadPin(AnalogPin.P0)
+    if (lightVal < 300) {
+        pins.digitalWritePin(DigitalPin.P1, 1)
+    } else {
+        pins.digitalWritePin(DigitalPin.P1, 0)
+    }
+})`,
+    samplePython: `from microbit import *
+
+while True:
+    light_val = pin0.read_analog()
+    pin1.write_digital(1 if light_val < 300 else 0)
+    sleep(200)`,
+  },
+  buzzer: {
+    id: 'buzzer',
+    title: 'Buzzer ลำโพงเตือนเสียงโมดูล (Active/Passive)',
+    subtitle: 'อุปกรณ์ส่งสัญญาณเสียงเตือนภัยและทำนองดนตรีสำหรับหุ่นยนต์และ IoT',
+    category: 'Audio Output',
+    description: 'โมดูลกำเนิดเสียงขนาดกะทัดรัด ใช้ส่งเสียงปี๊บแจ้งเตือนเมื่อตรวจพบภัยอันตราย เช่น น้ำท่วม แก๊สรั่ว หรือสร้างทำนองเพลง 8-Bit จากความถี่ PWM',
+    specs: [
+      { label: 'แรงดันไฟฟ้า', value: '3.3V - 5V DC' },
+      { label: 'ความดังเสียง', value: '~85 dB ที่ระยะ 10 ซม.' },
+      { label: 'พินเชื่อมต่อ', value: 'VCC, GND, I/O (Pin 0)' },
+    ],
+    wiringGuide: [
+      { pin: 'VCC', target: '3V', color: '#ef4444', notes: 'ไฟเลี้ยง' },
+      { pin: 'GND', target: 'GND', color: '#334155', notes: 'กราวด์' },
+      { pin: 'SIG', target: 'Pin 0', color: '#f97316', notes: 'ขาขับสัญญาณเสียง' },
+    ],
+    hotspots: [
+      {
+        id: 'sound_hole',
+        name: 'ช่องปล่อยคลื่นเสียง (Acoustic Cavity)',
+        position: [0, 0.85, 0],
+        description: 'ช่องกลมด้านบนตัวถังสีดำที่ช่วยขยายคลื่นสั่นสะเทือนของแผ่น Piezo ให้ดังชัดเจนขึ้น',
+        pinout: 'ขับผ่านขา Pin 0 ด้วย digital write หรือ PWM tone',
+        codeSnippet: 'pins.digitalWritePin(DigitalPin.P0, 1)',
+        voltage: '3.3V Logic',
+        tip: 'ใน Micro:bit V1 ต้องต่อลำโพงผ่าน Pin 0 และ GND ส่วน V2 มีลำโพงในตัวแล้วแต่ต่อเพิ่มให้ดังขึ้นได้',
+      },
+    ],
+    sampleMakeCode: `input.onButtonPressed(Button.A, function () {
+    pins.digitalWritePin(DigitalPin.P0, 1)
+    basic.pause(300)
+    pins.digitalWritePin(DigitalPin.P0, 0)
+})`,
+    samplePython: `from microbit import *
+
+while True:
+    if button_a.is_pressed():
+        pin0.write_digital(1)
+        sleep(300)
+        pin0.write_digital(0)`,
+  },
+  oled: {
+    id: 'oled',
+    title: 'OLED จอแสดงผล I2C 0.96 นิ้ว (128×64 px)',
+    subtitle: 'จอภาพคมชัดสูงสำหรับแสดงกราฟ ข้อความภาษาอังกฤษ และค่าเซนเซอร์แบบเรียลไทม์',
+    category: 'Display Module',
+    description: 'หน้าจอ Organic LED ความละเอียด 128×64 พิกเซล เชื่อมต่อผ่านบัส I2C ใช้สายสัญญาณเพียง 2 เส้น (SDA/SCL) แสดงตัวเลขและกราฟิกได้คมชัดกว่าจอ 5×5',
+    specs: [
+      { label: 'ความละเอียด', value: '128 × 64 พิกเซล' },
+      { label: 'การสื่อสาร', value: 'I2C Bus (Pin 19 SCL, Pin 20 SDA)' },
+      { label: 'แรงดันไฟฟ้า', value: '3.3V - 5V' },
+    ],
+    wiringGuide: [
+      { pin: 'VCC', target: '3V', color: '#ef4444', notes: 'ไฟเลี้ยง' },
+      { pin: 'GND', target: 'GND', color: '#334155', notes: 'กราวด์' },
+      { pin: 'SCL', target: 'Pin 19', color: '#3b82f6', notes: 'I2C Clock' },
+      { pin: 'SDA', target: 'Pin 20', color: '#22c55e', notes: 'I2C Data' },
+    ],
+    hotspots: [
+      {
+        id: 'oled_panel',
+        name: 'กระจกจอแสดงผล OLED 128×64',
+        position: [0, 0.25, 0],
+        description: 'จอแสดงผลที่เปล่งแสงในแต่ละพิกเซลด้วยตัวเอง มีค่า Contrast สูงมากและกินไฟต่ำ',
+        pinout: 'SDA -> Pin 20, SCL -> Pin 19 (ต้องใช้บอร์ดขยาย Pin)',
+        codeSnippet: 'OLED.writeStringNewLine("Temp: 28 C")',
+        voltage: '3.3V I2C',
+        tip: 'อย่าลืมเรียก OLED.init(128, 64) ในบล็อก on start ทุกครั้งก่อนสั่งแสดงผล!',
+      },
+    ],
+    sampleMakeCode: `OLED.init(128, 64)
+basic.forever(function () {
+    OLED.clear()
+    OLED.writeStringNewLine("Micro:bit IoT")
+    OLED.writeNumNewLine(input.temperature())
+    basic.pause(1000)
+})`,
+    samplePython: `from microbit import *
+# ต้องนำเข้าไลบรารี ssd1306 สำหรับจอ I2C OLED
+display.show(Image.YES)`,
+  },
+  relay: {
+    id: 'relay',
+    title: 'Relay โมดูลสวิตช์ไฟฟ้าอัจฉริยะ 1 ช่อง (5V)',
+    subtitle: 'สะพานไฟควบคุมปั๊มน้ำ พัดลม และหลอดไฟด้วยสัญญาณจาก Micro:bit',
+    category: 'Power Actuator',
+    description: 'รีเลย์ทำหน้าที่เป็นสวิตช์แม่เหล็กไฟฟ้า ทำให้ไมโครคอนโทรลเลอร์กำลังต่ำอย่าง Micro:bit สามารถสั่งเปิด-ปิดปั๊มน้ำหรือพัดลมกำลังสูงได้อย่างปลอดภัย',
+    specs: [
+      { label: 'แรงดันควบคุม', value: '3.3V - 5V Logic' },
+      { label: 'หน้าสัมผัส', value: 'COM / NO (Normally Open) / NC' },
+      { label: 'การป้องกัน', value: 'Optocoupler แยกวงจรปลอดภัย' },
+    ],
+    wiringGuide: [
+      { pin: 'VCC', target: '5V / External', color: '#ef4444', notes: 'ไฟเลี้ยงคอยล์รีเลย์' },
+      { pin: 'GND', target: 'GND', color: '#334155', notes: 'กราวด์ร่วม' },
+      { pin: 'IN', target: 'Pin 1', color: '#eab308', notes: 'สัญญาณสั่งเปิด-ปิด' },
+    ],
+    hotspots: [
+      {
+        id: 'relay_cube',
+        name: 'กล่องแม่เหล็กไฟฟ้า (Electromagnetic Coil)',
+        position: [0, 0.65, 0],
+        description: 'เมื่อได้รับสัญญาณ HIGH แม่เหล็กภายในจะดูดหน้าสัมผัสโลหะให้ต่อกันเกิดเสียง "คลิก" ชัดเจน',
+        pinout: 'สั่งเปิด-ปิดผ่าน IN ด้วยคำสั่ง digital write 0 หรือ 1',
+        codeSnippet: 'pins.digitalWritePin(DigitalPin.P1, 1)',
+        voltage: '3.3V Control / 5V-12V Load',
+        tip: 'สำหรับโครงงานนักเรียน ควรใช้ต่อกับปั๊มน้ำ DC 5V-12V จากรางถ่าน แทนไฟฟ้าบ้าน 220V เพื่อความปลอดภัยสูงสุด',
+      },
+    ],
+    sampleMakeCode: `input.onButtonPressed(Button.A, function () {
+    pins.digitalWritePin(DigitalPin.P1, 1) // เปิดปั๊ม
+    basic.pause(3000)
+    pins.digitalWritePin(DigitalPin.P1, 0) // ปิดปั๊ม
+})`,
+    samplePython: `from microbit import *
+
+while True:
+    if button_a.was_pressed():
+        pin1.write_digital(1)
+        sleep(3000)
+        pin1.write_digital(0)`,
+  },
+  neopixel: {
+    id: 'neopixel',
+    title: 'NeoPixel วงแหวนไฟ RGB LED 12 ดวง',
+    subtitle: 'ควบคุมสีรุ้ง 16 ล้านสีแยกอิสระทุกดวงด้วยสายสัญญาณเพียงเส้นเดียว',
+    category: 'Visual Output',
+    description: 'หลอด LED อัจฉริยะรุ่น WS2812B จัดเรียงเป็นวงแหวน สามารถตั้งโปรแกรมเปลี่ยนสีรุ้ง ทำนาฬิกา หรือไฟแจ้งเตือนสถานะคุณภาพอากาศ PM2.5 ได้สวยงาม',
+    specs: [
+      { label: 'จำนวนหลอด LED', value: '12 ดวง (RGB Addressable)' },
+      { label: 'แรงดันไฟฟ้า', value: '3.3V - 5V DC' },
+      { label: 'สายสัญญาณ', value: 'Data In (ต่อ Pin 0)' },
+    ],
+    wiringGuide: [
+      { pin: '5V/VCC', target: '3V (ความสว่างปานกลาง)', color: '#ef4444', notes: 'ไฟเลี้ยง' },
+      { pin: 'GND', target: 'GND', color: '#334155', notes: 'กราวด์' },
+      { pin: 'DIN', target: 'Pin 0', color: '#22c55e', notes: 'ส่งรหัสสี RGB' },
+    ],
+    hotspots: [
+      {
+        id: 'ws2812_leds',
+        name: 'ชิปหลอดไฟ RGB WS2812B',
+        position: [0, 0.25, 1.0],
+        description: 'ภายในหลอดสี่เหลี่ยมสีขาวมีชิปควบคุมแม่สี แดง-เขียว-น้ำเงิน ผสมได้ถึง 16.7 ล้านเฉดสี',
+        pinout: 'ต่อ DIN เข้า Pin 0 และเรียก strip.show()',
+        codeSnippet: 'strip.showRainbow(1, 360)',
+        voltage: '3.3V - 5V',
+        tip: 'ลดความสว่าง (strip.setBrightness(40)) เพื่อป้องกัน Micro:bit รีสตาร์ทจากไฟไม่พอ!',
+      },
+    ],
+    sampleMakeCode: `let strip = neopixel.create(DigitalPin.P0, 12, NeoPixelMode.RGB)
+strip.setBrightness(50)
+basic.forever(function () {
+    strip.showRainbow(1, 360)
+    strip.rotate(1)
+    strip.show()
+    basic.pause(100)
+})`,
+    samplePython: `from microbit import *
+import neopixel
+
+np = neopixel.NeoPixel(pin0, 12)
+for i in range(12):
+    np[i] = (0, 50, 80)
+np.show()`,
+  },
+  ir_line: {
+    id: 'ir_line',
+    title: 'IR Line Sensor เซนเซอร์ตรวจจับเส้น & สิ่งกีดขวาง',
+    subtitle: 'ดวงตานำทางสำหรับหุ่นยนต์เดินตามเส้นดำบนพื้นขาว (Line Follower)',
+    category: 'Robotics Sensor',
+    description: 'ใช้หลอด LED อินฟราเรดยิงแสงลงพื้นและตัวรับแสงตรวจจับการสะท้อน พื้นสีขาวสะท้อนแสงได้ดี (ค่า 0) ส่วนเส้นเทปสีดำดูดกลืนแสง (ค่า 1)',
+    specs: [
+      { label: 'ระยะตรวจจับ', value: '2 - 30 มม. (ปรับได้ที่โวลุ่ม)' },
+      { label: 'สัญญาณเอาต์พุต', value: 'Digital (0 = ขาว, 1 = ดำ)' },
+      { label: 'แรงดันไฟฟ้า', value: '3.3V - 5V DC' },
+    ],
+    wiringGuide: [
+      { pin: 'VCC', target: '3V', color: '#ef4444', notes: 'ไฟเลี้ยง' },
+      { pin: 'GND', target: 'GND', color: '#334155', notes: 'กราวด์' },
+      { pin: 'OUT', target: 'Pin 2', color: '#3b82f6', notes: 'อ่านค่า 0 หรือ 1' },
+    ],
+    hotspots: [
+      {
+        id: 'ir_pair',
+        name: 'คู่หลอดยิงและรับแสงอินฟราเรด (IR Tx/Rx)',
+        position: [0, 0.25, 1.4],
+        description: 'หลอดใสยิงแสงอินฟราเรดที่ตามองไม่เห็น ส่วนหลอดดำรับแสงสะท้อนกลับจากพื้นสนาม',
+        pinout: 'อ่านผ่าน Digital Pin 2',
+        codeSnippet: 'let onLine = pins.digitalReadPin(DigitalPin.P2)',
+        voltage: '3.3V Logic',
+        tip: 'ใช้ไขควงเล็กหมุนปรับ Potentiometer สีน้ำเงินให้ไฟ LED แสดงสถานะดับบนพื้นขาวและติดเมื่ออยู่บนเทปดำ',
+      },
+    ],
+    sampleMakeCode: `basic.forever(function () {
+    let line = pins.digitalReadPin(DigitalPin.P2)
+    if (line == 1) {
+        basic.showIcon(IconNames.Target) // อยู่บนเส้นดำ!
+    } else {
+        basic.clearScreen()
+    }
+})`,
+    samplePython: `from microbit import *
+
+while True:
+    if pin2.read_digital() == 1:
+        display.show(Image.TARGET)
+    else:
+        display.clear()
+    sleep(50)`,
+  },
 };
 
 interface DigitalLibrary3DViewProps {
@@ -677,6 +943,24 @@ export const DigitalLibrary3DView: React.FC<DigitalLibrary3DViewProps> = ({
         break;
       case 'pir':
         buildPIRSensorModel(modelGroup);
+        break;
+      case 'ldr':
+        buildLDRSensorModel(modelGroup);
+        break;
+      case 'buzzer':
+        buildBuzzerModel(modelGroup);
+        break;
+      case 'oled':
+        buildOLEDModel(modelGroup);
+        break;
+      case 'relay':
+        buildRelayModel(modelGroup);
+        break;
+      case 'neopixel':
+        buildNeoPixelModel(modelGroup);
+        break;
+      case 'ir_line':
+        buildIRLineModel(modelGroup);
         break;
     }
 
@@ -1103,6 +1387,125 @@ export const DigitalLibrary3DView: React.FC<DigitalLibrary3DViewProps> = ({
     group.add(pot1, pot2);
   }
 
+  function buildLDRSensorModel(group: THREE.Group) {
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.12, 2.8), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.4 }));
+    pcb.castShadow = true;
+    group.add(pcb);
+
+    const ldrHead = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.15, 24), new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3 }));
+    ldrHead.position.set(0, 0.25, 1.2);
+    group.add(ldrHead);
+
+    const pot = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.45, 0.5), new THREE.MeshStandardMaterial({ color: 0x2563eb }));
+    pot.position.set(0, 0.28, -0.1);
+    group.add(pot);
+
+    const pinMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9, roughness: 0.2 });
+    for (let i = 0; i < 4; i++) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 12), pinMat);
+      p.rotation.x = Math.PI / 2;
+      p.position.set(-0.45 + i * 0.3, 0, -1.65);
+      group.add(p);
+    }
+  }
+
+  function buildBuzzerModel(group: THREE.Group) {
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 2.0), new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.45 }));
+    pcb.castShadow = true;
+    group.add(pcb);
+
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, 1.0, 32), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35 }));
+    body.position.set(0, 0.55, 0.1);
+    body.castShadow = true;
+    group.add(body);
+
+    const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.05, 20), new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8 }));
+    hole.position.set(0, 1.06, 0.1);
+    group.add(hole);
+
+    const pinMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9 });
+    for (let i = 0; i < 3; i++) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 12), pinMat);
+      p.rotation.x = Math.PI / 2;
+      p.position.set(-0.3 + i * 0.3, 0, -1.25);
+      group.add(p);
+    }
+  }
+
+  function buildOLEDModel(group: THREE.Group) {
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.12, 2.7), new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.4 }));
+    pcb.castShadow = true;
+    group.add(pcb);
+
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 1.5), new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.1, metalness: 0.2 }));
+    glass.position.set(0, 0.12, 0.15);
+    group.add(glass);
+
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 1.1), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.set(0, 0.18, 0.15);
+    group.add(glow);
+
+    const pinMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9 });
+    for (let i = 0; i < 4; i++) {
+      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 12), pinMat);
+      p.position.set(-0.45 + i * 0.3, 0.25, -1.1);
+      group.add(p);
+    }
+  }
+
+  function buildRelayModel(group: THREE.Group) {
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.12, 3.2), new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.4 }));
+    pcb.castShadow = true;
+    group.add(pcb);
+
+    const coil = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.1, 1.6), new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.3 }));
+    coil.position.set(0, 0.6, 0);
+    coil.castShadow = true;
+    group.add(coil);
+
+    const terminal = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.65, 0.6), new THREE.MeshStandardMaterial({ color: 0x16a34a }));
+    terminal.position.set(0, 0.38, 1.2);
+    group.add(terminal);
+  }
+
+  function buildNeoPixelModel(group: THREE.Group) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.28, 8, 36), new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.4 }));
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    group.add(ring);
+
+    const colors = [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x00ffff, 0x0000ff, 0x8b00ff, 0xff00ff, 0xf43f5e, 0x10b981, 0x3b82f6, 0xf59e0b];
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * Math.PI * 2;
+      const led = new THREE.Mesh(
+        new THREE.BoxGeometry(0.28, 0.14, 0.28),
+        new THREE.MeshBasicMaterial({ color: colors[i] })
+      );
+      led.position.set(Math.cos(angle) * 1.2, 0.22, Math.sin(angle) * 1.2);
+      led.rotation.y = -angle;
+      group.add(led);
+    }
+  }
+
+  function buildIRLineModel(group: THREE.Group) {
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 3.0), new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.4 }));
+    pcb.castShadow = true;
+    group.add(pcb);
+
+    const txLed = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.8 }));
+    txLed.rotation.x = Math.PI / 2;
+    txLed.position.set(-0.3, 0.1, 1.65);
+    const rxLed = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.55, 16), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+    rxLed.rotation.x = Math.PI / 2;
+    rxLed.position.set(0.3, 0.1, 1.65);
+    group.add(txLed, rxLed);
+
+    const pot = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.5), new THREE.MeshStandardMaterial({ color: 0x2563eb }));
+    pot.position.set(0, 0.25, 0.1);
+    group.add(pot);
+  }
+
   return (
     <div className="relative w-full rounded-3xl overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl text-slate-100 flex flex-col">
       {/* 1. Header Toolbar: Hardware Switcher Tabs */}
@@ -1144,7 +1547,20 @@ export const DigitalLibrary3DView: React.FC<DigitalLibrary3DViewProps> = ({
                     : 'text-slate-400 hover:text-white hover:bg-slate-800'
                 }`}
               >
-                <span>{mKey === 'microbit' ? '🤖' : mKey === 'ultrasonic' ? '🦇' : mKey === 'dht11' ? '🌡️' : mKey === 'servo' ? '⚙️' : mKey === 'soil' ? '🌱' : '🚶'}</span>
+                <span>
+                  {mKey === 'microbit' ? '🤖'
+                    : mKey === 'ultrasonic' ? '🦇'
+                    : mKey === 'dht11' ? '🌡️'
+                    : mKey === 'servo' ? '⚙️'
+                    : mKey === 'soil' ? '🌱'
+                    : mKey === 'pir' ? '🚶'
+                    : mKey === 'ldr' ? '☀️'
+                    : mKey === 'buzzer' ? '🔔'
+                    : mKey === 'oled' ? '📺'
+                    : mKey === 'relay' ? '⚡'
+                    : mKey === 'neopixel' ? '🌈'
+                    : '🏎️'}
+                </span>
                 <span>{info.title.split(' ')[0]}</span>
               </button>
             );
