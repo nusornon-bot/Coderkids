@@ -64,115 +64,81 @@ let cachedAccessToken: string | null = (() => {
   }
 })();
 
-const authListeners = new Set<(user: any | null) => void>();
-
-export const getDirectSchoolUser = (): any | null => {
-  try {
-    const raw = localStorage.getItem('coderkids_direct_google_user');
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return null;
-};
-
-export const setDirectSchoolUser = (email: string, displayName?: string): any => {
-  let cleanEmail = (email || 'nusorn.not@anubalnara.ac.th').trim().toLowerCase();
-  if (!cleanEmail.includes('@')) {
-    cleanEmail = `${cleanEmail}@${SCHOOL_DOMAIN}`;
-  }
-  const prefix = cleanEmail.split('@')[0];
-  const isNusorn = cleanEmail.includes('nusorn');
-  const isWebmaster = cleanEmail.startsWith('webmaster@');
-  const resolvedName =
-    displayName ||
-    (isNusorn
-      ? 'นุสรณ์ อ่อนทอง (ครูนุสรณ์)'
-      : isWebmaster
-      ? 'ผู้ดูแลระบบ (Webmaster)'
-      : `ผู้ใช้งาน (${prefix})`);
-
-  const virtualUser = {
-    uid: `school_${prefix}`,
-    email: cleanEmail,
-    displayName: resolvedName,
-    emailVerified: true,
-  };
-
-  try {
-    localStorage.setItem('coderkids_direct_google_user', JSON.stringify(virtualUser));
-  } catch {}
-
-  authListeners.forEach((cb) => {
-    try {
-      cb(virtualUser);
-    } catch {}
-  });
-
-  return virtualUser;
-};
-
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
-  const listener = (virtualUser: any | null) => {
-    if (virtualUser) {
-      if (onAuthSuccess) onAuthSuccess(virtualUser as User, cachedAccessToken || '');
-    } else if (onAuthFailure) {
-      onAuthFailure();
-    }
-  };
-  authListeners.add(listener);
-
-  // Check stored school Google session first
-  const storedSchoolUser = getDirectSchoolUser();
-  if (storedSchoolUser && onAuthSuccess) {
-    setTimeout(() => onAuthSuccess(storedSchoolUser as User, cachedAccessToken || ''), 0);
-  }
-
-  const unsubFirebase = onAuthStateChanged(auth, async (user: User | null) => {
+  return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
       const token = cachedAccessToken || sessionStorage.getItem('coderkids_sheets_access_token') || '';
       if (token) {
         cachedAccessToken = token;
-      }
-      if (onAuthSuccess) onAuthSuccess(user, token);
-    } else {
-      const fallbackUser = getDirectSchoolUser();
-      if (fallbackUser) {
-        if (onAuthSuccess) onAuthSuccess(fallbackUser as User, cachedAccessToken || '');
+        if (onAuthSuccess) onAuthSuccess(user, token);
       } else {
-        if (onAuthFailure) onAuthFailure();
+        if (onAuthSuccess) onAuthSuccess(user, '');
       }
+    } else {
+      cachedAccessToken = null;
+      try {
+        sessionStorage.removeItem('coderkids_sheets_access_token');
+      } catch {}
+      if (onAuthFailure) onAuthFailure();
     }
   });
-
-  return () => {
-    authListeners.delete(listener);
-    unsubFirebase();
-  };
 };
 
 export const googleSignIn = async (
-  _requestSheetsScope: boolean = false,
-  preferredEmail?: string
+  requestSheetsScope: boolean = false
 ): Promise<{ user: User; accessToken: string } | null> => {
-  // ใช้ระบบยืนยันตัวตนบัญชีโรงเรียนโดยตรง เพื่อไม่ให้ติดหน้าต่างบล็อก 403: access_denied ของ gen-lang-client-0756366544.firebaseapp.com
-  const existing = getDirectSchoolUser();
-  const targetEmail = preferredEmail || existing?.email || 'nusorn.not@anubalnara.ac.th';
-  const virtualUser = setDirectSchoolUser(targetEmail);
-  return {
-    user: virtualUser as unknown as User,
-    accessToken: cachedAccessToken || '',
-  };
+  try {
+    isSigningIn = true;
+    const authProvider = requestSheetsScope ? teacherSheetsProvider : provider;
+    const result = await signInWithPopup(auth, authProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    cachedAccessToken = credential?.accessToken || null;
+    if (cachedAccessToken) {
+      try {
+        sessionStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
+        localStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
+      } catch {}
+    }
+    return { user: result.user, accessToken: cachedAccessToken || '' };
+  } catch (error: any) {
+    if (
+      error?.code === 'auth/popup-closed-by-user' ||
+      error?.code === 'auth/cancelled-popup-request' ||
+      error?.code === 'auth/user-cancelled' ||
+      error?.message?.includes('popup-closed-by-user') ||
+      error?.message?.includes('cancelled-popup-request')
+    ) {
+      return null;
+    }
+    console.error('Google Sign-In Error:', error);
+    if (
+      error?.code === 'auth/unauthorized-domain' ||
+      error?.message?.includes('auth/unauthorized-domain') ||
+      error?.message?.includes('unauthorized-domain')
+    ) {
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+      const customErr: any = new Error(
+        `โดเมน "${currentHost}" ยังไม่ได้รับอนุญาตใน Firebase Authentication (auth/unauthorized-domain)`
+      );
+      customErr.code = 'auth/unauthorized-domain';
+      customErr.hostname = currentHost;
+      throw customErr;
+    }
+    throw error;
+  } finally {
+    isSigningIn = false;
+  }
 };
 
 export const connectTeacherSheetsScope = async (): Promise<{ success: boolean; token: string }> => {
-  const existing = getDirectSchoolUser();
-  const virtualUser = setDirectSchoolUser(existing?.email || 'nusorn.not@anubalnara.ac.th');
-  return {
-    success: true,
-    token: cachedAccessToken || `school_session_${virtualUser.uid}`,
-  };
+  const res = await googleSignIn(true);
+  if (!res?.accessToken) {
+    throw new Error('ไม่สามารถรับสิทธิ์เข้าถึง Google Sheets ได้ กรุณาลองใหม่อีกครั้ง');
+  }
+  return { success: true, token: res.accessToken };
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
@@ -197,11 +163,6 @@ export const googleLogout = async () => {
     sessionStorage.removeItem('coderkids_sheets_access_token');
     localStorage.removeItem('coderkids_sheets_access_token');
   } catch {}
-  authListeners.forEach((cb) => {
-    try {
-      cb(null);
-    } catch {}
-  });
 };
 
 // Robust CSV parser supporting quotes, commas, and line breaks

@@ -672,14 +672,14 @@ export default function App() {
 
   // Profile Management Handlers (เพิ่ม, แก้ไข, ลบ, สลับ)
   const handleUpdateProfile = (updated: UserProfile) => {
-    // กฎความปลอดภัย: สมาชิกไม่สามารถแก้ไขข้อมูลสมาชิกคนอื่นได้
-    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || profile.contactEmail || '', teachersList).isAdmin;
+    // กฎความปลอดภัย: สมาชิกไม่สามารถแก้ไขข้อมูลสมาชิกคนอื่นได้ (ต้องยืนยันตัวตนผ่าน Google OAuth และมีอีเมลในแท็บ Teachers เท่านั้น)
+    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || '', teachersList).isAdmin;
     if (!isTeacher && updated.id !== profile.id && updated.studentId !== profile.studentId) {
       setCelebrationEvent({
         id: `perm_denied_${Date.now()}`,
         type: 'custom',
         title: '🔒 ปฏิเสธการดำเนินการ',
-        subtitle: 'สมาชิกไม่สามารถแก้ไขข้อมูลของสมาชิกคนอื่นได้ (สิทธิ์เฉพาะครู/แอดมิน)',
+        subtitle: 'สมาชิกไม่สามารถแก้ไขข้อมูลของสมาชิกคนอื่นได้ (สิทธิ์เฉพาะครู/แอดมินที่ยืนยันตัวตนผ่าน Google)',
         badgeEmoji: '🔒',
       });
       return;
@@ -697,13 +697,13 @@ export default function App() {
 
   const handleAddProfile = (newProfile: UserProfile, makeActive: boolean = true) => {
     // กฎความปลอดภัย: สมาชิกไม่สามารถเพิ่มข้อมูลสมาชิกคนอื่นในระบบได้
-    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || profile.contactEmail || '', teachersList).isAdmin;
+    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || '', teachersList).isAdmin;
     if (!isTeacher) {
       setCelebrationEvent({
         id: `perm_denied_${Date.now()}`,
         type: 'custom',
         title: '🔒 ปฏิเสธการดำเนินการ',
-        subtitle: 'สมาชิกไม่สามารถเพิ่มข้อมูลผู้เรียนคนอื่นในระบบได้ (สิทธิ์เฉพาะครู/แอดมิน)',
+        subtitle: 'สมาชิกไม่สามารถเพิ่มข้อมูลผู้เรียนคนอื่นในระบบได้ (สิทธิ์เฉพาะครู/แอดมินที่ยืนยันตัวตนผ่าน Google)',
         badgeEmoji: '🔒',
       });
       return;
@@ -716,7 +716,7 @@ export default function App() {
 
   const handleDeleteProfile = (profileId: string) => {
     // กฎความปลอดภัย: สมาชิกไม่สามารถลบข้อมูลสมาชิกคนอื่นได้
-    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || profile.contactEmail || '', teachersList).isAdmin;
+    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || '', teachersList).isAdmin;
     if (!isTeacher) {
       setCelebrationEvent({
         id: `perm_denied_${Date.now()}`,
@@ -1214,13 +1214,13 @@ export default function App() {
         console.warn('Auto-fetch students on load error:', err);
       });
 
-    // 2. ดึงข้อมูลครูและตรวจสอบสิทธิ์แอดมินจากแท็บ Teachers
+    // 2. ดึงข้อมูลครูและตรวจสอบสิทธิ์แอดมินจากแท็บ Teachers (ต้องยืนยันตัวตนผ่าน Google OAuth เท่านั้น)
     refreshTeachersList().then((list) => {
       if (isLoggedIn) {
-        const currentEmail = auth.currentUser?.email || profile.contactEmail || '';
+        const currentEmail = auth.currentUser?.email || '';
         const check = checkIsTeacherAdmin(currentEmail, list);
         if (check.isAdmin) {
-          // เมื่อแอดมินเข้าสู่ระบบ ต้องแสดงโปรไฟล์ของแอดมิน
+          // เมื่อแอดมินเข้าสู่ระบบผ่าน Google OAuth ต้องแสดงโปรไฟล์ของแอดมิน
           const adminProf = getAdminProfileData(currentEmail, check.matchedTeacher?.name);
           setProfile(adminProf);
           setProfiles((prev) => {
@@ -1228,7 +1228,7 @@ export default function App() {
             return exists ? prev : [adminProf, ...prev];
           });
         } else {
-          // บังคับสิทธิ์ผู้เรียนหากไม่มีรายชื่อในแท็บ Teachers
+          // บังคับสิทธิ์ผู้เรียนหากไม่ได้ยืนยันตัวตนผ่าน Google OAuth หรือไม่มีรายชื่อในแท็บ Teachers
           setProfile((prev) => (prev.role === 'admin' ? { ...prev, role: 'student' } : prev));
         }
       }
@@ -1255,24 +1255,23 @@ export default function App() {
   }, []);
 
   const completedCount = Object.values(moduleProgress).filter(Boolean).length;
-  // ผู้ใช้ต้อง "เข้าสู่ระบบ (isLoggedIn === true)" ก่อนเท่านั้น จึงจะตรวจสอบสิทธิ์แอดมินได้
-  // ผู้ใช้งานทั่วไปที่ยังไม่เข้าสู่ระบบ จะไม่มีสิทธิ์แอดมินโดยเด็ดขาด (isAdmin = false)
-  const verifiedUserEmail = isLoggedIn ? (auth.currentUser?.email || profile.contactEmail || '') : '';
+  // ผู้ใช้ต้องยืนยันตัวตนผ่านระบบของ Google (auth.currentUser?.email) และมีอีเมลในแท็บ Teachers บน Google Sheet เท่านั้น
+  const verifiedUserEmail = isLoggedIn ? (auth.currentUser?.email || '') : '';
   const teacherCheck = checkIsTeacherAdmin(verifiedUserEmail, teachersList);
-  const isTeacherAuthorized = Boolean(isLoggedIn && teacherCheck.isAdmin);
+  const isTeacherAuthorized = Boolean(isLoggedIn && verifiedUserEmail && teacherCheck.isAdmin);
   const isAdmin = Boolean(isLoggedIn && isTeacherAuthorized && profile.role !== 'student');
 
   const handleToggleAdmin = (newAdminState: boolean) => {
-    const currentEmail = auth.currentUser?.email || profile.contactEmail || '';
+    const currentEmail = auth.currentUser?.email || '';
     const check = checkIsTeacherAdmin(currentEmail, teachersList);
 
-    // Enforcement: ผู้เรียนไม่สามารถเปลี่ยนสถานะจาก "สมาชิก" เป็น "แอดมิน" ได้
-    if (newAdminState && !check.isAdmin) {
+    // Enforcement: ต้องยืนยันตัวตนผ่านระบบ Google และมีอีเมลในแท็บ Teachers เท่านั้น
+    if (newAdminState && (!currentEmail || !check.isAdmin)) {
       setCelebrationEvent({
         id: `perm_admin_${Date.now()}`,
         type: 'custom',
         title: '🔒 ปฏิเสธการเปลี่ยนสถานะ',
-        subtitle: 'สิทธิ์ผู้ดูแลระบบสงวนไว้เฉพาะคุณครูและแอดมินที่มีรายชื่อระบุในแท็บ Teachers บน Google Sheet เท่านั้น',
+        subtitle: 'ต้องยืนยันตัวตนผ่านระบบของ Google และมีรายชื่ออีเมลในแท็บ Teachers บน Google Sheet เท่านั้น',
         badgeEmoji: '🔒',
       });
       return;

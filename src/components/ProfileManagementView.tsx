@@ -276,13 +276,12 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
   // Hidden file input for import
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Determine if effective Admin: STRICTLY requires user to be logged in AND verified as admin/teacher
-  const currentEmailForCheck = (isLoggedIn && currentUser?.email)
-    ? currentUser.email
-    : (isLoggedIn ? profile.contactEmail || '' : '');
+  // Determine if effective Admin: STRICTLY requires user to be authenticated via Google OAuth AND verified in Teachers tab
+  const currentEmailForCheck = (isLoggedIn && currentUser?.email) ? currentUser.email : '';
   const currentTeacherAdminMatch = checkIsTeacherAdmin(currentEmailForCheck, teachers);
   const isEffectiveAdmin = Boolean(
     isLoggedIn &&
+    currentUser?.email &&
     (isAdmin || currentTeacherAdminMatch.isAdmin) &&
     profile.role !== 'student'
   );
@@ -365,40 +364,91 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
     setIsLoggingIn(true);
     setStatusMsg(null);
     try {
-      const res = await googleSignIn();
+      const res = await googleSignIn(false);
       if (!res) {
         setIsLoggingIn(false);
         return;
       }
-      if (res) {
-        setCurrentUser(res.user);
-        const userEmail = res.user.email || '';
+
+      const userEmail = (res.user.email || '').trim().toLowerCase();
+      if (!userEmail) {
+        await googleLogout();
         setStatusMsg({
-          text: `เข้าสู่ระบบด้วย Google สำเร็จ: ${res.user.displayName || userEmail}`,
+          text: 'ไม่สามารถอ่านที่อยู่อีเมลจากบัญชี Google ของคุณได้',
+          type: 'error',
+        });
+        setIsLoggingIn(false);
+        return;
+      }
+
+      // Fetch latest Teachers and Students from Google Sheet to verify the authenticated email
+      const [sheetTeachers, sheetStudentsRes] = await Promise.all([
+        fetchTeachersFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => teachers),
+        fetchStudentsFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => ({
+          students: profiles,
+          syncedCount: 0,
+          message: '',
+        })),
+      ]);
+
+      const activeTeachers = sheetTeachers.length > 0 ? sheetTeachers : teachers;
+      const activeStudents = sheetStudentsRes.students.length > 0 ? sheetStudentsRes.students : profiles;
+
+      const check = checkIsTeacherAdmin(userEmail, activeTeachers);
+      const emailPrefix = userEmail.split('@')[0];
+      const matchedStudent = activeStudents.find((s) => {
+        const sEmail = (s.contactEmail || '').trim().toLowerCase();
+        const sId = (s.studentId || '').trim().toLowerCase();
+        return (
+          (sEmail && sEmail === userEmail) ||
+          (sId && `${sId}@anubalnara.ac.th` === userEmail) ||
+          (sId && userEmail.endsWith('@anubalnara.ac.th') && sId === emailPrefix)
+        );
+      });
+
+      if (!check.isAdmin && !matchedStudent) {
+        await googleLogout();
+        setCurrentUser(null);
+        setStatusMsg({
+          text: `⚠️ ปฏิเสธการเข้าถึง: บัญชี Google "${userEmail}" ผ่านการยืนยันตัวตนแล้ว แต่ไม่พบอีเมลนี้ในฐานข้อมูล Google Sheet (แท็บ Teachers หรือ Students)`,
+          type: 'error',
+        });
+        setIsLoggingIn(false);
+        return;
+      }
+
+      setCurrentUser(res.user);
+
+      if (check.isAdmin) {
+        if (onToggleAdmin) onToggleAdmin(true);
+        setStatusMsg({
+          text: `ยืนยันตัวตนผ่าน Google และตรวจสอบสิทธิ์ครู/แอดมินสำเร็จจากแท็บ Teachers! (${userEmail})`,
           type: 'success',
         });
-
-        // Auto check if this email is an Admin in Teachers tab
-        const check = checkIsTeacherAdmin(userEmail, teachers);
-        if (check.isAdmin && onToggleAdmin) {
-          onToggleAdmin(true);
-          setStatusMsg({
-            text: `ยืนยันสิทธิ์แอดมินสำเร็จจากแท็บ Teachers! บัญชี: ${userEmail}`,
-            type: 'success',
-          });
+      } else if (matchedStudent) {
+        if (onSelectProfile) {
+          onSelectProfile(matchedStudent.id);
+        } else {
+          onUpdateProfile({ ...matchedStudent, contactEmail: userEmail });
         }
-
-        // Record student login entry to tab "Logs"
-        await recordStudentLoginToGoogleSheet(
-          TARGET_SPREADSHEET_ID,
-          profile,
-          userEmail,
-          'ลงชื่อเข้าใช้งานห้องเรียน Coder Kids',
-          'profileManage'
-        );
-
-        loadSheetInspectionData();
+        setStatusMsg({
+          text: `ยืนยันตัวตนผ่าน Google และพบข้อมูลนักเรียนในแท็บ Students สำเร็จ: ${matchedStudent.name} (${userEmail})`,
+          type: 'success',
+        });
       }
+
+      // Record verified login entry to tab "Logs"
+      await recordStudentLoginToGoogleSheet(
+        TARGET_SPREADSHEET_ID,
+        matchedStudent || profile,
+        userEmail,
+        check.isAdmin
+          ? 'ครู/แอดมิน ยืนยันตัวตนผ่าน Google OAuth (ตรวจสอบจากแท็บ Teachers)'
+          : 'นักเรียน ยืนยันตัวตนผ่าน Google OAuth (ตรวจสอบจากแท็บ Students)',
+        'profileManage'
+      );
+
+      loadSheetInspectionData();
     } catch (err: any) {
       if (
         err?.code === 'auth/popup-closed-by-user' ||
@@ -910,32 +960,42 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
     }
   };
 
-  // 9. VERIFY ADMIN RIGHTS FROM "Teachers" TAB
+  // 9. VERIFY ADMIN RIGHTS FROM "Teachers" TAB (Strictly requires Google OAuth authentication to activate admin mode)
   const handleCheckAdminPermission = (customEmail?: string) => {
-    const targetEmail = (customEmail || adminCheckEmail || currentUser?.email || profile.contactEmail || '').trim();
+    const targetEmail = (customEmail || adminCheckEmail || currentUser?.email || '').trim();
 
     if (!targetEmail) {
       setAdminCheckResult({
         tested: true,
         isAdmin: false,
-        message: 'กรุณาระบุอีเมลที่ต้องการตรวจสอบสิทธิ์',
+        message: 'กรุณาเข้าสู่ระบบด้วยบัญชี Google เพื่อตรวจสอบสิทธิ์จากแท็บ Teachers',
       });
       return;
     }
 
     const check = checkIsTeacherAdmin(targetEmail, teachers);
-    if (check.isAdmin) {
+    const isAuthenticatedAsTarget =
+      Boolean(currentUser?.email) &&
+      currentUser!.email!.trim().toLowerCase() === targetEmail.toLowerCase();
+
+    if (check.isAdmin && isAuthenticatedAsTarget) {
       if (onToggleAdmin) onToggleAdmin(true);
       setAdminCheckResult({
         tested: true,
         isAdmin: true,
-        message: `ยืนยันสิทธิ์ถูกต้อง! บัญชี "${targetEmail}" ได้รับสิทธิ์แอดมินตามที่ระบุในแท็บ Teachers (${check.matchedTeacher?.name || 'ครูผู้สอน'})`,
+        message: `ยืนยันตัวตนผ่าน Google และตรวจสอบสิทธิ์ถูกต้อง! บัญชี "${targetEmail}" ได้รับสิทธิ์แอดมินตามที่ระบุในแท็บ Teachers (${check.matchedTeacher?.name || 'ครูผู้สอน'})`,
       });
       setStatusMsg({
         text: `ได้รับการยืนยันสิทธิ์แอดมินจากแท็บ Teachers เรียบร้อยแล้ว!`,
         type: 'success',
       });
       confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
+    } else if (check.isAdmin && !isAuthenticatedAsTarget) {
+      setAdminCheckResult({
+        tested: true,
+        isAdmin: false,
+        message: `พบอีเมล "${targetEmail}" ในแท็บ Teachers แต่คุณยังไม่ได้ยืนยันตัวตนด้วยบัญชี Google นี้ กรุณากดปุ่ม "เข้าสู่ระบบด้วย Google" เพื่อยืนยันตัวตนก่อนเปิดสิทธิ์แอดมิน`,
+      });
     } else {
       setAdminCheckResult({
         tested: true,
