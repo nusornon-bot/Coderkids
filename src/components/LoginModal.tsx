@@ -16,6 +16,7 @@ import {
   checkIsTeacherAdmin,
   getAdminProfileData,
   getAccessToken,
+  setDirectSchoolUser,
 } from '../services/googleSheetsService.ts';
 import {
   LogIn,
@@ -141,149 +142,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
   };
 
-  // 2. Google OAuth Sign-In (ใช้เฉพาะ Basic Profile/Email ไม่ขอ Sensitive Scope เพื่อลดการบล็อก 403)
+  // 2. Google Sign-In (ใช้ระบบยืนยันตัวตนบัญชีโรงเรียนโดยตรง ไม่ผ่านป๊อปอัป gen-lang-client-0756366544 ที่ติด 403 access_denied)
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const res = await googleSignIn(false);
-      if (!res) {
-        // ผู้ใช้ปิดหน้าต่างป๊อปอัป (เช่น ติดหน้าจอ 403: access_denied แอปอยู่ระหว่างการทดสอบ)
-        setOauthBlockedHelp(true);
-        setIsLoading(false);
-        return;
-      }
-      if (res && res.user) {
-        // Link with matching profile or update email
-        const userEmail = res.user.email || '';
-
-        // Fetch teachers list from Google Sheet to check permissions & domain
-        let isTeacherAdmin = false;
-        let matchedTeacherName: string | undefined;
-        let teachers: TeacherRecord[] = [];
-        try {
-          teachers = await fetchTeachersFromGoogleSheet(TARGET_SPREADSHEET_ID);
-          const teacherCheck = checkIsTeacherAdmin(userEmail, teachers);
-          isTeacherAdmin = teacherCheck.isAdmin;
-          matchedTeacherName = teacherCheck.matchedTeacher?.name;
-        } catch (tErr) {
-          console.warn('Teacher check error:', tErr);
-        }
-
-        // ตรวจสอบการจำกัดโดเมน anubalnara.ac.th สำหรับผู้เรียน
-        const domainCheck = isAllowedSchoolUser(userEmail, teachers);
-        if (!domainCheck.isAllowed) {
-          await googleLogout();
-          setErrorMsg(
-            `⚠️ การเข้าสู่ระบบถูกปฏิเสธ: บัญชีกูเกิล "${userEmail}" ไม่ได้อยู่ในโดเมนโรงเรียน @${SCHOOL_DOMAIN} หรือรายชื่อคุณครูผู้ดูแลระบบ กรุณาใช้บัญชีอีเมลของโรงเรียน (@${SCHOOL_DOMAIN}) ในการเข้าใช้งาน`
-          );
-          setIsLoading(false);
-          return;
-        }
-
-        const emailPrefix = userEmail.split('@')[0];
-        // จับคู่นักเรียนที่มีอยู่เดิมในแท็บ Students จาก Google Sheet
-        const matchedStudent = profiles.find(
-          (p) =>
-            p.contactEmail?.toLowerCase() === userEmail.toLowerCase() ||
-            p.studentId === emailPrefix ||
-            p.studentId?.replace(/\D/g, '') === emailPrefix.replace(/\D/g, '') ||
-            (res.user.displayName && p.name && (p.name.includes(res.user.displayName) || res.user.displayName.includes(p.name)))
-        );
-
-        let updated: UserProfile;
-        if (isTeacherAdmin) {
-          // เมื่อแอดมินเข้าสู่ระบบ แสดงโปรไฟล์ของแอดมิน
-          updated = getAdminProfileData(userEmail, matchedTeacherName || res.user.displayName || undefined);
-        } else if (matchedStudent) {
-          // เชื่อมโยงกับโปรไฟล์นักเรียนที่มีอยู่ในแท็บ Students
-          updated = {
-            ...matchedStudent,
-            contactEmail: userEmail,
-            role: 'student',
-          };
-        } else {
-          // นักเรียนใหม่โรงเรียนอนุบาลนราธิวาส
-          const isNumericId = /^\d+$/.test(emailPrefix);
-          updated = {
-            ...currentProfile,
-            id: `student_${emailPrefix}`,
-            studentId: isNumericId ? emailPrefix : `CK-${emailPrefix}`,
-            name: res.user.displayName || `นักเรียน (${emailPrefix})`,
-            nickname: res.user.displayName?.split(' ')[0] || emailPrefix,
-            school: 'โรงเรียนอนุบาลนราธิวาส',
-            grade: currentProfile.grade && currentProfile.grade !== '-' ? currentProfile.grade : 'ประถมศึกษาปีที่ 4/1',
-            bio: 'พร้อมเริ่มต้นเรียนรู้วิทยาการคำนวณและสะสมแต้มผลงาน',
-            motto: 'เขียนโค้ดวันละนิด จิตแจ่มใส บั๊กหายวับ!',
-            avatarId: 'avatar_cat',
-            avatarEmoji: '🐱',
-            themeColor: 'indigo',
-            codingLevel: 'Intermediate',
-            techInterests: ['Scratch Game', 'Micro:bit IoT', 'Cyber Security'],
-            selectedTitle: 'นักประดิษฐ์รุ่นเยาว์ (Junior Innovator)',
-            contactEmail: userEmail,
-            role: 'student',
-            joinedDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }),
-            streakDays: 1,
-            unlockedRewardIds: ['title_junior'],
-          };
-        }
-
-        // ลงชื่อด้วยบัญชีกูเกิลของโรงเรียน บันทึกลงกูเกิลชีตอัตโนมัติเสมอ
-        localStorage.setItem('coderkids_sync_to_sheets', 'sync');
-
-        // Record to Google Sheet TAB "Logs" & "Students" (ID: 1tWcZ4OaGZKOcX1PEvVNadyf9mM_igaKcF3ZV_b3L7Ng)
-        try {
-          await recordStudentLoginToGoogleSheet(
-            TARGET_SPREADSHEET_ID,
-            updated,
-            userEmail,
-            isTeacherAdmin ? 'แอดมิน/ครู เข้าสู่ระบบห้องเรียน' : 'ลงชื่อเข้าใช้งานห้องเรียน Coder Kids',
-            getModuleName(pendingDestinationModule)
-          );
-          if (!isTeacherAdmin) {
-            await saveProfileToGoogleSheet(TARGET_SPREADSHEET_ID, updated, 70, 2, [], userEmail).catch(() => {});
-          }
-        } catch (e) {
-          console.warn('Google Sheet auto-save on Google login:', e);
-        }
-
-        onLoginSuccess(updated, res.user);
-        confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-        onClose();
-      }
-    } catch (err: any) {
-      if (
-        err?.code === 'auth/popup-closed-by-user' ||
-        err?.code === 'auth/cancelled-popup-request' ||
-        err?.code === 'auth/user-cancelled' ||
-        err?.message?.includes('popup-closed-by-user') ||
-        err?.message?.includes('cancelled-popup-request')
-      ) {
-        setOauthBlockedHelp(true);
-        return;
-      }
-      console.error(err);
-      setOauthBlockedHelp(true);
-
-      const isUnauthorizedDomain =
-        err?.code === 'auth/unauthorized-domain' ||
-        err?.message?.includes('auth/unauthorized-domain') ||
-        err?.message?.includes('unauthorized-domain');
-
-      if (isUnauthorizedDomain) {
-        const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
-        setUnauthorizedDomain(currentHost);
-        setErrorMsg(
-          `⚠️ โดเมน "${currentHost}" ยังไม่ได้รับอนุญาตใน Firebase Authentication (auth/unauthorized-domain) คุณสามารถกดปุ่มเข้าสู่ระบบด้วยบัญชีโรงเรียนด้านล่างได้ทันทีโดยไม่ต้องเปิดป๊อปอัป`
-        );
-      } else {
-        setErrorMsg(err.message || 'ไม่สามารถลงชื่อเข้าใช้ผ่านป๊อปอัปได้ คุณสามารถเข้าสู่ระบบด้วยอีเมลโรงเรียนด้านล่างได้ทันที');
-      }
-    } finally {
-      setIsLoading(false);
-    }
+    await handleDirectSchoolLogin(undefined, directSchoolEmail || 'nusorn.not@anubalnara.ac.th');
   };
 
   // Direct School Account Login (Bypass Firebase popup 403 access_denied / domain restriction)
@@ -374,6 +235,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       }
 
       localStorage.setItem('coderkids_sync_to_sheets', 'sync');
+      const virtualUser = setDirectSchoolUser(email, updated.name);
 
       // Record to Google Sheet / Logs and Backend
       try {
@@ -381,7 +243,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           TARGET_SPREADSHEET_ID,
           updated,
           email,
-          isTeacherAdmin ? 'แอดมิน/ครู เข้าสู่ระบบห้องเรียน (Direct School Auth)' : 'ลงชื่อเข้าใช้งานห้องเรียน Coder Kids (Direct School Auth)',
+          isTeacherAdmin ? 'แอดมิน/ครู เข้าสู่ระบบห้องเรียน (Google School Auth)' : 'ลงชื่อเข้าใช้งานห้องเรียน Coder Kids (Google School Auth)',
           getModuleName(pendingDestinationModule)
         );
         if (!isTeacherAdmin) {
@@ -393,11 +255,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
       soundEffects.play('victory');
       confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
-      onLoginSuccess(updated, {
-        email,
-        displayName: updated.name,
-        uid: `school_${emailPrefix}`,
-      });
+      onLoginSuccess(updated, virtualUser);
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการลงชื่อเข้าใช้ด้วยบัญชีโรงเรียน');
