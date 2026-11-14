@@ -345,22 +345,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="space-y-8 pb-20">
       {/* ----------------- แถบนำทางตามลำดับขั้นตอนการเรียนรู้ของนักเรียน ----------------- */}
-      <div className="sticky top-16 z-20 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md py-2 -mx-2 px-2 sm:mx-0 sm:px-0">
-        <div className="p-1.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+      <div className="sticky top-16 z-20 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur-md py-2">
+        <div className="p-1.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             onClick={() => {
               soundEffects.play('click');
               setActiveCategory('all');
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeCategory === 'all'
                 ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            <span>เส้นทางเรียนทั้งหมด</span>
+            <LayoutGrid className="w-3.5 h-3.5 shrink-0" />
+            <span>ทั้งหมด</span>
           </button>
 
           <button
@@ -369,14 +369,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               soundEffects.play('click');
               setActiveCategory('curriculum');
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeCategory === 'curriculum'
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Compass className="w-3.5 h-3.5 text-indigo-400" />
-            <span>ขั้นที่ 1: บทเรียนหลัก (4 ก้าว)</span>
+            <Compass className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span>1. บทเรียนหลัก (4 ก้าว)</span>
             <span className="font-mono text-[11px] tabular-nums opacity-85">{progressPercent}%</span>
           </button>
 
@@ -386,14 +386,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               soundEffects.play('click');
               setActiveCategory('labs');
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeCategory === 'labs'
                 ? 'bg-amber-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Zap className="w-3.5 h-3.5 text-amber-400" />
-            <span>ขั้นที่ 2: ฝึกปฏิบัติ &amp; มินิแล็บ</span>
+            <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>2. ฝึกแล็บ &amp; มินิเกม</span>
           </button>
 
           <button
@@ -402,15 +402,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               soundEffects.play('click');
               setActiveCategory('onet');
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeCategory === 'onet'
                 ? 'bg-rose-600 text-white shadow-sm'
                 : 'text-rose-700 dark:text-rose-300 bg-rose-50/80 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200/70 dark:border-rose-800/60'
             }`}
           >
-            <Trophy className={`w-3.5 h-3.5 ${activeCategory === 'onet' ? 'text-amber-200' : 'text-rose-500 dark:text-rose-400'}`} />
-            <span>คลังข้อสอบ O-NET</span>
-            <span className="font-mono text-[11px] tabular-nums opacity-90">(10 ชุด)</span>
+            <Trophy className={`w-3.5 h-3.5 shrink-0 ${activeCategory === 'onet' ? 'text-amber-200' : 'text-rose-500 dark:text-rose-400'}`} />
+            <span>3. คลังข้อสอบ O-NET (10 ชุด)</span>
           </button>
 
           <button
@@ -419,14 +418,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               soundEffects.play('click');
               setActiveCategory('stem');
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeCategory === 'stem'
                 ? 'bg-teal-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Rocket className="w-3.5 h-3.5 text-teal-400" />
-            <span>ขั้นที่ 4: โครงงาน STEM &amp; 3D</span>
+            <Rocket className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+            <span>4. โครงงาน STEM &amp; 3D</span>
           </button>
 
           <button
@@ -435,14 +434,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               soundEffects.play('click');
               setActiveCategory('progress');
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeCategory === 'progress'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-            <span>ขั้นที่ 5: ผลการเรียน &amp; อันดับ</span>
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>5. ผลการเรียน &amp; อันดับ</span>
           </button>
 
           <button
@@ -451,13 +450,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               soundEffects.play('click');
               setActiveCategory('teacher');
             }}
-            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 shrink-0 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
               activeCategory === 'teacher'
                 ? 'bg-purple-600 text-white shadow-sm'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
+            <GraduationCap className="w-3.5 h-3.5 text-purple-400 shrink-0" />
             <span>ศูนย์ครู &amp; ผู้ปกครอง</span>
           </button>
         </div>

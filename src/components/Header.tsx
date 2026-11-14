@@ -421,7 +421,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* 3. หมวด: แล็บ & เควสต์ (Dropdown) */}
+            {/* 3. หมวด: แล็บ & มินิเกม (Dropdown เรียงตามลำดับการฝึกทักษะ 5 กลุ่ม) */}
             <div className="relative shrink-0">
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'labs' ? null : 'labs')}
@@ -438,422 +438,443 @@ export const Header: React.FC<HeaderProps> = ({
                 <ChevronDown className={`w-3 h-3 shrink-0 transition-transform duration-200 text-slate-400 ${openDropdown === 'labs' ? 'rotate-180 text-purple-600' : ''}`} />
               </button>
 
-              {/* Labs Dropdown Popover */}
+              {/* Labs Dropdown Popover (right-0 xl:left-0 prevents overflowing off the right edge of screen) */}
               {openDropdown === 'labs' && (
-                <div className="absolute left-0 mt-2 w-80 sm:w-84 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(75vh,540px)]">
+                <div className="absolute right-0 xl:left-0 mt-2 w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(78vh,560px)]">
                   <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center justify-between shrink-0">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">⚡ แล็บฝึกทักษะ &amp; สื่อเรียนรู้</span>
-                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold flex items-center gap-1">
-                      <span>เลื่อนดู ↕</span>
-                    </span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">⚡ แล็บฝึกทักษะ &amp; มินิเกม (เรียงตามขั้นการเรียน)</span>
+                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">เลื่อนดู ↕</span>
                   </div>
 
-                  <div className="overflow-y-auto space-y-0.5 pr-1.5 overscroll-contain custom-scrollbar flex-1">
+                  <div className="overflow-y-auto space-y-1 pr-1 overscroll-contain custom-scrollbar flex-1">
+                    {/* กลุ่มที่ 1: คิดเชิงคำนวณ & อัลกอริทึม */}
+                    <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                      ขั้นที่ 1 · ฝึกคิดเชิงคำนวณ &amp; อัลกอริทึม (1–4)
+                    </div>
 
-                  {onOpenMazeRunner && (
+                    {onOpenMazeRunner && (
+                      <button
+                        onClick={() => handleAction(onOpenMazeRunner)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
+                            <span className="truncate">1. มินิเกมเขาวงกต (Maze Runner)</span>
+                            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">20 ด่าน</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">เรียงบล็อกคำสั่งพาน้องแมวผ่านเขาวงกต</div>
+                        </div>
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => handleAction(onOpenMazeRunner)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('bebrasArena')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'bebrasArena'
+                          ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 font-bold'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
-                        <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0 text-sm">
+                        🦫
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-indigo-700 dark:text-indigo-300">
-                          <span>มินิเกมเขาวงกต (Maze Runner)</span>
-                          <span className="text-[10px] bg-indigo-200 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-1.5 py-0.2 rounded font-mono font-bold">20 ด่าน</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
+                          <span className="truncate">2. Bebras Thailand Arena</span>
+                          <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">8 ภารกิจ</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ลากบล็อกพาน้องแมวผ่านเขาวงกต 20 ด่าน</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">โจทย์มาตรฐานสากล 4 เสาหลักการคิดเชิงคำนวณ</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenAvatarShop && (
                     <button
-                      onClick={() => handleAction(onOpenAvatarShop)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-purple-50 dark:hover:bg-purple-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('binaryLab')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'binaryLab'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-200 font-bold'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
-                        <ShoppingBag className="w-4 h-4 text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                        <Binary className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-purple-700 dark:text-purple-300">
-                          <span>ร้านค้าอวตาร (Avatar Shop)</span>
-                          <span className="text-[10px] bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-1.5 py-0.2 rounded font-mono font-bold">22 ไอเทม</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
+                          <span className="truncate">3. Binary Pixel Art &amp; รหัสลับ ASCII</span>
+                          <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">10 ภาพ</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แลกหมวก แว่นตา สัตว์เลี้ยงคู่ใจ 22 รายการ</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">เรียนรู้เลขฐานสอง 0/1 และถอดรหัสภาพ 8×8</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenHomeworkDropzone && (
+                    {onOpenUnpluggedWorksheets && (
+                      <button
+                        onClick={() => handleAction(onOpenUnpluggedWorksheets)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-400">
+                            <span className="truncate">4. คลังใบงาน Unplugged Coding</span>
+                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">8 ใบงาน</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">กิจกรรมฝึกคิดเชิงคำนวณแบบไม่ใช้คอมพิวเตอร์</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* กลุ่มที่ 2: ฝึกเขียนโค้ด & แก้บั๊กโปรแกรม */}
+                    <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                      ขั้นที่ 2 · ฝึกเขียนโค้ด &amp; แก้บั๊กโปรแกรม (5–8)
+                    </div>
+
                     <button
-                      onClick={() => handleAction(onOpenHomeworkDropzone)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('juniorPlayground')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'juniorPlayground'
+                          ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-900 dark:text-indigo-200'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
-                        <FolderGit2 className="w-4 h-4 text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                        <Code2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-teal-700 dark:text-teal-300">
-                          <span>กล่องส่งการบ้าน (Homework)</span>
-                          <span className="text-[10px] bg-teal-200 dark:bg-teal-900 text-teal-800 dark:text-teal-200 px-1.5 py-0.2 rounded font-mono font-bold">12 หัวข้อ</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
+                          <span className="truncate">5. Junior Code Playground</span>
+                          <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">8 โจทย์</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ถ่ายรูปใบงาน &amp; แฟ้มสะสมงาน (12 ภารกิจ)</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ทดลองรันบล็อกคำสั่ง, Python &amp; Micro:bit JS</div>
                       </div>
                     </button>
-                  )}
 
-                  <button
-                    onClick={() => handleSelectTab('stemProjects')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'stemProjects'
-                        ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-900 dark:text-indigo-200 font-bold'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
-                      <Rocket className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between text-indigo-700 dark:text-indigo-300">
-                        <span>คลังโครงงาน STEM Project Hub</span>
-                        <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-mono font-bold">12 โครงงาน</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">12 โครงงาน + วางแผน Project Canvas A4</div>
-                    </div>
-                  </button>
+                    {onOpenCodeTracer && (
+                      <button
+                        onClick={() => handleAction(onOpenCodeTracer)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-cyan-50 dark:hover:bg-cyan-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-cyan-100 dark:bg-cyan-900/60 flex items-center justify-center shrink-0">
+                          <Cpu className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-cyan-700 dark:text-cyan-300">
+                            <span className="truncate">6. จำลองโค้ดทีละขั้น (Code Tracer)</span>
+                            <span className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400 shrink-0">6 โจทย์</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ติดตามค่าตัวแปร ลูป และเงื่อนไขทีละบรรทัด</div>
+                        </div>
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => handleSelectTab('binaryLab')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'binaryLab'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-200 font-bold'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                      <Binary className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between text-emerald-700 dark:text-emerald-300">
-                        <span>Binary Pixel Art &amp; รหัสลับ ASCII</span>
-                        <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 px-1.5 py-0.2 rounded font-mono font-bold">10 ภาพ</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">10 ภาพพิกเซล 8×8 &amp; 6 ภารกิจถอดรหัสสายลับ</div>
-                    </div>
-                  </button>
+                    {onOpenBugHunter && (
+                      <button
+                        onClick={() => handleAction(onOpenBugHunter)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0">
+                          <Bug className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-rose-600 dark:text-rose-400">
+                            <span className="truncate">7. ภารกิจล่าบั๊กประจำวัน (+15 EXP)</span>
+                            <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 shrink-0">6 ด่าน</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ค้นหาและแก้ไขข้อผิดพลาดในโปรแกรม</div>
+                        </div>
+                      </button>
+                    )}
 
-                  <button
-                    onClick={() => handleSelectTab('digitalLibrary')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'digitalLibrary'
-                        ? 'bg-teal-50 dark:bg-teal-950/70 text-teal-900 dark:text-teal-200 font-bold'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
-                      <BookOpen className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between text-teal-700 dark:text-teal-300">
-                        <span>คลัง e-Book &amp; ฮาร์ดแวร์ 3D</span>
-                        <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-mono font-bold">12+12</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">12 โมเดล 3D หมุน 360° &amp; 12 e-Book ว 4.2</div>
-                    </div>
-                  </button>
+                    {onOpenCodeTyper && (
+                      <button
+                        onClick={() => handleAction(onOpenCodeTyper)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                          <Keyboard className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
+                            <span className="truncate">8. Kids Code Typer (ฝึกพิมพ์โค้ด)</span>
+                            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">40 ชุด</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ฝึกพิมพ์คำสั่งโค้ดและวงเล็บ 3 ระดับความยาก</div>
+                        </div>
+                      </button>
+                    )}
 
+                    {/* กลุ่มที่ 3: ฮาร์ดแวร์ 3D, IoT & โครงงาน STEM */}
+                    <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-teal-600 dark:text-teal-400">
+                      ขั้นที่ 3 · ฮาร์ดแวร์ 3D, IoT &amp; โครงงาน STEM (9–13)
+                    </div>
 
-                  <button
-                    onClick={() => handleSelectTab('musicLab')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'musicLab'
-                        ? 'bg-purple-50 dark:bg-purple-950/70 text-purple-900 dark:text-purple-200 font-bold'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
-                      <Music className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between text-purple-700 dark:text-purple-300">
-                        <span>Micro:bit Music Lab</span>
-                        <span className="text-[10px] bg-pink-100 dark:bg-pink-900/60 text-pink-700 dark:text-pink-300 px-1.5 py-0.2 rounded font-mono font-bold">20 เพลง</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">20 เมโลดี้/SFX, ออสซิลโลสโคป &amp; MakeCode</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleSelectTab('teamBattle')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'teamBattle'
-                        ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-900 dark:text-rose-200'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0">
-                      <Swords className="w-4 h-4 text-rose-600 dark:text-rose-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between text-rose-700 dark:text-rose-300">
-                        <span>สนามประลองทีม (Team Battle)</span>
-                        <span className="text-[10px] bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 px-1.5 py-0.2 rounded font-mono font-bold">10 ข้อ</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">10 โจทย์ประลองสด 4 ทีม + แย่งกดปุ่ม</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleSelectTab('juniorPlayground')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'juniorPlayground'
-                        ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-900 dark:text-indigo-200'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
-                      <Code2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between">
-                        <span>Junior Code Playground</span>
-                        {activeTab === 'juniorPlayground' ? <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" /> : <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-mono font-bold">8 โจทย์</span>}
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">8 เทมเพลตบล็อก, Python &amp; Micro:bit JS รันสด</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleSelectTab('kidsAILab')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'kidsAILab'
-                        ? 'bg-purple-50 dark:bg-purple-950/70 text-purple-900 dark:text-purple-200'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
-                      <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between">
-                        <span>Kids AI Lab</span>
-                        {activeTab === 'kidsAILab' ? <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" /> : <span className="text-[10px] bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 px-1.5 py-0.2 rounded font-mono font-bold">18+8</span>}
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">เทรน AI 18 ตัวอย่าง &amp; ทดสอบแยกขยะ 8 ด่าน</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleSelectTab('bebrasArena')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'bebrasArena'
-                        ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 font-bold'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0 text-base">
-                      🦫
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between text-amber-700 dark:text-amber-300">
-                        <span>Bebras Thailand Arena</span>
-                        <span className="text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200 px-1.5 py-0.2 rounded font-mono font-bold">8 ภารกิจ</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">8 ภารกิจสากล 4 เสาหลักการคิดเชิงคำนวณ</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleSelectTab('aiPromptLab')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'aiPromptLab'
-                        ? 'bg-purple-50 dark:bg-purple-950/70 text-purple-900 dark:text-purple-200 font-bold'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0 text-base">
-                      🤖
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between text-purple-700 dark:text-purple-300">
-                        <span>Kids AI &amp; Safe Prompting</span>
-                        <span className="text-[10px] bg-purple-200 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-1.5 py-0.2 rounded font-mono font-bold">8+14</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">8 คดี Deepfake, 14 ป้ายเช็ก &amp; 10 บทบาท Prompt</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleSelectTab('microbitDataLogger')}
-                    className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition-all cursor-pointer ${
-                      activeTab === 'microbitDataLogger'
-                        ? 'bg-teal-50 dark:bg-teal-950/70 text-teal-900 dark:text-teal-200 font-bold'
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                    }`}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0 text-base">
-                      📈
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-bold leading-tight flex items-center justify-between text-teal-700 dark:text-teal-300">
-                        <span>IoT Data Logger &amp; Science</span>
-                        <span className="text-[10px] bg-teal-200 dark:bg-teal-900 text-teal-800 dark:text-teal-200 px-1.5 py-0.2 rounded font-mono font-bold">8 ช่อง</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">8 เซนเซอร์สด, 6 การทดลองวิทย์ &amp; ส่งออก CSV</div>
-                    </div>
-                  </button>
-
-                  {onOpenCodeTyper && (
                     <button
-                      onClick={() => handleAction(onOpenCodeTyper)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('digitalLibrary')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'digitalLibrary'
+                          ? 'bg-teal-50 dark:bg-teal-950/70 text-teal-900 dark:text-teal-200 font-bold'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
-                        <Keyboard className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
+                        <BookOpen className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-indigo-700 dark:text-indigo-300">
-                          <span>Kids Code Typer</span>
-                          <span className="text-[10px] bg-indigo-200 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-1.5 py-0.2 rounded font-mono font-bold">40 ชุด</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
+                          <span className="truncate">9. คลัง e-Book &amp; ฮาร์ดแวร์ 3D</span>
+                          <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">12+12</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">40 โจทย์พิมพ์โค้ดดิ้ง คำสั่ง &amp; วงเล็บ 3 ระดับ</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">สำรวจโมเดล 3D หมุน 360° &amp; หนังสือเรียน ว 4.2</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenPairArena && (
                     <button
-                      onClick={() => handleAction(onOpenPairArena)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('musicLab')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'musicLab'
+                          ? 'bg-purple-50 dark:bg-purple-950/70 text-purple-900 dark:text-purple-200 font-bold'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0">
-                        <Swords className="w-4 h-4 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
+                        <Music className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-rose-700 dark:text-rose-300">
-                          <span>Pair Programming Arena</span>
-                          <span className="text-[10px] bg-rose-200 dark:bg-rose-900 text-rose-800 dark:text-rose-200 px-1.5 py-0.2 rounded font-mono font-bold">8 ด่าน</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
+                          <span className="truncate">10. Micro:bit Music Lab</span>
+                          <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">20 เพลง</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">8 ด่านดวล 2 คนบนจอเดียว &amp; คนขับ-ผู้นำทาง</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แต่งทำนองเพลง 16 จังหวะ &amp; แปลงโค้ด MakeCode</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenStemPacks && (
                     <button
-                      onClick={() => handleAction(onOpenStemPacks)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('microbitDataLogger')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'microbitDataLogger'
+                          ? 'bg-teal-50 dark:bg-teal-950/70 text-teal-900 dark:text-teal-200 font-bold'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                        <Rocket className="w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0 text-sm">
+                        📈
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-emerald-700 dark:text-emerald-300">
-                          <span>โครงงานสะเต็มศึกษา (STEM 5E)</span>
-                          <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200 px-1.5 py-0.2 rounded font-mono font-bold">10 ชุด</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
+                          <span className="truncate">11. IoT Data Logger &amp; Science</span>
+                          <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">8 ช่อง</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">10 โครงงานจำลอง 5E แปลงผัก, หุ่นยนต์, IoT</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">อ่านค่าเซนเซอร์สด 8 ช่อง &amp; บันทึกการทดลองวิทย์</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenHeroCards && (
                     <button
-                      onClick={() => handleAction(onOpenHeroCards)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-pink-50 dark:hover:bg-pink-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('stemProjects')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'stemProjects'
+                          ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-900 dark:text-indigo-200 font-bold'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-pink-100 dark:bg-pink-900/60 flex items-center justify-center shrink-0">
-                        <Sparkles className="w-4 h-4 text-pink-600 dark:text-pink-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                        <Rocket className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-pink-700 dark:text-pink-300">
-                          <span>การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)</span>
-                          <span className="text-[10px] bg-pink-200 dark:bg-pink-900 text-pink-800 dark:text-pink-200 px-1.5 py-0.2 rounded font-mono font-bold">12 ใบ</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
+                          <span className="truncate">12. คลังโครงงาน STEM Project Hub</span>
+                          <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">12 โครงงาน</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">12 การ์ดพลัง 3D สะสมเปิดซอง &amp; พิมพ์ A4</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">โครงงานต้นแบบ IoT + ใบงาน Project Canvas A4</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenCodeTracer && (
+                    {onOpenStemPacks && (
+                      <button
+                        onClick={() => handleAction(onOpenStemPacks)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                          <Rocket className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
+                            <span className="truncate">13. โครงงานสะเต็มศึกษา (STEM 5E)</span>
+                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">10 ชุด</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">จำลองโครงงาน 5E แปลงผักอัจฉริยะ &amp; หุ่นยนต์</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* กลุ่มที่ 4: ปัญญาประดิษฐ์ (AI Literacy) */}
+                    <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                      ขั้นที่ 4 · ปัญญาประดิษฐ์ &amp; รู้เท่าทัน AI (14–15)
+                    </div>
+
                     <button
-                      onClick={() => handleAction(onOpenCodeTracer)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-cyan-50 dark:hover:bg-cyan-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('kidsAILab')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'kidsAILab'
+                          ? 'bg-purple-50 dark:bg-purple-950/70 text-purple-900 dark:text-purple-200'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/60 flex items-center justify-center shrink-0">
-                        <Cpu className="w-4 h-4 text-cyan-600 dark:text-cyan-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
+                        <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-cyan-700 dark:text-cyan-300">
-                          <span>จำลองโค้ดทีละขั้น (Code Tracer)</span>
-                          <span className="text-[10px] bg-cyan-200 dark:bg-cyan-900 text-cyan-800 dark:text-cyan-200 px-1.5 py-0.2 rounded font-mono font-bold">6 โจทย์</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
+                          <span className="truncate">14. Kids AI Lab (ฝึกสอน AI)</span>
+                          <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">18+8</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">6 โจทย์ส่องตัวแปร, ลูป &amp; ฟังก์ชันใน RAM สด</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">เทรนโมเดล AI แยกประเภทข้อมูล &amp; คัดแยกขยะ</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenClassroomBattle && (
                     <button
-                      onClick={() => handleAction(onOpenClassroomBattle)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-amber-50 dark:hover:bg-amber-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('aiPromptLab')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'aiPromptLab'
+                          ? 'bg-purple-50 dark:bg-purple-950/70 text-purple-900 dark:text-purple-200 font-bold'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0">
-                        <Zap className="w-4 h-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0 text-sm">
+                        🤖
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-amber-700 dark:text-amber-400">
-                          <span>Live Classroom Battle</span>
-                          <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">10 ข้อ</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
+                          <span className="truncate">15. Kids AI &amp; Safe Prompting</span>
+                          <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">8+14</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">10 ข้อแข่งแก้บักสปรินท์สด &amp; จอโปรเจกเตอร์</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ฝึกเขียนคำสั่ง Prompt ปลอดภัย &amp; รู้ทัน Deepfake</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenBugHunter && (
+                    {/* กลุ่มที่ 5: ประลองความเร็ว, ส่งงาน & สะสมรางวัล */}
+                    <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                      ขั้นที่ 5 · ประลองความเร็ว, ส่งงาน &amp; สะสมรางวัล (16–21)
+                    </div>
+
+                    {onOpenPairArena && (
+                      <button
+                        onClick={() => handleAction(onOpenPairArena)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0">
+                          <Swords className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-rose-700 dark:text-rose-300">
+                            <span className="truncate">16. Pair Programming Arena</span>
+                            <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 shrink-0">8 ด่าน</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ฝึกเขียนโค้ดคู่หู คนขับ-ผู้นำทาง บนจอเดียวกัน</div>
+                        </div>
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => handleAction(onOpenBugHunter)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-rose-50 dark:hover:bg-rose-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      onClick={() => handleSelectTab('teamBattle')}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                        activeTab === 'teamBattle'
+                          ? 'bg-rose-50 dark:bg-rose-950/70 text-rose-900 dark:text-rose-200'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
+                      }`}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0">
-                        <Bug className="w-4 h-4 text-rose-600 dark:text-rose-400 group-hover:scale-110 transition-transform" />
+                      <div className="w-7 h-7 rounded-lg bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center shrink-0">
+                        <Swords className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-rose-600 dark:text-rose-400">
-                          <span>ภารกิจล่าบั๊ก (+15 EXP)</span>
-                          <span className="text-[10px] bg-rose-100 dark:bg-rose-900/50 px-1.5 py-0.5 rounded font-mono font-bold">6 ด่าน</span>
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-rose-700 dark:text-rose-300">
+                          <span className="truncate">17. สนามประลองทีม (Team Battle)</span>
+                          <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 shrink-0">10 ข้อ</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">6 ภารกิจค้นหาและแก้บั๊กในโค้ดประจำวัน</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แข่งขันตอบคำถามวิทยาการคำนวณ 4 ทีม</div>
                       </div>
                     </button>
-                  )}
 
-                  {onOpenUnpluggedWorksheets && (
-                    <button
-                      onClick={() => handleAction(onOpenUnpluggedWorksheets)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                        <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-emerald-700 dark:text-emerald-400">
-                          <span>คลังใบงาน Unplugged</span>
-                          <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded font-mono font-bold">8 ใบงาน</span>
+                    {onOpenClassroomBattle && (
+                      <button
+                        onClick={() => handleAction(onOpenClassroomBattle)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-amber-50 dark:hover:bg-amber-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0">
+                          <Zap className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">8 ใบกิจกรรม A4 โค้ดดิ้งไม่ใช้คอมพิวเตอร์</div>
-                      </div>
-                    </button>
-                  )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-400">
+                            <span className="truncate">18. Live Classroom Battle</span>
+                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">10 ข้อ</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แข่งแก้บั๊กสปรินท์สดในชั้นเรียน</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenHeroCards && (
+                      <button
+                        onClick={() => handleAction(onOpenHeroCards)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-pink-50 dark:hover:bg-pink-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-pink-100 dark:bg-pink-900/60 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-4 h-4 text-pink-600 dark:text-pink-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-pink-700 dark:text-pink-300">
+                            <span className="truncate">19. การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)</span>
+                            <span className="text-[10px] font-mono text-pink-600 dark:text-pink-400 shrink-0">12 ใบ</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">สมุดสะสมการ์ดพลังความรู้ 3D &amp; พิมพ์ A4</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenAvatarShop && (
+                      <button
+                        onClick={() => handleAction(onOpenAvatarShop)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-purple-50 dark:hover:bg-purple-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
+                          <ShoppingBag className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
+                            <span className="truncate">20. ร้านค้าอวตาร (Avatar Shop)</span>
+                            <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">22 ไอเทม</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">นำแต้มมาแลกหมวก แว่นตา และสัตว์เลี้ยงคู่ใจ</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenHomeworkDropzone && (
+                      <button
+                        onClick={() => handleAction(onOpenHomeworkDropzone)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
+                          <FolderGit2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
+                            <span className="truncate">21. กล่องส่งการบ้าน (Homework)</span>
+                            <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">12 หัวข้อ</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ส่งภาพใบงานและแฟ้มสะสมผลงานประจำบท</div>
+                        </div>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
             </div>
 
-            {/* 4. หมวด: ห้องเรียน & วัดผล (Dropdown) */}
+            {/* 4. หมวด: ห้องเรียน & วัดผล (Dropdown เรียงตามลำดับ: 1. สอบวัดผลผู้เรียน ➔ 2. ห้องเรียน ➔ 3. เครื่องมือครู) */}
             <div className="relative shrink-0">
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'system' ? null : 'system')}
@@ -866,111 +887,22 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 <span>ห้องเรียน &amp; วัดผล</span>
-                <span className="px-1.5 py-0.2 rounded-md bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-[10px]">10</span>
                 <ChevronDown className={`w-3 h-3 shrink-0 transition-transform duration-200 text-slate-400 ${openDropdown === 'system' ? 'rotate-180 text-amber-600' : ''}`} />
               </button>
 
-              {/* System Dropdown Popover */}
+              {/* System Dropdown Popover — ALWAYS right-0 so it NEVER overflows the right side of the screen */}
               {openDropdown === 'system' && (
-                <div className="absolute right-0 lg:left-0 mt-2 w-84 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(75vh,540px)]">
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(78vh,560px)]">
                   <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 mb-1 flex items-center justify-between shrink-0">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">🏫 ห้องเรียน &amp; ระบบวัดผล</span>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
-                      <span>เลื่อนดู ↕</span>
-                    </span>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">🏫 สอบวัดผล, ห้องเรียน &amp; เครื่องมือครู</span>
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">เลื่อนดู ↕</span>
                   </div>
 
-                  <div className="overflow-y-auto space-y-0.5 pr-1.5 overscroll-contain custom-scrollbar flex-1">
-                    <div className="grid grid-cols-1 gap-0.5">
-                    {onOpenLuckyWheel && (
-                      <button
-                        onClick={() => handleAction(onOpenLuckyWheel)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-amber-50 dark:hover:bg-amber-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0">
-                          <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-amber-700 dark:text-amber-300">
-                            <span>วงล้อสุ่มชื่อ &amp; จัดกลุ่ม (Lucky Wheel)</span>
-                            <span className="text-[10px] bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.2 rounded font-mono font-bold">ใหม่</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สุ่มตอบคำถาม &amp; แบ่งทีมสำหรับโปรเจกเตอร์</div>
-                        </div>
-                      </button>
-                    )}
-
-                    {onOpenHomeworkDropzone && (
-                      <button
-                        onClick={() => handleAction(onOpenHomeworkDropzone)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
-                          <FolderGit2 className="w-4 h-4 text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-teal-700 dark:text-teal-300">
-                            <span>โต๊ะตรวจการบ้าน &amp; ผลงานนักเรียน</span>
-                            <span className="text-[10px] bg-teal-100 dark:bg-teal-900/60 px-1.5 py-0.2 rounded font-mono font-bold">ตรวจงาน</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ให้คะแนนดาว &amp; คำติชม 2 Stars 1 Wish</div>
-                        </div>
-                      </button>
-                    )}
-
-                    {onOpenTeacherMastery && (
-                      <button
-                        onClick={() => handleAction(onOpenTeacherMastery)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                          <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-emerald-700 dark:text-emerald-300">
-                            <span>ศูนย์คุณครู ว 4.2 &amp; บันทึก ปพ.5</span>
-                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.2 rounded font-mono font-bold">สพฐ.</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">รูบริก ปพ.5 + แผน 5E + ส่งออก CSV</div>
-                        </div>
-                      </button>
-                    )}
-
-                    {onOpenRubricModal && (
-                      <button
-                        onClick={() => handleAction(onOpenRubricModal)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
-                          <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-indigo-700 dark:text-indigo-300">
-                            <span>แบบประเมินรูบริกส์ (Rubric ว 4.2)</span>
-                            <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 px-1.5 py-0.2 rounded font-mono font-bold">ใหม่</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ประเมินตนเอง 4 มิติ + Digital Portfolio</div>
-                        </div>
-                      </button>
-                    )}
-
-                    {onOpenParentTeacherKit && (
-                      <button
-                        onClick={() => handleAction(onOpenParentTeacherKit)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-teal-700 dark:text-teal-300">
-                            <span>ชุดพิมพ์ใบงาน QR &amp; คู่มือผู้ปกครอง</span>
-                            <span className="text-[10px] bg-teal-100 dark:bg-teal-900/60 px-1.5 py-0.2 rounded font-mono font-bold">A4</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ใบงาน Unplugged สแกนเฉลย + เคล็ดลับบ้าน</div>
-                        </div>
-                      </button>
-                    )}
+                  <div className="overflow-y-auto space-y-1 pr-1 overscroll-contain custom-scrollbar flex-1">
+                    {/* หมวดย่อยที่ 1: สอบวัดผล & ประเมินสมรรถนะของนักเรียน */}
+                    <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-rose-600 dark:text-rose-400">
+                      ส่วนที่ 1 · สอบวัดผล &amp; เกียรติบัตรนักเรียน (1–5)
+                    </div>
 
                     {onOpenExamArena && (
                       <button
@@ -978,50 +910,14 @@ export const Header: React.FC<HeaderProps> = ({
                         className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-amber-50 dark:hover:bg-amber-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0">
-                          <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 transition-transform" />
+                          <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-amber-700 dark:text-amber-300">
-                            <span>คลังข้อสอบ O-NET &amp; สสวท. ป.6</span>
-                            <span className="text-[10px] bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.2 rounded font-mono font-bold">10 ชุด (100 ข้อ)</span>
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
+                            <span className="truncate">1. คลังข้อสอบ O-NET &amp; สสวท. ป.6</span>
+                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">10 ชุด (100 ข้อ)</span>
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ผัง O-NET 69 • 10 ชุด ชุดละ 10 ข้อ + วิเคราะห์ตัวชี้วัด</div>
-                        </div>
-                      </button>
-                    )}
-
-                    {onOpenDigitalPassport && (
-                      <button
-                        onClick={() => handleAction(onOpenDigitalPassport)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
-                          <BookMarked className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-indigo-700 dark:text-indigo-300">
-                            <span>พาสปอร์ตการเรียนรู้ (Passport)</span>
-                            <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900/60 px-1.5 py-0.2 rounded font-mono">ตราประทับ</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สมุดตรวจลงตรา 4 วีซ่า พิมพ์ A4</div>
-                        </div>
-                      </button>
-                    )}
-
-                    {onOpenTeacherPlans && (
-                      <button
-                        onClick={() => handleAction(onOpenTeacherPlans)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                          <FileCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-emerald-700 dark:text-emerald-300">
-                            <span>แผนการจัดการเรียนรู้ (8 แผน ว 4.2)</span>
-                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.2 rounded font-mono">ครู</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">มาตรฐาน K-P-A + สไลด์สอน + รูบริก</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ฝึกทำข้อสอบ 10 ชุด + กราฟวิเคราะห์จุดแข็งรายบุคคล</div>
                         </div>
                       </button>
                     )}
@@ -1032,35 +928,74 @@ export const Header: React.FC<HeaderProps> = ({
                         className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-violet-50 dark:hover:bg-violet-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
                       >
                         <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/60 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4 text-violet-600 dark:text-violet-400 group-hover:scale-110 transition-transform" />
+                          <FileText className="w-4 h-4 text-violet-600 dark:text-violet-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-violet-700 dark:text-violet-300">
-                            <span>ระบบสุ่มข้อสอบ Smart Exam</span>
-                            <span className="text-[10px] bg-violet-100 dark:bg-violet-900/60 px-1.5 py-0.2 rounded font-mono font-bold">A4 &amp; สอบสด</span>
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-violet-700 dark:text-violet-300">
+                            <span className="truncate">2. ระบบสุ่มข้อสอบปลายภาค (Smart Exam)</span>
+                            <span className="text-[10px] font-mono text-violet-600 dark:text-violet-400 shrink-0">สอบสด &amp; A4</span>
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สุ่ม 5-10 ข้อ ป.4-ป.6 + กระดาษคำตอบ</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สุ่มข้อสอบ ป.4–ป.6 จับเวลาตรวจผลพร้อมกระดาษคำตอบ</div>
                         </div>
                       </button>
                     )}
 
-                    {onOpenStudentQRPass && (
+                    {onOpenRubricModal && (
                       <button
-                        onClick={() => handleAction(onOpenStudentQRPass)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                        onClick={() => handleAction(onOpenRubricModal)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                          <QrCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                          <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-emerald-700 dark:text-emerald-300">
-                            <span>บัตรนักเรียน QR Pass &amp; สแกนเนอร์</span>
-                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.2 rounded font-mono font-bold">เช็คชื่อ</span>
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
+                            <span className="truncate">3. แบบประเมินรูบริกส์ตนเอง (Rubric ว 4.2)</span>
+                            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">4 มิติ</span>
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">บัตรพกกระเป๋า A4 + ครูสแกนแจกแต้ม</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ประเมินสมรรถนะการเรียนรู้ตนเอง &amp; แฟ้มสะสมงาน</div>
                         </div>
                       </button>
                     )}
+
+                    {onOpenDigitalPassport && (
+                      <button
+                        onClick={() => handleAction(onOpenDigitalPassport)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                          <BookMarked className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
+                            <span className="truncate">4. พาสปอร์ตการเรียนรู้ (Passport)</span>
+                            <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">ตราประทับ</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สมุดตรวจลงตราผ่าน 4 ก้าวหลัก พิมพ์ A4</div>
+                        </div>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleAction(onOpenCertificate)}
+                      className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                        <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-600 dark:text-indigo-400">
+                          <span className="truncate">5. เกียรติบัตรผ่านหลักสูตร (Certificate)</span>
+                          <span className="text-[10px] font-mono text-indigo-500 shrink-0">พิมพ์ PDF</span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ออกเกียรติบัตรเมื่อเรียนจบครบ 4 บทเรียนหลัก</div>
+                      </div>
+                    </button>
+
+                    {/* หมวดย่อยที่ 2: ห้องเรียน & กิจกรรมผู้เรียน */}
+                    <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                      ส่วนที่ 2 · กิจกรรมห้องเรียน &amp; พัฒนาการผู้เรียน (6–12)
+                    </div>
 
                     <button
                       onClick={() => handleSelectTab('classroom')}
@@ -1074,10 +1009,11 @@ export const Header: React.FC<HeaderProps> = ({
                         🏫
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between">
-                          <span>ห้องเรียนเสมือน (Virtual Classroom)</span>
-                          {activeTab === 'classroom' && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />}
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
+                          <span className="truncate">6. ห้องเรียนเสมือน (Virtual Classroom)</span>
+                          {activeTab === 'classroom' && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
                         </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">กระดานภารกิจและกิจกรรมประจำห้องเรียน</div>
                       </div>
                     </button>
 
@@ -1093,14 +1029,11 @@ export const Header: React.FC<HeaderProps> = ({
                         <Users className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between text-pink-700 dark:text-pink-300">
-                          <span>คู่หูเรียนรู้ &amp; ส่งกำลังใจ (Buddy)</span>
-                          {activeTab === 'buddySystem' ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-pink-600" />
-                          ) : (
-                            <span className="text-[10px] bg-pink-100 dark:bg-pink-900/60 px-1.5 py-0.2 rounded font-mono">ใหม่</span>
-                          )}
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-pink-700 dark:text-pink-300">
+                          <span className="truncate">7. คู่หูเรียนรู้ &amp; ส่งกำลังใจ (Buddy)</span>
+                          {activeTab === 'buddySystem' && <CheckCircle2 className="w-3.5 h-3.5 text-pink-600 shrink-0" />}
                         </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">จับคู่เพื่อนช่วยเรียนและส่งสติกเกอร์ให้กำลังใจ</div>
                       </div>
                     </button>
 
@@ -1116,10 +1049,11 @@ export const Header: React.FC<HeaderProps> = ({
                         <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between">
-                          <span>Leaderboard ทำเนียบผู้นำ</span>
-                          {activeTab === 'leaderboard' && <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />}
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
+                          <span className="truncate">8. ทำเนียบผู้นำ (Leaderboard)</span>
+                          {activeTab === 'leaderboard' && <CheckCircle2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
                         </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ตารางจัดอันดับคะแนนสะสมผู้เรียน</div>
                       </div>
                     </button>
 
@@ -1135,10 +1069,11 @@ export const Header: React.FC<HeaderProps> = ({
                         <Coins className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between">
-                          <span>ศูนย์สะสมแต้ม &amp; แลกรางวัล</span>
-                          {activeTab === 'rewards' && <CheckCircle2 className="w-3.5 h-3.5 text-amber-600" />}
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
+                          <span className="truncate">9. ศูนย์สะสมแต้ม &amp; แลกรางวัล</span>
+                          {activeTab === 'rewards' && <CheckCircle2 className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
                         </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ดูประวัติคะแนน XP และปลดล็อกเหรียญรางวัล</div>
                       </div>
                     </button>
 
@@ -1154,43 +1089,31 @@ export const Header: React.FC<HeaderProps> = ({
                         <Lightbulb className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between">
-                          <span>เรื่องน่ารู้ชวนคิด (Tech Bites)</span>
-                          {activeTab === 'didYouKnow' && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />}
+                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
+                          <span className="truncate">10. เรื่องน่ารู้ชวนคิด (Tech Bites)</span>
+                          {activeTab === 'didYouKnow' && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
                         </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">เกร็ดความรู้โลกดิจิทัลและเทคโนโลยี</div>
                       </div>
                     </button>
 
-                    {onOpenAssessmentReport && (
+                    {onOpenStudentQRPass && (
                       <button
-                        onClick={() => handleAction(onOpenAssessmentReport)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-purple-50 dark:hover:bg-purple-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
+                        onClick={() => handleAction(onOpenStudentQRPass)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
                       >
-                        <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
-                          <GraduationCap className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                          <QrCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between text-purple-700 dark:text-purple-300">
-                            <span>รายงาน ปพ.5 ครู (CSV)</span>
-                            <span className="text-[10px] bg-purple-100 dark:bg-purple-900/60 px-1.5 py-0.2 rounded font-mono">ครู</span>
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
+                            <span className="truncate">11. บัตรนักเรียน QR Pass &amp; เช็คชื่อ</span>
+                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">QR Code</span>
                           </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">บัตรประจำตัวนักเรียน A4 สำหรับสแกนรับแต้ม</div>
                         </div>
                       </button>
                     )}
-
-                    <button
-                      onClick={() => handleAction(onOpenCertificate)}
-                      className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
-                        <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight text-indigo-600 dark:text-indigo-400">
-                          <span>เกียรติบัตรการเรียน</span>
-                        </div>
-                      </div>
-                    </button>
 
                     <button
                       onClick={() => handleSelectTab('profileManage')}
@@ -1204,11 +1127,125 @@ export const Header: React.FC<HeaderProps> = ({
                         <User className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight">
-                          <span>จัดการโปรไฟล์ผู้เรียน</span>
+                        <div className="text-xs font-bold leading-tight truncate">
+                          12. จัดการโปรไฟล์ผู้เรียน
                         </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">แก้ไขชื่อ ชั้นเรียน เลขที่ และอวตารประจำตัว</div>
                       </div>
                     </button>
+
+                    {/* หมวดย่อยที่ 3: เครื่องมือคุณครู & เอกสารชั้นเรียน */}
+                    <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                      ส่วนที่ 3 · เครื่องมือคุณครู &amp; จัดการชั้นเรียน (13–19)
+                    </div>
+
+                    {onOpenLuckyWheel && (
+                      <button
+                        onClick={() => handleAction(onOpenLuckyWheel)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-amber-50 dark:hover:bg-amber-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0">
+                          <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
+                            <span className="truncate">13. วงล้อสุ่มชื่อ &amp; จัดกลุ่ม (Lucky Wheel)</span>
+                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">ห้องเรียน</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สุ่มชื่อตอบคำถาม &amp; แบ่งทีมสำหรับจอโปรเจกเตอร์</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenHomeworkDropzone && (
+                      <button
+                        onClick={() => handleAction(onOpenHomeworkDropzone)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
+                          <FolderGit2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
+                            <span className="truncate">14. โต๊ะตรวจการบ้าน &amp; ผลงานนักเรียน</span>
+                            <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">ตรวจงาน</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ให้คะแนนดาว &amp; เขียนคำชม 2 Stars 1 Wish</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenTeacherMastery && (
+                      <button
+                        onClick={() => handleAction(onOpenTeacherMastery)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
+                            <span className="truncate">15. ศูนย์คุณครู ว 4.2 &amp; บันทึก ปพ.5</span>
+                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">สพฐ.</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">บันทึกคะแนนตัวชี้วัด ป.4–ป.6 + รูบริก ปพ.5</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenAssessmentReport && (
+                      <button
+                        onClick={() => handleAction(onOpenAssessmentReport)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-purple-50 dark:hover:bg-purple-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
+                            <span className="truncate">16. รายงานผลสัมฤทธิ์ ปพ.5 (CSV)</span>
+                            <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">ส่งออก</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สรุปคะแนนรายบุคคลและส่งออกไฟล์ตาราง</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenTeacherPlans && (
+                      <button
+                        onClick={() => handleAction(onOpenTeacherPlans)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                          <FileCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
+                            <span className="truncate">17. แผนการจัดการเรียนรู้ (8 แผน ว 4.2)</span>
+                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">สไลด์สอน</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">มาตรฐาน K-P-A พร้อมโหมดเปิดสไลด์สอนสด</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenParentTeacherKit && (
+                      <button
+                        onClick={() => handleAction(onOpenParentTeacherKit)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
+                            <span className="truncate">18. ชุดพิมพ์ใบงาน QR &amp; คู่มือผู้ปกครอง</span>
+                            <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">A4</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ใบงาน Unplugged สแกนดูเฉลย &amp; คู่มือทางบ้าน</div>
+                        </div>
+                      </button>
+                    )}
 
                     {onOpenGasExport && (
                       <button
@@ -1219,13 +1256,13 @@ export const Header: React.FC<HeaderProps> = ({
                           <FileCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight text-emerald-700 dark:text-emerald-400">
-                            <span>ส่งออกโค้ดสำหรับ GAS</span>
+                          <div className="text-xs font-bold leading-tight text-emerald-700 dark:text-emerald-400 truncate">
+                            19. ส่งออกโค้ดสำหรับ Google Apps Script
                           </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">เชื่อมต่อฐานข้อมูลห้องเรียนเข้ากับ Google Sheets</div>
                         </div>
                       </button>
                     )}
-                    </div>
                   </div>
                 </div>
               )}
@@ -1444,7 +1481,6 @@ export const Header: React.FC<HeaderProps> = ({
                     themeMode={themeMode}
                     onSelectThemeMode={(mode) => {
                       if (onSelectThemeMode) onSelectThemeMode(mode);
-                      // Don't necessarily close dropdown so user can see timeline update, or close if they prefer
                     }}
                     onPreviewTransition={() => {
                       if (onPreviewTransition) onPreviewTransition();
@@ -1653,12 +1689,12 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Category 2: แล็บ & มินิเกม */}
+            {/* Category 2: แล็บ & มินิเกม (เรียงตามลำดับการฝึกทักษะ 1–21) */}
             <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800">
               <div className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Terminal className="w-3.5 h-3.5" />
-                  <span>หมวด 2: แล็บ &amp; มินิเกม</span>
+                  <span>หมวด 2: แล็บ &amp; มินิเกม (เรียงตามขั้นการเรียน)</span>
                 </div>
                 <span className="text-[10px] text-slate-400 font-normal">เลื่อนดู ↕</span>
               </div>
@@ -1668,36 +1704,18 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenMazeRunner)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
                   >
-                    <span className="flex items-center gap-2">🐱 มินิเกมเขาวงกต (Maze Runner)</span>
-                    <span className="text-[10px] bg-indigo-200 dark:bg-indigo-900 px-1.5 py-0.5 rounded font-mono font-bold">20 ด่าน</span>
-                  </button>
-                )}
-                {onOpenAvatarShop && (
-                  <button
-                    onClick={() => handleAction(onOpenAvatarShop)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-2">🛍️ ร้านค้าอวตาร (Avatar Shop)</span>
-                    <span className="text-[10px] bg-purple-200 dark:bg-purple-900 px-1.5 py-0.5 rounded font-mono font-bold">22 ไอเทม</span>
-                  </button>
-                )}
-                {onOpenHomeworkDropzone && (
-                  <button
-                    onClick={() => handleAction(onOpenHomeworkDropzone)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-2">📂 กล่องส่งการบ้าน (Homework)</span>
-                    <span className="text-[10px] bg-teal-200 dark:bg-teal-900 px-1.5 py-0.5 rounded font-mono font-bold">12 หัวข้อ</span>
+                    <span>1. 🐱 มินิเกมเขาวงกต (Maze Runner)</span>
+                    <span className="text-[10px] font-mono">20 ด่าน</span>
                   </button>
                 )}
                 <button
-                  onClick={() => handleSelectTab('stemProjects')}
+                  onClick={() => handleSelectTab('bebrasArena')}
                   className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'stemProjects' ? 'bg-indigo-600 text-white' : 'text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60'
+                    activeTab === 'bebrasArena' ? 'bg-amber-600 text-white' : 'text-amber-700 dark:text-amber-300 hover:bg-amber-100/60'
                   }`}
                 >
-                  <span className="flex items-center gap-2">🚀 คลังโครงงาน STEM Project Hub</span>
-                  <span className="text-[10px] bg-indigo-200 dark:bg-indigo-900 px-1.5 py-0.5 rounded font-mono font-bold">12 โครงงาน</span>
+                  <span>2. 🦫 Bebras Thailand Arena</span>
+                  <span className="text-[10px] font-mono">8 ภารกิจ</span>
                 </button>
                 <button
                   onClick={() => handleSelectTab('binaryLab')}
@@ -1705,115 +1723,34 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'binaryLab' ? 'bg-emerald-600 text-white' : 'text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60'
                   }`}
                 >
-                  <span className="flex items-center gap-2">👾 Binary Pixel Art &amp; รหัสลับ ASCII</span>
-                  <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 px-1.5 py-0.5 rounded font-mono font-bold">10 ภาพ</span>
+                  <span>3. 👾 Binary Pixel Art &amp; รหัสลับ ASCII</span>
+                  <span className="text-[10px] font-mono">10 ภาพ</span>
                 </button>
-                <button
-                  onClick={() => handleSelectTab('digitalLibrary')}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'digitalLibrary' ? 'bg-teal-600 text-white' : 'text-teal-700 dark:text-teal-300 hover:bg-teal-100/60'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">📖 คลัง e-Book &amp; ฮาร์ดแวร์ 3D</span>
-                  <span className="text-[10px] bg-teal-100 dark:bg-teal-900 px-1.5 py-0.5 rounded font-mono font-bold">12+12</span>
-                </button>
-                <button
-                  onClick={() => handleSelectTab('musicLab')}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'musicLab' ? 'bg-purple-600 text-white' : 'text-purple-700 dark:text-purple-300 hover:bg-purple-100/60'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">🎵 Micro:bit Music Lab</span>
-                  <span className="text-[10px] bg-purple-200 dark:bg-purple-900 px-1.5 py-0.5 rounded font-mono font-bold">20 เพลง</span>
-                </button>
-                <button
-                  onClick={() => handleSelectTab('teamBattle')}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'teamBattle' ? 'bg-rose-600 text-white' : 'text-rose-700 dark:text-rose-300 hover:bg-rose-100/60'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">⚔️ สนามประลองทีม (Team Battle)</span>
-                  <span className="text-[10px] bg-rose-200 dark:bg-rose-900 px-1.5 py-0.5 rounded font-mono font-bold">10 ข้อ</span>
-                </button>
+                {onOpenUnpluggedWorksheets && (
+                  <button
+                    onClick={() => handleAction(onOpenUnpluggedWorksheets)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
+                  >
+                    <span>4. 📄 คลังใบงาน Unplugged Coding</span>
+                    <span className="text-[10px] font-mono">8 ใบงาน</span>
+                  </button>
+                )}
                 <button
                   onClick={() => handleSelectTab('juniorPlayground')}
                   className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
                     activeTab === 'juniorPlayground' ? 'bg-purple-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
                   }`}
                 >
-                  <span>💻 Junior Code Playground</span>
-                  <span className="text-[10px] bg-indigo-100 dark:bg-indigo-900 px-1.5 py-0.5 rounded font-mono font-bold">8 โจทย์</span>
+                  <span>5. 💻 Junior Code Playground</span>
+                  <span className="text-[10px] font-mono">8 โจทย์</span>
                 </button>
-                <button
-                  onClick={() => handleSelectTab('kidsAILab')}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'kidsAILab' ? 'bg-purple-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
-                  }`}
-                >
-                  <span>🧠 Kids AI Lab (ปัญญาประดิษฐ์)</span>
-                  <span className="text-[10px] bg-purple-100 dark:bg-purple-900 px-1.5 py-0.5 rounded font-mono font-bold">18+8</span>
-                </button>
-                <button
-                  onClick={() => handleSelectTab('bebrasArena')}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'bebrasArena' ? 'bg-amber-600 text-white' : 'text-amber-700 dark:text-amber-300 hover:bg-amber-100/60'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">🦫 Bebras Thailand Arena</span>
-                  <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">8 ภารกิจ</span>
-                </button>
-                <button
-                  onClick={() => handleSelectTab('aiPromptLab')}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'aiPromptLab' ? 'bg-purple-600 text-white' : 'text-purple-700 dark:text-purple-300 hover:bg-purple-100/60'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">🤖 Kids AI &amp; Safe Prompting Lab</span>
-                  <span className="text-[10px] bg-purple-200 dark:bg-purple-900 px-1.5 py-0.5 rounded font-mono font-bold">8+14</span>
-                </button>
-                <button
-                  onClick={() => handleSelectTab('microbitDataLogger')}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'microbitDataLogger' ? 'bg-teal-600 text-white' : 'text-teal-700 dark:text-teal-300 hover:bg-teal-100/60'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">📈 IoT Data Logger &amp; Science</span>
-                  <span className="text-[10px] bg-teal-200 dark:bg-teal-900 px-1.5 py-0.5 rounded font-mono font-bold">8 ช่อง</span>
-                </button>
-                {onOpenCodeTyper && (
+                {onOpenCodeTracer && (
                   <button
-                    onClick={() => handleAction(onOpenCodeTyper)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
+                    onClick={() => handleAction(onOpenCodeTracer)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100/60 flex items-center justify-between"
                   >
-                    <span className="flex items-center gap-2">⌨️ Kids Code Typer</span>
-                    <span className="text-[10px] bg-indigo-200 dark:bg-indigo-900 px-1.5 py-0.5 rounded font-mono font-bold">40 ชุด</span>
-                  </button>
-                )}
-                {onOpenPairArena && (
-                  <button
-                    onClick={() => handleAction(onOpenPairArena)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100/60 flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-2">👥 Pair Programming Arena</span>
-                    <span className="text-[10px] bg-rose-200 dark:bg-rose-900 px-1.5 py-0.5 rounded font-mono font-bold">8 ด่าน</span>
-                  </button>
-                )}
-                {onOpenStemPacks && (
-                  <button
-                    onClick={() => handleAction(onOpenStemPacks)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-2">🧪 โครงงานสะเต็มศึกษา (STEM 5E)</span>
-                    <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 px-1.5 py-0.5 rounded font-mono font-bold">10 ชุด</span>
-                  </button>
-                )}
-                {onOpenClassroomBattle && (
-                  <button
-                    onClick={() => handleAction(onOpenClassroomBattle)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-2">⚡ Live Classroom Battle (ห้องประลองสด)</span>
-                    <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">10 ข้อ</span>
+                    <span>6. 🔍 จำลองโค้ดทีละขั้น (Code Tracer)</span>
+                    <span className="text-[10px] font-mono">6 โจทย์</span>
                   </button>
                 )}
                 {onOpenBugHunter && (
@@ -1821,17 +1758,107 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenBugHunter)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100/60 flex items-center justify-between"
                   >
-                    <span>🐞 ภารกิจล่าบั๊กประจำวัน (+15 EXP)</span>
-                    <span className="text-[10px] bg-rose-200 dark:bg-rose-900 px-1.5 py-0.5 rounded font-mono font-bold">6 ด่าน</span>
+                    <span>7. 🐞 ภารกิจล่าบั๊กประจำวัน (+15 EXP)</span>
+                    <span className="text-[10px] font-mono">6 ด่าน</span>
                   </button>
                 )}
-                {onOpenUnpluggedWorksheets && (
+                {onOpenCodeTyper && (
                   <button
-                    onClick={() => handleAction(onOpenUnpluggedWorksheets)}
+                    onClick={() => handleAction(onOpenCodeTyper)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
+                  >
+                    <span>8. ⌨️ Kids Code Typer (ฝึกพิมพ์โค้ด)</span>
+                    <span className="text-[10px] font-mono">40 ชุด</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleSelectTab('digitalLibrary')}
+                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    activeTab === 'digitalLibrary' ? 'bg-teal-600 text-white' : 'text-teal-700 dark:text-teal-300 hover:bg-teal-100/60'
+                  }`}
+                >
+                  <span>9. 📖 คลัง e-Book &amp; ฮาร์ดแวร์ 3D</span>
+                  <span className="text-[10px] font-mono">12+12</span>
+                </button>
+                <button
+                  onClick={() => handleSelectTab('musicLab')}
+                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    activeTab === 'musicLab' ? 'bg-purple-600 text-white' : 'text-purple-700 dark:text-purple-300 hover:bg-purple-100/60'
+                  }`}
+                >
+                  <span>10. 🎵 Micro:bit Music Lab</span>
+                  <span className="text-[10px] font-mono">20 เพลง</span>
+                </button>
+                <button
+                  onClick={() => handleSelectTab('microbitDataLogger')}
+                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    activeTab === 'microbitDataLogger' ? 'bg-teal-600 text-white' : 'text-teal-700 dark:text-teal-300 hover:bg-teal-100/60'
+                  }`}
+                >
+                  <span>11. 📈 IoT Data Logger &amp; Science</span>
+                  <span className="text-[10px] font-mono">8 ช่อง</span>
+                </button>
+                <button
+                  onClick={() => handleSelectTab('stemProjects')}
+                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    activeTab === 'stemProjects' ? 'bg-indigo-600 text-white' : 'text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60'
+                  }`}
+                >
+                  <span>12. 🚀 คลังโครงงาน STEM Project Hub</span>
+                  <span className="text-[10px] font-mono">12 โครงงาน</span>
+                </button>
+                {onOpenStemPacks && (
+                  <button
+                    onClick={() => handleAction(onOpenStemPacks)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
                   >
-                    <span>📄 คลังใบงาน Unplugged Coding (พิมพ์ A4)</span>
-                    <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 px-1.5 py-0.5 rounded font-mono font-bold">8 ใบงาน</span>
+                    <span>13. 🧪 โครงงานสะเต็มศึกษา (STEM 5E)</span>
+                    <span className="text-[10px] font-mono">10 ชุด</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleSelectTab('kidsAILab')}
+                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    activeTab === 'kidsAILab' ? 'bg-purple-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <span>14. 🧠 Kids AI Lab (ฝึกสอน AI)</span>
+                  <span className="text-[10px] font-mono">18+8</span>
+                </button>
+                <button
+                  onClick={() => handleSelectTab('aiPromptLab')}
+                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    activeTab === 'aiPromptLab' ? 'bg-purple-600 text-white' : 'text-purple-700 dark:text-purple-300 hover:bg-purple-100/60'
+                  }`}
+                >
+                  <span>15. 🤖 Kids AI &amp; Safe Prompting</span>
+                  <span className="text-[10px] font-mono">8+14</span>
+                </button>
+                {onOpenPairArena && (
+                  <button
+                    onClick={() => handleAction(onOpenPairArena)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100/60 flex items-center justify-between"
+                  >
+                    <span>16. 👥 Pair Programming Arena</span>
+                    <span className="text-[10px] font-mono">8 ด่าน</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleSelectTab('teamBattle')}
+                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
+                    activeTab === 'teamBattle' ? 'bg-rose-600 text-white' : 'text-rose-700 dark:text-rose-300 hover:bg-rose-100/60'
+                  }`}
+                >
+                  <span>17. ⚔️ สนามประลองทีม (Team Battle)</span>
+                  <span className="text-[10px] font-mono">10 ข้อ</span>
+                </button>
+                {onOpenClassroomBattle && (
+                  <button
+                    onClick={() => handleAction(onOpenClassroomBattle)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
+                  >
+                    <span>18. ⚡ Live Classroom Battle</span>
+                    <span className="text-[10px] font-mono">10 ข้อ</span>
                   </button>
                 )}
                 {onOpenHeroCards && (
@@ -1839,23 +1866,32 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenHeroCards)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
                   >
-                    <span className="flex items-center gap-2">🃏 สมุดการ์ดพลัง Coder Heroes 3D</span>
-                    <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">12 ใบ</span>
+                    <span>19. 🃏 การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)</span>
+                    <span className="text-[10px] font-mono">12 ใบ</span>
                   </button>
                 )}
-                {onOpenCodeTracer && (
+                {onOpenAvatarShop && (
                   <button
-                    onClick={() => handleAction(onOpenCodeTracer)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100/60 flex items-center justify-between"
+                    onClick={() => handleAction(onOpenAvatarShop)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 flex items-center justify-between"
                   >
-                    <span className="flex items-center gap-2">🔍 จำลองโค้ดทีละขั้น (Code Tracer)</span>
-                    <span className="text-[10px] bg-cyan-200 dark:bg-cyan-900 px-1.5 py-0.5 rounded font-mono font-bold">6 โจทย์</span>
+                    <span>20. 🛍️ ร้านค้าอวตาร (Avatar Shop)</span>
+                    <span className="text-[10px] font-mono">22 ไอเทม</span>
+                  </button>
+                )}
+                {onOpenHomeworkDropzone && (
+                  <button
+                    onClick={() => handleAction(onOpenHomeworkDropzone)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
+                  >
+                    <span>21. 📂 กล่องส่งการบ้าน (Homework)</span>
+                    <span className="text-[10px] font-mono">12 หัวข้อ</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Category 3: ห้องเรียน & วัดผล */}
+            {/* Category 3: ห้องเรียน & วัดผล (เรียงตามลำดับการใช้งาน 1–19) */}
             <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800">
               <div className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -1865,22 +1901,22 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="text-[10px] text-slate-400 font-normal">เลื่อนดู ↕</span>
               </div>
               <div className="space-y-1 max-h-64 overflow-y-auto pr-1 overscroll-contain custom-scrollbar">
+                {onOpenExamArena && (
+                  <button
+                    onClick={() => handleAction(onOpenExamArena)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
+                  >
+                    <span>1. 🏆 คลังข้อสอบ O-NET &amp; สสวท. ป.6</span>
+                    <span className="text-[10px] font-mono font-bold">10 ชุด (100 ข้อ)</span>
+                  </button>
+                )}
                 {onOpenSmartExam && (
                   <button
                     onClick={() => handleAction(onOpenSmartExam)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-violet-700 dark:text-violet-300 hover:bg-violet-100/60 flex items-center justify-between"
                   >
-                    <span className="flex items-center gap-2">📝 สุ่มชุดข้อสอบ Smart Exam (พิมพ์ A4)</span>
-                    <span className="text-[10px] bg-violet-200 dark:bg-violet-900 px-1.5 py-0.5 rounded font-mono font-bold">ใหม่</span>
-                  </button>
-                )}
-                {onOpenStudentQRPass && (
-                  <button
-                    onClick={() => handleAction(onOpenStudentQRPass)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
-                  >
-                    <span className="flex items-center gap-2">🪪 บัตรนักเรียน QR Pass &amp; สแกนเนอร์</span>
-                    <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 px-1.5 py-0.5 rounded font-mono font-bold">เช็คชื่อ</span>
+                    <span>2. 📝 ระบบสุ่มข้อสอบปลายภาค (Smart Exam)</span>
+                    <span className="text-[10px] font-mono">สอบสด &amp; A4</span>
                   </button>
                 )}
                 {onOpenRubricModal && (
@@ -1888,26 +1924,8 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenRubricModal)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
                   >
-                    <span>📊 แบบประเมินตนเองรูบริกส์ (Rubric ว 4.2)</span>
-                    <span className="text-[10px] bg-indigo-200 dark:bg-indigo-900 px-1.5 py-0.5 rounded font-mono">ใหม่</span>
-                  </button>
-                )}
-                {onOpenParentTeacherKit && (
-                  <button
-                    onClick={() => handleAction(onOpenParentTeacherKit)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
-                  >
-                    <span>🖨️ ชุดพิมพ์ใบงาน QR &amp; คู่มือผู้ปกครอง</span>
-                    <span className="text-[10px] bg-teal-200 dark:bg-teal-900 px-1.5 py-0.5 rounded font-mono">A4</span>
-                  </button>
-                )}
-                {onOpenExamArena && (
-                  <button
-                    onClick={() => handleAction(onOpenExamArena)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
-                  >
-                    <span>🏆 คลังข้อสอบ O-NET &amp; สสวท. ป.6 (ผังปี 69)</span>
-                    <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">10 ชุด (100 ข้อ)</span>
+                    <span>3. 📊 แบบประเมินรูบริกส์ตนเอง (Rubric ว 4.2)</span>
+                    <span className="text-[10px] font-mono">4 มิติ</span>
                   </button>
                 )}
                 {onOpenDigitalPassport && (
@@ -1915,26 +1933,23 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenDigitalPassport)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
                   >
-                    <span>📖 พาสปอร์ตการเรียนรู้ (Passport วีซ่า)</span>
-                    <span className="text-[10px] bg-indigo-200 dark:bg-indigo-900 px-1.5 py-0.5 rounded font-mono">A4</span>
+                    <span>4. 📖 พาสปอร์ตการเรียนรู้ (Passport)</span>
+                    <span className="text-[10px] font-mono">A4</span>
                   </button>
                 )}
-                {onOpenTeacherPlans && (
-                  <button
-                    onClick={() => handleAction(onOpenTeacherPlans)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
-                  >
-                    <span>👨‍🏫 แผนการสอนครู (8 แผน ว 4.2)</span>
-                    <span className="text-[10px] bg-emerald-200 dark:bg-emerald-900 px-1.5 py-0.5 rounded font-mono">สไลด์</span>
-                  </button>
-                )}
+                <button
+                  onClick={() => handleAction(onOpenCertificate)}
+                  className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
+                >
+                  <span>5. 📜 เกียรติบัตรผ่านหลักสูตร</span>
+                </button>
                 <button
                   onClick={() => handleSelectTab('classroom')}
                   className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
                     activeTab === 'classroom' ? 'bg-indigo-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
                   }`}
                 >
-                  <span>🏫 ห้องเรียนเสมือน</span>
+                  <span>6. 🏫 ห้องเรียนเสมือน</span>
                 </button>
                 <button
                   onClick={() => handleSelectTab('buddySystem')}
@@ -1942,8 +1957,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'buddySystem' ? 'bg-pink-600 text-white' : 'text-pink-700 dark:text-pink-300 hover:bg-pink-100/60'
                   }`}
                 >
-                  <span>👥 คู่หูเรียนรู้ (Buddy System)</span>
-                  <span className="text-[10px] bg-pink-200 dark:bg-pink-900 px-1.5 py-0.5 rounded">ใหม่</span>
+                  <span>7. 👥 คู่หูเรียนรู้ (Buddy System)</span>
                 </button>
                 <button
                   onClick={() => handleSelectTab('leaderboard')}
@@ -1951,7 +1965,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'leaderboard' ? 'bg-amber-500 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
                   }`}
                 >
-                  <span>👑 Leaderboard ทำเนียบผู้นำ</span>
+                  <span>8. 👑 ทำเนียบผู้นำ (Leaderboard)</span>
                 </button>
                 <button
                   onClick={() => handleSelectTab('rewards')}
@@ -1959,7 +1973,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'rewards' ? 'bg-amber-500 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
                   }`}
                 >
-                  <span>🪙 สะสมแต้ม &amp; แลกรางวัล</span>
+                  <span>9. 🪙 ศูนย์สะสมแต้ม &amp; แลกรางวัล</span>
                 </button>
                 <button
                   onClick={() => handleSelectTab('didYouKnow')}
@@ -1967,36 +1981,78 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'didYouKnow' ? 'bg-indigo-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
                   }`}
                 >
-                  <span>💡 เรื่องน่ารู้ชวนคิด</span>
+                  <span>10. 💡 เรื่องน่ารู้ชวนคิด (Tech Bites)</span>
                 </button>
-                {onOpenAssessmentReport && (
+                {onOpenStudentQRPass && (
                   <button
-                    onClick={() => handleAction(onOpenAssessmentReport)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 flex items-center justify-between"
+                    onClick={() => handleAction(onOpenStudentQRPass)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
                   >
-                    <span>🎓 รายงาน ปพ.5 ครู (CSV)</span>
+                    <span>11. 🪪 บัตรนักเรียน QR Pass &amp; เช็คชื่อ</span>
                   </button>
                 )}
-                <button
-                  onClick={() => handleAction(onOpenCertificate)}
-                  className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
-                >
-                  <span>📜 เกียรติบัตรการเรียน</span>
-                </button>
                 <button
                   onClick={() => handleSelectTab('profileManage')}
                   className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
                     activeTab === 'profileManage' ? 'bg-indigo-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
                   }`}
                 >
-                  <span>👤 จัดการโปรไฟล์ผู้เรียน</span>
+                  <span>12. 👤 จัดการโปรไฟล์ผู้เรียน</span>
                 </button>
+                {onOpenLuckyWheel && (
+                  <button
+                    onClick={() => handleAction(onOpenLuckyWheel)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
+                  >
+                    <span>13. 🎯 วงล้อสุ่มชื่อ &amp; จัดกลุ่ม (Lucky Wheel)</span>
+                  </button>
+                )}
+                {onOpenHomeworkDropzone && (
+                  <button
+                    onClick={() => handleAction(onOpenHomeworkDropzone)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
+                  >
+                    <span>14. 📂 โต๊ะตรวจการบ้าน &amp; ผลงานนักเรียน</span>
+                  </button>
+                )}
+                {onOpenTeacherMastery && (
+                  <button
+                    onClick={() => handleAction(onOpenTeacherMastery)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
+                  >
+                    <span>15. 🎓 ศูนย์คุณครู ว 4.2 &amp; บันทึก ปพ.5</span>
+                  </button>
+                )}
+                {onOpenAssessmentReport && (
+                  <button
+                    onClick={() => handleAction(onOpenAssessmentReport)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 flex items-center justify-between"
+                  >
+                    <span>16. 📈 รายงานผลสัมฤทธิ์ ปพ.5 (CSV)</span>
+                  </button>
+                )}
+                {onOpenTeacherPlans && (
+                  <button
+                    onClick={() => handleAction(onOpenTeacherPlans)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
+                  >
+                    <span>17. 👨‍🏫 แผนการจัดการเรียนรู้ (8 แผน ว 4.2)</span>
+                  </button>
+                )}
+                {onOpenParentTeacherKit && (
+                  <button
+                    onClick={() => handleAction(onOpenParentTeacherKit)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
+                  >
+                    <span>18. 🖨️ ชุดพิมพ์ใบงาน QR &amp; คู่มือผู้ปกครอง</span>
+                  </button>
+                )}
                 {onOpenGasExport && (
                   <button
                     onClick={() => handleAction(onOpenGasExport)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
                   >
-                    <span>📤 ส่งออกโค้ดสำหรับ GAS</span>
+                    <span>19. 📤 ส่งออกโค้ดสำหรับ GAS</span>
                   </button>
                 )}
               </div>
