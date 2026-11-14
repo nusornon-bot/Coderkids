@@ -118,18 +118,18 @@ export const AccessibilityControls: React.FC<AccessibilityControlsProps> = ({
   };
 
   return (
-    <div className="relative inline-block text-left">
+    <div className="relative inline-block text-left shrink-0">
       {/* Floating or Header Button */}
       <button
         onClick={() => {
           soundEffects.playClick();
           setIsOpen((prev) => !prev);
         }}
-        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+        className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs shrink-0 whitespace-nowrap"
         title="การเข้าถึงและการมองเห็น (Accessibility Tools)"
         aria-label="การเข้าถึงและการมองเห็น"
       >
-        <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+        <Sliders className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
         <span className="hidden 2xl:inline">การเข้าถึง</span>
       </button>
 

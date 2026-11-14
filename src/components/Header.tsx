@@ -235,22 +235,22 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors shadow-xs">
       <div className="max-w-[1720px] w-full mx-auto px-2 sm:px-4 lg:px-6">
-        <div className="h-16 flex items-center justify-between gap-1.5 sm:gap-2.5" ref={navRef}>
+        <div className="min-h-16 py-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5" ref={navRef}>
           
           {/* Brand Logo & Name */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={() => handleSelectTab('dashboard')}
-              className="flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl group p-1 -m-1 cursor-pointer"
+              className="flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl group p-1 -m-1 cursor-pointer shrink-0 whitespace-nowrap"
             >
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 text-white flex items-center justify-center font-black text-lg sm:text-xl shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform shrink-0">
                 C
               </div>
               <div className="flex flex-col">
-                <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 dark:text-white leading-tight">
+                <span className="text-sm sm:text-base font-black tracking-tight text-slate-900 dark:text-white leading-tight whitespace-nowrap">
                   Coder Kids
                 </span>
-                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 leading-none">
+                <span className="text-[10px] sm:text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 leading-none whitespace-nowrap">
                   วิทยาการคำนวณ ป.4-6
                 </span>
               </div>
@@ -258,18 +258,18 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Desktop Categorized Navigation Menus */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 text-sm font-medium shrink min-w-0">
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 text-sm font-medium shrink-0">
             
             {/* 1. หน้าหลัก (Direct Link) */}
             <button
               onClick={() => handleSelectTab('dashboard')}
-              className={`flex items-center gap-1.5 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                 activeTab === 'dashboard'
                   ? 'bg-indigo-600 text-white shadow-xs'
                   : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
-              <LayoutDashboard className="w-3.5 h-3.5" />
+              <LayoutDashboard className="w-3.5 h-3.5 shrink-0" />
               <span>หน้าหลัก</span>
             </button>
 
@@ -277,17 +277,17 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="relative shrink-0">
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'modules' ? null : 'modules')}
-                className={`flex items-center gap-1 px-2.5 xl:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   isModulesActive
                     ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
                     : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
                 aria-expanded={openDropdown === 'modules'}
               >
-                <BookOpen className="w-3.5 h-3.5 text-indigo-500" />
+                <BookOpen className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                 <span>บทเรียนหลัก</span>
                 <span className="px-1.5 py-0.2 rounded-md bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[10px]">4</span>
-                <ChevronDown className={`w-3 h-3 transition-transform duration-200 text-slate-400 ${openDropdown === 'modules' ? 'rotate-180 text-indigo-600' : ''}`} />
+                <ChevronDown className={`w-3 h-3 shrink-0 transition-transform duration-200 text-slate-400 ${openDropdown === 'modules' ? 'rotate-180 text-indigo-600' : ''}`} />
               </button>
 
               {/* Modules Dropdown Popover */}
@@ -422,20 +422,20 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* 3. หมวด: แล็บ & เควสต์ (Dropdown) */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'labs' ? null : 'labs')}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   isLabsActive
                     ? 'bg-purple-50 dark:bg-purple-950/70 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
                     : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
                 aria-expanded={openDropdown === 'labs'}
               >
-                <Terminal className="w-4 h-4 text-purple-500" />
+                <Terminal className="w-3.5 h-3.5 text-purple-500 shrink-0" />
                 <span>แล็บ &amp; มินิเกม</span>
                 <span className="px-1.5 py-0.2 rounded-md bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 text-[10px]">21</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 text-slate-400 ${openDropdown === 'labs' ? 'rotate-180 text-purple-600' : ''}`} />
+                <ChevronDown className={`w-3 h-3 shrink-0 transition-transform duration-200 text-slate-400 ${openDropdown === 'labs' ? 'rotate-180 text-purple-600' : ''}`} />
               </button>
 
               {/* Labs Dropdown Popover */}
@@ -854,20 +854,20 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* 4. หมวด: ห้องเรียน & วัดผล (Dropdown) */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setOpenDropdown(openDropdown === 'system' ? null : 'system')}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                   isSystemActive
                     ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                     : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
                 aria-expanded={openDropdown === 'system'}
               >
-                <Trophy className="w-4 h-4 text-amber-500" />
+                <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                 <span>ห้องเรียน &amp; วัดผล</span>
                 <span className="px-1.5 py-0.2 rounded-md bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-[10px]">10</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 text-slate-400 ${openDropdown === 'system' ? 'rotate-180 text-amber-600' : ''}`} />
+                <ChevronDown className={`w-3 h-3 shrink-0 transition-transform duration-200 text-slate-400 ${openDropdown === 'system' ? 'rotate-180 text-amber-600' : ''}`} />
               </button>
 
               {/* System Dropdown Popover */}
@@ -1243,10 +1243,10 @@ export const Header: React.FC<HeaderProps> = ({
             {onOpenAITutor && (
               <button
                 onClick={onOpenAITutor}
-                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
                 title="ปรึกษาครูพี่โค้ดดิ้ง (AI Tutor ด้วย Gemini API)"
               >
-                <Bot className="w-3.5 h-3.5" />
+                <Bot className="w-3.5 h-3.5 shrink-0" />
                 <span className="hidden xl:inline">AI Tutor</span>
               </button>
             )}
@@ -1255,10 +1255,10 @@ export const Header: React.FC<HeaderProps> = ({
             {isLoggedIn && (
               <button
                 onClick={() => handleSelectTab('rewards')}
-                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100/90 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100/90 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
                 title="แต้มสะสม Coder Coins (คลิกเพื่อแลกรางวัล)"
               >
-                <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
                 <span className="font-mono tabular-nums">{completedPoints}</span>
                 <span className="hidden 2xl:inline text-[11px] font-normal text-amber-700 dark:text-amber-400">แต้ม</span>
               </button>
@@ -1268,15 +1268,15 @@ export const Header: React.FC<HeaderProps> = ({
             {isLoggedIn ? (
               <button
                 onClick={onOpenProfile}
-                className={`flex items-center gap-1 sm:gap-1.5 p-1 sm:px-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-all border cursor-pointer shadow-xs shrink-0 ${
+                className={`flex items-center gap-1 p-1 sm:px-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-all border cursor-pointer shadow-xs shrink-0 whitespace-nowrap ${
                   isAdmin
                     ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
                     : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700'
                 }`}
                 title={isAdmin ? "โปรไฟล์ผู้ดูแลระบบ (คลิกเพื่อจัดการโปรไฟล์)" : "ดูและแก้ไขโปรไฟล์ผู้เรียน"}
               >
-                <span className="text-base sm:text-lg leading-none">{profile.avatarEmoji || (isAdmin ? '👨‍🏫' : '🐱')}</span>
-                <span className="hidden xl:inline truncate max-w-[80px]">
+                <span className="text-base leading-none shrink-0">{profile.avatarEmoji || (isAdmin ? '👨‍🏫' : '🐱')}</span>
+                <span className="hidden xl:inline truncate max-w-[72px]">
                   {isAdmin ? (profile.nickname || 'ครูนุสรณ์') : (profile.nickname || profile.name.split(' ')[0])}
                 </span>
                 {isAdmin ? (
@@ -1293,9 +1293,9 @@ export const Header: React.FC<HeaderProps> = ({
               onOpenLogin && (
                 <button
                   onClick={onOpenLogin}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
                 >
-                  <LogIn className="w-3.5 h-3.5" />
+                  <LogIn className="w-3.5 h-3.5 shrink-0" />
                   <span>เข้าสู่ระบบ</span>
                 </button>
               )
@@ -1305,7 +1305,7 @@ export const Header: React.FC<HeaderProps> = ({
             {isLoggedIn && isTeacherAuthorized && onToggleAdmin && (
               <button
                 onClick={() => onToggleAdmin(!isAdmin)}
-                className={`p-2 sm:px-2.5 sm:py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 ${
+                className={`p-2 sm:px-2 sm:py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap ${
                   isAdmin
                     ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/20'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -1318,12 +1318,12 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 {isAdmin ? (
                   <div className="flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
                     <span className="hidden 2xl:inline text-[11px]">แอดมิน</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1">
-                    <Shield className="w-3.5 h-3.5 text-slate-400" />
+                    <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <span className="hidden 2xl:inline text-[11px]">มุมมองนักเรียน</span>
                   </div>
                 )}
@@ -1335,12 +1335,12 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenQuickSearch}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shadow-xs"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
                 title="ค้นหาบทเรียน & เครื่องมือด่วน (Ctrl+K)"
               >
-                <Search className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="hidden sm:inline">ค้นหา</span>
-                <kbd className="hidden lg:inline-flex text-[10px] font-mono px-1 py-0.2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-slate-400">
+                <Search className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <span className="hidden xl:inline">ค้นหา</span>
+                <kbd className="hidden 2xl:inline-flex text-[10px] font-mono px-1 py-0.2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-slate-400">
                   Ctrl+K
                 </kbd>
               </button>
@@ -1352,13 +1352,13 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onTriggerSync}
                 disabled={isSyncing}
-                className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all text-[11px] font-bold cursor-pointer disabled:opacity-50 shadow-xs"
+                className="hidden xl:flex items-center gap-1 px-2 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all text-[11px] font-bold cursor-pointer disabled:opacity-50 shadow-xs shrink-0 whitespace-nowrap"
                 title={`ซิงค์กับ Google Sheets เรียบร้อย (คลิกเพื่อบันทึกข้อมูลล่าสุด)`}
               >
-                <span className={`w-2 h-2 rounded-full bg-emerald-500 ${isSyncing ? 'animate-ping' : ''}`} />
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span className="hidden 2xl:inline">{isSyncing ? 'กำลังซิงค์...' : 'Google Sheets'}</span>
-                <RotateCw className={`w-3 h-3 text-emerald-600 dark:text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span className={`w-2 h-2 rounded-full bg-emerald-500 shrink-0 ${isSyncing ? 'animate-ping' : ''}`} />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="hidden 2xl:inline">{isSyncing ? 'กำลังซิงค์...' : 'Sheets'}</span>
+                <RotateCw className={`w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
               </button>
             )}
 
