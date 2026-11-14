@@ -3088,6 +3088,24 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
     };
   }, [inspectedStudentName, normalizedActiveStudent, studentDiagnosticsMap, savedResults]);
 
+  // Filter review lessons to display in Diagnostic & Review view (must be before early return to follow Rules of Hooks)
+  const filteredReviewLessons = React.useMemo(() => {
+    if (selectedReviewIndicator === 'ALL') {
+      return REVIEW_LESSONS_BY_INDICATOR;
+    }
+    if (selectedReviewIndicator === 'ALL_WEAK') {
+      if (activeStudentDiagnostic.needsFix.length > 0) {
+        return activeStudentDiagnostic.needsFix.map((nf) => nf.lesson);
+      }
+      if (activeStudentDiagnostic.developing.length > 0) {
+        return activeStudentDiagnostic.developing.map((dev) => dev.lesson);
+      }
+      // If student hasn't made mistakes yet or got 100%, show Must-Know indicators first
+      return REVIEW_LESSONS_BY_INDICATOR.filter((l) => l.isMustKnow);
+    }
+    return REVIEW_LESSONS_BY_INDICATOR.filter((l) => l.indicator === selectedReviewIndicator);
+  }, [selectedReviewIndicator, activeStudentDiagnostic]);
+
   if (!isOpen) return null;
 
   const currentQ = currentQuestions[currentIndex] || currentQuestions[0];
@@ -3335,24 +3353,6 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
         .filter((ind) => !currentSubmissionWrongQuestions.some((wq) => wq.indicator === ind))
     )
   );
-
-  // Filter review lessons to display in Diagnostic & Review view
-  const filteredReviewLessons = React.useMemo(() => {
-    if (selectedReviewIndicator === 'ALL') {
-      return REVIEW_LESSONS_BY_INDICATOR;
-    }
-    if (selectedReviewIndicator === 'ALL_WEAK') {
-      if (activeStudentDiagnostic.needsFix.length > 0) {
-        return activeStudentDiagnostic.needsFix.map((nf) => nf.lesson);
-      }
-      if (activeStudentDiagnostic.developing.length > 0) {
-        return activeStudentDiagnostic.developing.map((dev) => dev.lesson);
-      }
-      // If student hasn't made mistakes yet or got 100%, show Must-Know indicators first
-      return REVIEW_LESSONS_BY_INDICATOR.filter((l) => l.isMustKnow);
-    }
-    return REVIEW_LESSONS_BY_INDICATOR.filter((l) => l.indicator === selectedReviewIndicator);
-  }, [selectedReviewIndicator, activeStudentDiagnostic]);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
