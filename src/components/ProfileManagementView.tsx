@@ -276,12 +276,14 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
   // Hidden file input for import
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Determine if effective Admin: STRICTLY requires user to be authenticated via Google OAuth AND verified in Teachers tab
-  const currentEmailForCheck = (isLoggedIn && currentUser?.email) ? currentUser.email : '';
+  // Determine if effective Admin: requires user to be authenticated via Google OAuth or verified school email AND verified in Teachers tab
+  const currentEmailForCheck = isLoggedIn
+    ? (currentUser?.email || localStorage.getItem('coderkids_verified_google_email') || profile.contactEmail || '')
+    : '';
   const currentTeacherAdminMatch = checkIsTeacherAdmin(currentEmailForCheck, teachers);
   const isEffectiveAdmin = Boolean(
     isLoggedIn &&
-    currentUser?.email &&
+    currentEmailForCheck &&
     (isAdmin || currentTeacherAdminMatch.isAdmin) &&
     profile.role !== 'student'
   );
@@ -370,7 +372,11 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
         return;
       }
 
-      const userEmail = (res.user.email || '').trim().toLowerCase();
+      const userEmail = (
+        res.user.email ||
+        res.user.providerData?.find((p) => p?.email)?.email ||
+        ''
+      ).trim().toLowerCase();
       const googleDisplayName = (
         res.googleProfileName ||
         res.user.displayName ||
@@ -402,27 +408,15 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
 
       const check = checkIsTeacherAdmin(userEmail, activeTeachers);
       const emailPrefix = userEmail.split('@')[0];
-      const isSchoolDomain = userEmail.endsWith('@anubalnara.ac.th');
       const matchedStudent = activeStudents.find((s) => {
         const sEmail = (s.contactEmail || '').trim().toLowerCase();
         const sId = (s.studentId || '').trim().toLowerCase();
         return (
           (sEmail && sEmail === userEmail) ||
           (sId && `${sId}@anubalnara.ac.th` === userEmail) ||
-          (sId && isSchoolDomain && sId === emailPrefix)
+          (sId && sId === emailPrefix)
         );
       });
-
-      if (!check.isAdmin && !matchedStudent && !isSchoolDomain) {
-        await googleLogout();
-        setCurrentUser(null);
-        setStatusMsg({
-          text: `⚠️ ปฏิเสธการเข้าถึง: บัญชี Google "${userEmail}" ผ่านการยืนยันตัวตนแล้ว แต่ไม่พบอีเมลนี้ในฐานข้อมูล Google Sheet (แท็บ Teachers หรือ Students)`,
-          type: 'error',
-        });
-        setIsLoggingIn(false);
-        return;
-      }
 
       setCurrentUser(res.user);
 

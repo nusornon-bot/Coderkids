@@ -113,6 +113,7 @@ import {
   syncAllToGoogleSheet,
   auth,
   initAuth,
+  googleLogout,
 } from './services/googleSheetsService.ts';
 import { ArrowLeft } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -673,9 +674,15 @@ export default function App() {
   }, [profile]);
 
   // Profile Management Handlers (เพิ่ม, แก้ไข, ลบ, สลับ)
+  const getCurrentVerifiedEmail = () =>
+    auth.currentUser?.email ||
+    localStorage.getItem('coderkids_verified_google_email') ||
+    profile.contactEmail ||
+    '';
+
   const handleUpdateProfile = (updated: UserProfile) => {
     // กฎความปลอดภัย: สมาชิกไม่สามารถแก้ไขข้อมูลสมาชิกคนอื่นได้ (ต้องยืนยันตัวตนผ่าน Google OAuth และมีอีเมลในแท็บ Teachers เท่านั้น)
-    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || '', teachersList).isAdmin;
+    const isTeacher = checkIsTeacherAdmin(getCurrentVerifiedEmail(), teachersList).isAdmin;
     if (!isTeacher && updated.id !== profile.id && updated.studentId !== profile.studentId) {
       setCelebrationEvent({
         id: `perm_denied_${Date.now()}`,
@@ -699,7 +706,7 @@ export default function App() {
 
   const handleAddProfile = (newProfile: UserProfile, makeActive: boolean = true) => {
     // กฎความปลอดภัย: สมาชิกไม่สามารถเพิ่มข้อมูลสมาชิกคนอื่นในระบบได้
-    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || '', teachersList).isAdmin;
+    const isTeacher = checkIsTeacherAdmin(getCurrentVerifiedEmail(), teachersList).isAdmin;
     if (!isTeacher) {
       setCelebrationEvent({
         id: `perm_denied_${Date.now()}`,
@@ -718,7 +725,7 @@ export default function App() {
 
   const handleDeleteProfile = (profileId: string) => {
     // กฎความปลอดภัย: สมาชิกไม่สามารถลบข้อมูลสมาชิกคนอื่นได้
-    const isTeacher = checkIsTeacherAdmin(auth.currentUser?.email || '', teachersList).isAdmin;
+    const isTeacher = checkIsTeacherAdmin(getCurrentVerifiedEmail(), teachersList).isAdmin;
     if (!isTeacher) {
       setCelebrationEvent({
         id: `perm_denied_${Date.now()}`,
@@ -884,6 +891,20 @@ export default function App() {
       ''
     ).trim();
 
+    const userEmail = (
+      googleUser?.email ||
+      googleUser?.providerData?.find?.((p: any) => p?.email)?.email ||
+      selectedProfile.contactEmail ||
+      ''
+    ).trim().toLowerCase();
+
+    if (userEmail) {
+      setFirebaseUserEmail(userEmail);
+      try {
+        localStorage.setItem('coderkids_verified_google_email', userEmail);
+      } catch {}
+    }
+
     const finalProfile: UserProfile = {
       ...selectedProfile,
       name:
@@ -894,9 +915,14 @@ export default function App() {
         googleDisplayName && (!selectedProfile.nickname || selectedProfile.nickname === selectedProfile.studentId)
           ? googleDisplayName.split(' ')[0]
           : selectedProfile.nickname,
+      contactEmail: userEmail || selectedProfile.contactEmail,
     };
 
     setIsLoggedIn(true);
+    try {
+      localStorage.setItem('coderkids_is_logged_in', 'true');
+      localStorage.setItem('coderkids_profile', JSON.stringify(finalProfile));
+    } catch {}
     setProfile(finalProfile);
     setProfiles((prev) => {
       const filtered = prev.filter(
@@ -916,6 +942,8 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    googleLogout().catch(() => {});
+    setFirebaseUserEmail('');
     setIsLoggedIn(false);
     localStorage.removeItem('coderkids_is_logged_in');
     setProfile(DEFAULT_PROFILES_LIST[0] || DEFAULT_PROFILE);
@@ -1282,11 +1310,20 @@ export default function App() {
 
   // Teachers list loaded from Google Sheet Tab "Teachers"
   const [teachersList, setTeachersList] = useState<TeacherRecord[]>([]);
+  const teachersListRef = useRef<TeacherRecord[]>([]);
+  const [firebaseUserEmail, setFirebaseUserEmail] = useState<string>(() => {
+    try {
+      return auth.currentUser?.email || localStorage.getItem('coderkids_verified_google_email') || '';
+    } catch {
+      return '';
+    }
+  });
 
   // Refresh teachers list from Google Sheet Tab "Teachers"
   const refreshTeachersList = async () => {
     try {
       const list = await fetchTeachersFromGoogleSheet(TARGET_SPREADSHEET_ID);
+      teachersListRef.current = list;
       setTeachersList(list);
       return list;
     } catch (e) {
@@ -1324,15 +1361,21 @@ export default function App() {
 
     // 2. ดึงข้อมูลครูและตรวจสอบสิทธิ์แอดมินจากแท็บ Teachers
     refreshTeachersList().then((list) => {
-      if (isLoggedIn) {
-        const currentEmail =
-          auth.currentUser?.email ||
-          localStorage.getItem('coderkids_verified_google_email') ||
-          profile.contactEmail ||
-          '';
+      const currentEmail =
+        auth.currentUser?.email ||
+        localStorage.getItem('coderkids_verified_google_email') ||
+        profile.contactEmail ||
+        '';
+      if (currentEmail && (isLoggedIn || Boolean(auth.currentUser))) {
         const check = checkIsTeacherAdmin(currentEmail, list);
         if (check.isAdmin) {
-          const adminProf = getAdminProfileData(currentEmail, check.matchedTeacher?.name);
+          const googleName = (
+            auth.currentUser?.displayName ||
+            localStorage.getItem('coderkids_google_profile_name') ||
+            check.matchedTeacher?.name ||
+            ''
+          ).trim();
+          const adminProf = getAdminProfileData(currentEmail, googleName || undefined);
           setProfile(adminProf);
           setProfiles((prev) => {
             const exists = prev.some((p) => p.id === adminProf.id);
@@ -1345,59 +1388,83 @@ export default function App() {
     });
 
     // 3. ติดตามสถานะ Firebase Auth และอัปเดตชื่อโปรไฟล์จาก Google Account จริง
-    const unsub = initAuth((user) => {
-      if (user?.email) {
-        const googleName = (
-          user.displayName ||
-          user.providerData?.find((p) => p?.displayName)?.displayName ||
-          localStorage.getItem('coderkids_google_profile_name') ||
+    const unsub = initAuth(
+      (user) => {
+        const userEmail = (
+          user?.email ||
+          user?.providerData?.find((p) => p?.email)?.email ||
           ''
-        ).trim();
-        const emailPrefix = user.email.split('@')[0];
+        ).trim().toLowerCase();
 
-        const check = checkIsTeacherAdmin(user.email, teachersList);
-        if (check.isAdmin) {
-          // แสดงโปรไฟล์ของแอดมินพร้อมชื่อจริงจาก Google หรือแท็บ Teachers
-          const adminProf = getAdminProfileData(
-            user.email,
-            googleName || check.matchedTeacher?.name || undefined
-          );
-          setProfile(adminProf);
-          setProfiles((prev) => {
-            const exists = prev.some((p) => p.id === adminProf.id);
-            return exists ? prev.map((p) => (p.id === adminProf.id ? adminProf : p)) : [adminProf, ...prev];
-          });
-        } else {
-          setProfile((prev) => {
-            const shouldReplaceName =
-              Boolean(googleName) &&
-              (!prev.name ||
-                prev.name.startsWith('นักเรียน (') ||
-                prev.name === emailPrefix ||
-                prev.id === 'prof_1');
-            const updatedName = shouldReplaceName ? googleName : prev.name;
-            const updatedNickname =
-              shouldReplaceName && googleName ? googleName.split(' ')[0] : prev.nickname;
-            return {
-              ...prev,
-              id: prev.id === 'prof_1' ? `student_${emailPrefix}` : prev.id,
-              studentId: prev.id === 'prof_1' ? emailPrefix : prev.studentId || emailPrefix,
-              name: updatedName,
-              nickname: updatedNickname,
-              contactEmail: user.email || undefined,
-              role: 'student',
-            };
-          });
+        if (userEmail) {
+          setFirebaseUserEmail(userEmail);
+          setIsLoggedIn(true);
+          try {
+            localStorage.setItem('coderkids_is_logged_in', 'true');
+            localStorage.setItem('coderkids_verified_google_email', userEmail);
+          } catch {}
+
+          const googleName = (
+            user.displayName ||
+            user.providerData?.find((p) => p?.displayName)?.displayName ||
+            localStorage.getItem('coderkids_google_profile_name') ||
+            ''
+          ).trim();
+          const emailPrefix = userEmail.split('@')[0];
+
+          const check = checkIsTeacherAdmin(userEmail, teachersListRef.current);
+          if (check.isAdmin) {
+            // แสดงโปรไฟล์ของแอดมินพร้อมชื่อจริงจาก Google หรือแท็บ Teachers
+            const adminProf = getAdminProfileData(
+              userEmail,
+              googleName || check.matchedTeacher?.name || undefined
+            );
+            setProfile(adminProf);
+            setProfiles((prev) => {
+              const exists = prev.some((p) => p.id === adminProf.id);
+              return exists ? prev.map((p) => (p.id === adminProf.id ? adminProf : p)) : [adminProf, ...prev];
+            });
+          } else {
+            setProfile((prev) => {
+              const shouldReplaceName =
+                Boolean(googleName) &&
+                (!prev.name ||
+                  prev.name.startsWith('นักเรียน (') ||
+                  prev.name === emailPrefix ||
+                  prev.id === 'prof_1' ||
+                  prev.id === 'guest_learner');
+              const updatedName = shouldReplaceName ? googleName : prev.name || emailPrefix;
+              const updatedNickname =
+                shouldReplaceName && googleName ? googleName.split(' ')[0] : prev.nickname || emailPrefix;
+              return {
+                ...prev,
+                id: prev.id === 'prof_1' || prev.id === 'guest_learner' ? `student_${emailPrefix}` : prev.id,
+                studentId:
+                  prev.id === 'prof_1' || prev.id === 'guest_learner'
+                    ? emailPrefix
+                    : prev.studentId || emailPrefix,
+                name: updatedName,
+                nickname: updatedNickname,
+                contactEmail: userEmail,
+                role: 'student',
+              };
+            });
+          }
         }
+      },
+      () => {
+        // When Firebase Auth has no signed-in user, keep existing local/school email if any
+        setFirebaseUserEmail(localStorage.getItem('coderkids_verified_google_email') || '');
       }
-    });
+    );
     return () => unsub();
   }, []);
 
   const completedCount = Object.values(moduleProgress).filter(Boolean).length;
   // ผู้ใช้ต้องยืนยันตัวตนผ่านระบบของ Google หรืออีเมลโรงเรียน และมีอีเมลในแท็บ Teachers บน Google Sheet เท่านั้น
   const verifiedUserEmail = isLoggedIn
-    ? auth.currentUser?.email ||
+    ? firebaseUserEmail ||
+      auth.currentUser?.email ||
       localStorage.getItem('coderkids_verified_google_email') ||
       profile.contactEmail ||
       ''
@@ -1408,6 +1475,7 @@ export default function App() {
 
   const handleToggleAdmin = (newAdminState: boolean) => {
     const currentEmail =
+      firebaseUserEmail ||
       auth.currentUser?.email ||
       localStorage.getItem('coderkids_verified_google_email') ||
       profile.contactEmail ||

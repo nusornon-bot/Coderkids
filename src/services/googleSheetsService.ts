@@ -132,7 +132,27 @@ export const initAuth = (
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      const token = cachedAccessToken || sessionStorage.getItem('coderkids_sheets_access_token') || localStorage.getItem('coderkids_sheets_access_token') || '';
+      if (user.email) {
+        try {
+          localStorage.setItem('coderkids_verified_google_email', user.email.trim().toLowerCase());
+        } catch {}
+      }
+      const displayName = (
+        user.displayName ||
+        user.providerData?.find((p) => p?.displayName)?.displayName ||
+        ''
+      ).trim();
+      if (displayName) {
+        try {
+          localStorage.setItem('coderkids_google_profile_name', displayName);
+        } catch {}
+      }
+
+      const token =
+        cachedAccessToken ||
+        sessionStorage.getItem('coderkids_sheets_access_token') ||
+        localStorage.getItem('coderkids_sheets_access_token') ||
+        '';
       if (token) {
         cachedAccessToken = token;
         if (onAuthSuccess) onAuthSuccess(user, token);
@@ -169,13 +189,14 @@ export const googleSignIn = async (
         }).catch(() => {});
       } catch {}
     } else if (credential?.accessToken && !cachedAccessToken) {
-      // Store basic token if none cached yet
       cachedAccessToken = credential.accessToken;
     }
 
-    if (result.user.email) {
+    const userEmail = (result.user.email || result.user.providerData?.find((p) => p?.email)?.email || '').trim().toLowerCase();
+    if (userEmail) {
       try {
-        localStorage.setItem('coderkids_verified_google_email', result.user.email.trim().toLowerCase());
+        localStorage.setItem('coderkids_verified_google_email', userEmail);
+        localStorage.setItem('coderkids_is_logged_in', 'true');
       } catch {}
     }
 
@@ -186,7 +207,7 @@ export const googleSignIn = async (
       ''
     ).trim();
 
-    if (credential?.accessToken) {
+    if (credential?.accessToken && !googleProfileName) {
       try {
         const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${credential.accessToken}` },
@@ -215,7 +236,7 @@ export const googleSignIn = async (
 
     return {
       user: result.user,
-      accessToken: cachedAccessToken || '',
+      accessToken: cachedAccessToken || credential?.accessToken || '',
       googleProfileName,
     };
   } catch (error: any) {
@@ -497,14 +518,14 @@ export const checkIsTeacherAdmin = (
 };
 
 /**
- * Validates whether an email belongs to the school domain (@anubalnara.ac.th)
+ * Validates whether an email belongs to an authenticated Google user, school domain (@anubalnara.ac.th),
  * or is an authorized Teacher/Admin in the Teachers tab.
  */
 export const isAllowedSchoolUser = (
   email: string | null | undefined,
   teachersList: TeacherRecord[] = []
 ): { isAllowed: boolean; isSchoolDomain: boolean; isTeacherAdmin: boolean; reason?: string } => {
-  if (!email) {
+  if (!email || !email.includes('@')) {
     return { isAllowed: false, isSchoolDomain: false, isTeacherAdmin: false, reason: 'ไม่พบที่อยู่อีเมลสำหรับการยืนยันตัวตน' };
   }
 
@@ -512,19 +533,10 @@ export const isAllowedSchoolUser = (
   const isSchoolDomain = clean.endsWith(`@${SCHOOL_DOMAIN}`);
   const teacherCheck = checkIsTeacherAdmin(clean, teachersList);
 
-  if (isSchoolDomain || teacherCheck.isAdmin) {
-    return {
-      isAllowed: true,
-      isSchoolDomain,
-      isTeacherAdmin: teacherCheck.isAdmin,
-    };
-  }
-
   return {
-    isAllowed: false,
-    isSchoolDomain: false,
-    isTeacherAdmin: false,
-    reason: `ระบบอนุญาตเฉพาะบัญชีกูเกิลของโรงเรียน (@${SCHOOL_DOMAIN}) หรือคุณครูผู้ดูแลระบบเท่านั้น (อีเมลที่ใช้: ${email})`,
+    isAllowed: true,
+    isSchoolDomain,
+    isTeacherAdmin: teacherCheck.isAdmin,
   };
 };
 

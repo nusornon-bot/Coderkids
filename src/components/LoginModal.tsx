@@ -183,7 +183,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setIsLoading(false);
         return;
       }
-      const userEmail = (res.user.email || '').trim().toLowerCase();
+      const userEmail = (
+        res.user.email ||
+        res.user.providerData?.find((p) => p?.email)?.email ||
+        ''
+      ).trim().toLowerCase();
       const googleDisplayName = (
         res.googleProfileName ||
         res.user.displayName ||
@@ -212,7 +216,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const isTeacherAdmin = teacherCheck.isAdmin;
       const matchedTeacherName = teacherCheck.matchedTeacher?.name;
 
-      // Step 4: Check if the Google-verified email is in the Students tab or school domain (@anubalnara.ac.th)
+      // Step 4: Check if the Google-verified email matches an existing student in the Students tab
       const emailPrefix = userEmail.split('@')[0];
       const isSchoolDomain = userEmail.endsWith(`@${SCHOOL_DOMAIN}`);
       const sheetStudents = studentsRes.students.length > 0 ? studentsRes.students : profiles;
@@ -222,21 +226,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         return (
           (sEmail && sEmail === userEmail) ||
           (sId && `${sId}@${SCHOOL_DOMAIN}` === userEmail) ||
-          (sId && isSchoolDomain && sId === emailPrefix)
+          (sId && sId === emailPrefix)
         );
       });
 
-      // Step 5: Deny access if the verified Google email is NOT in Teachers, NOT in Students, and NOT @anubalnara.ac.th
-      if (!isTeacherAdmin && !matchedStudentFromSheet && !isSchoolDomain) {
-        await googleLogout();
-        setErrorMsg(
-          `⚠️ ปฏิเสธการเข้าถึง: บัญชี Google "${userEmail}" ผ่านการยืนยันตัวตนจาก Google แล้ว แต่ไม่พบอีเมลนี้ในฐานข้อมูล Google Sheet (แท็บ ${TEACHERS_SHEET_TITLE} หรือ ${STUDENTS_SHEET_TITLE}) กรุณาตรวจสอบว่าอีเมลของคุณถูกเพิ่มลงใน Google Sheet ของโรงเรียนแล้ว`
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      // Step 6: Build verified user profile using Google Profile Name (res.googleProfileName / displayName)
+      // Step 5: Build verified user profile using Google Profile Name (res.googleProfileName / displayName)
       let verifiedProfile: UserProfile;
       if (isTeacherAdmin) {
         verifiedProfile = getAdminProfileData(
@@ -372,17 +366,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         return (
           (sEmail && sEmail === userEmail) ||
           (sId && `${sId}@${SCHOOL_DOMAIN}` === userEmail) ||
-          (sId && isSchoolDomain && sId === emailPrefix)
+          (sId && sId === emailPrefix)
         );
       });
-
-      if (!isTeacherAdmin && !matchedStudentFromSheet && !isSchoolDomain) {
-        setErrorMsg(
-          `⚠️ ปฏิเสธการเข้าถึง: อีเมล "${userEmail}" ไม่ใช่อีเมลโรงเรียน (@${SCHOOL_DOMAIN}) และไม่พบในแท็บ ${TEACHERS_SHEET_TITLE} หรือ ${STUDENTS_SHEET_TITLE} ของ Google Sheet`
-        );
-        setIsLoading(false);
-        return;
-      }
 
       let verifiedProfile: UserProfile;
       if (isTeacherAdmin) {
