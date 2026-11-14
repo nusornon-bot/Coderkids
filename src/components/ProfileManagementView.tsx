@@ -364,7 +364,7 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
     setIsLoggingIn(true);
     setStatusMsg(null);
     try {
-      const res = await googleSignIn(true);
+      const res = await googleSignIn(false);
       if (!res) {
         setIsLoggingIn(false);
         return;
@@ -492,6 +492,10 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
         err?.message?.includes('popup-closed-by-user') ||
         err?.message?.includes('cancelled-popup-request')
       ) {
+        setStatusMsg({
+          text: '⚠️ หน้าต่างป๊อปอัป Google ถูกปิด หรือติดสถานะ "403: access_denied (แอปนี้อยู่ระหว่างการทดสอบ)" — ผู้ดูแลระบบสามารถกดปุ่ม "PUBLISH APP (เผยแพร่แอป)" ใน Google Cloud Console ➔ OAuth consent screen หรือเข้าสู่ระบบด้วยอีเมลโรงเรียน (@anubalnara.ac.th) ได้ทันที',
+          type: 'error',
+        });
         return;
       }
       console.error(err);

@@ -1322,13 +1322,16 @@ export default function App() {
         console.warn('Auto-fetch students on load error:', err);
       });
 
-    // 2. ดึงข้อมูลครูและตรวจสอบสิทธิ์แอดมินจากแท็บ Teachers (ต้องยืนยันตัวตนผ่าน Google OAuth เท่านั้น)
+    // 2. ดึงข้อมูลครูและตรวจสอบสิทธิ์แอดมินจากแท็บ Teachers
     refreshTeachersList().then((list) => {
       if (isLoggedIn) {
-        const currentEmail = auth.currentUser?.email || '';
+        const currentEmail =
+          auth.currentUser?.email ||
+          localStorage.getItem('coderkids_verified_google_email') ||
+          profile.contactEmail ||
+          '';
         const check = checkIsTeacherAdmin(currentEmail, list);
         if (check.isAdmin) {
-          // เมื่อแอดมินเข้าสู่ระบบผ่าน Google OAuth ต้องแสดงโปรไฟล์ของแอดมิน
           const adminProf = getAdminProfileData(currentEmail, check.matchedTeacher?.name);
           setProfile(adminProf);
           setProfiles((prev) => {
@@ -1336,7 +1339,6 @@ export default function App() {
             return exists ? prev : [adminProf, ...prev];
           });
         } else {
-          // บังคับสิทธิ์ผู้เรียนหากไม่ได้ยืนยันตัวตนผ่าน Google OAuth หรือไม่มีรายชื่อในแท็บ Teachers
           setProfile((prev) => (prev.role === 'admin' ? { ...prev, role: 'student' } : prev));
         }
       }
@@ -1393,14 +1395,23 @@ export default function App() {
   }, []);
 
   const completedCount = Object.values(moduleProgress).filter(Boolean).length;
-  // ผู้ใช้ต้องยืนยันตัวตนผ่านระบบของ Google (auth.currentUser?.email) และมีอีเมลในแท็บ Teachers บน Google Sheet เท่านั้น
-  const verifiedUserEmail = isLoggedIn ? (auth.currentUser?.email || '') : '';
+  // ผู้ใช้ต้องยืนยันตัวตนผ่านระบบของ Google หรืออีเมลโรงเรียน และมีอีเมลในแท็บ Teachers บน Google Sheet เท่านั้น
+  const verifiedUserEmail = isLoggedIn
+    ? auth.currentUser?.email ||
+      localStorage.getItem('coderkids_verified_google_email') ||
+      profile.contactEmail ||
+      ''
+    : '';
   const teacherCheck = checkIsTeacherAdmin(verifiedUserEmail, teachersList);
   const isTeacherAuthorized = Boolean(isLoggedIn && verifiedUserEmail && teacherCheck.isAdmin);
   const isAdmin = Boolean(isLoggedIn && isTeacherAuthorized && profile.role !== 'student');
 
   const handleToggleAdmin = (newAdminState: boolean) => {
-    const currentEmail = auth.currentUser?.email || '';
+    const currentEmail =
+      auth.currentUser?.email ||
+      localStorage.getItem('coderkids_verified_google_email') ||
+      profile.contactEmail ||
+      '';
     const check = checkIsTeacherAdmin(currentEmail, teachersList);
 
     // Enforcement: ต้องยืนยันตัวตนผ่านระบบ Google และมีอีเมลในแท็บ Teachers เท่านั้น

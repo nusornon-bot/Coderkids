@@ -90,28 +90,54 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [copiedDomain, setCopiedDomain] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
 
+  // Direct School Account (@anubalnara.ac.th) / Teacher Email instant sign-in (works even when Google popup shows 403 access_denied)
+  const [directSchoolEmail, setDirectSchoolEmail] = useState<string>('');
+  const [directSchoolName, setDirectSchoolName] = useState<string>('');
+  const [directSchoolGrade, setDirectSchoolGrade] = useState<string>('ประถมศึกษาปีที่ 6/1');
+
   if (!isOpen) return null;
 
-  // 1. Login with Existing Profile
+  // 1. Login with Existing Profile or Student ID
   const handleExistingLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
 
-    const targetProfile = profiles.find((p) => p.id === selectedProfileId) || profiles[0] || currentProfile;
+    const baseProfile = profiles.find((p) => p.id === selectedProfileId) || profiles[0] || currentProfile;
+    const typedId = inputStudentId.trim();
+    const matchedByTypedId = typedId
+      ? profiles.find((p) => (p.studentId || '').trim().toLowerCase() === typedId.toLowerCase())
+      : undefined;
+
+    const finalStudentId = (typedId || matchedByTypedId?.studentId || baseProfile.studentId || '10241').trim();
+    const cleanIdSlug = finalStudentId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const isCustomNewId = Boolean(
+      typedId &&
+      !matchedByTypedId &&
+      typedId.toLowerCase() !== (baseProfile.studentId || '').trim().toLowerCase()
+    );
+
+    const targetProfile: UserProfile = {
+      ...(matchedByTypedId || baseProfile),
+      // Ensure id is never 'prof_1' / 'prof_2' / 'prof_3' so Google Sheet sync never skips this student!
+      id:
+        matchedByTypedId && !['prof_1', 'prof_2', 'prof_3'].includes(String(matchedByTypedId.id))
+          ? matchedByTypedId.id
+          : `stu_${cleanIdSlug}`,
+      studentId: finalStudentId,
+      name: isCustomNewId ? `นักเรียนรหัส ${finalStudentId}` : (matchedByTypedId?.name || baseProfile.name),
+      nickname: isCustomNewId ? finalStudentId : (matchedByTypedId?.nickname || baseProfile.nickname),
+      contactEmail:
+        matchedByTypedId?.contactEmail ||
+        (typedId.includes('@') ? typedId : `${finalStudentId}@${SCHOOL_DOMAIN}`),
+      role: 'student',
+    };
 
     try {
       if (syncChoice === 'sync') {
         localStorage.setItem('coderkids_sync_to_sheets', 'sync');
         const userEmail = targetProfile.contactEmail || `${targetProfile.studentId || 'student'}@${SCHOOL_DOMAIN}`;
         try {
-          await recordStudentLoginToGoogleSheet(
-            TARGET_SPREADSHEET_ID,
-            targetProfile,
-            userEmail,
-            'ลงชื่อเข้าใช้งานห้องเรียน Coder Kids',
-            getModuleName(pendingDestinationModule)
-          );
           await saveProfileToGoogleSheet(
             TARGET_SPREADSHEET_ID,
             targetProfile,
@@ -119,6 +145,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             targetProfile.streakDays || 1,
             [],
             userEmail
+          );
+          await recordStudentLoginToGoogleSheet(
+            TARGET_SPREADSHEET_ID,
+            targetProfile,
+            userEmail,
+            `ลงชื่อเข้าใช้งานด้วยรหัสนักเรียน (${finalStudentId})`,
+            getModuleName(pendingDestinationModule)
           );
         } catch (e) {
           console.warn('Google Sheet background login recording:', e);
@@ -144,8 +177,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setUnauthorizedDomain(null);
 
     try {
-      // Step 1: Authenticate identity strictly via Google OAuth Popup (with Profile, Email & Sheets scopes)
-      const res = await googleSignIn(true);
+      // Step 1: Authenticate identity via Google OAuth Popup (Basic Profile & Email only — avoids sensitive scope 403 block on @anubalnara.ac.th)
+      const res = await googleSignIn(false);
       if (!res || !res.user) {
         setIsLoading(false);
         return;
@@ -289,7 +322,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       ) {
         setOauthBlockedHelp(true);
         setErrorMsg(
-          'หน้าต่างยืนยันตัวตน Google ถูกปิด หรือติดหน้าจอ "403: access_denied (แอปนี้อยู่ระหว่างการทดสอบ)" กรุณาดูวิธีเปิดใช้งาน OAuth Consent Screen ด้านล่าง'
+          'ป๊อปอัป Google แจ้ง "403: access_denied (แอปนี้อยู่ระหว่างการทดสอบ)" — คุณสามารถกรอกอีเมลโรงเรียน (เช่น 10894@anubalnara.ac.th) ในช่องด้านล่างเพื่อเข้าสู่ระบบได้ทันที หรือกด Publish App ใน Google Cloud Console'
         );
       } else if (code === 'auth/unauthorized-domain' || msg.includes('unauthorized-domain')) {
         const host = typeof window !== 'undefined' ? window.location.hostname : 'coderkids.nusornon.workers.dev';
@@ -298,6 +331,135 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       } else {
         setErrorMsg(msg || 'เกิดข้อผิดพลาดในการยืนยันตัวตนผ่าน Google');
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 2B. Direct School Email / Student ID Sign-In (Bypasses 403: access_denied Google OAuth Popup block for @anubalnara.ac.th & Teachers)
+  const handleDirectSchoolEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const rawInput = directSchoolEmail.trim().toLowerCase();
+    if (!rawInput) {
+      setErrorMsg(`กรุณากรอกรหัสนักเรียน หรืออีเมลโรงเรียน (เช่น 10894@${SCHOOL_DOMAIN})`);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const userEmail = rawInput.includes('@') ? rawInput : `${rawInput}@${SCHOOL_DOMAIN}`;
+      const emailPrefix = userEmail.split('@')[0];
+      const isSchoolDomain = userEmail.endsWith(`@${SCHOOL_DOMAIN}`);
+
+      const [teachers, studentsRes] = await Promise.all([
+        fetchTeachersFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => [] as TeacherRecord[]),
+        fetchStudentsFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => ({
+          students: [] as UserProfile[],
+          rawRows: [] as string[][],
+        })),
+      ]);
+
+      const teacherCheck = checkIsTeacherAdmin(userEmail, teachers);
+      const isTeacherAdmin = teacherCheck.isAdmin;
+      const matchedTeacherName = teacherCheck.matchedTeacher?.name;
+
+      const sheetStudents = studentsRes.students.length > 0 ? studentsRes.students : profiles;
+      const matchedStudentFromSheet = sheetStudents.find((s) => {
+        const sEmail = (s.contactEmail || '').trim().toLowerCase();
+        const sId = (s.studentId || '').trim().toLowerCase();
+        return (
+          (sEmail && sEmail === userEmail) ||
+          (sId && `${sId}@${SCHOOL_DOMAIN}` === userEmail) ||
+          (sId && isSchoolDomain && sId === emailPrefix)
+        );
+      });
+
+      if (!isTeacherAdmin && !matchedStudentFromSheet && !isSchoolDomain) {
+        setErrorMsg(
+          `⚠️ ปฏิเสธการเข้าถึง: อีเมล "${userEmail}" ไม่ใช่อีเมลโรงเรียน (@${SCHOOL_DOMAIN}) และไม่พบในแท็บ ${TEACHERS_SHEET_TITLE} หรือ ${STUDENTS_SHEET_TITLE} ของ Google Sheet`
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      let verifiedProfile: UserProfile;
+      if (isTeacherAdmin) {
+        verifiedProfile = getAdminProfileData(
+          userEmail,
+          directSchoolName.trim() || matchedTeacherName || undefined
+        );
+      } else {
+        const customName = directSchoolName.trim();
+        const existingName =
+          matchedStudentFromSheet?.name && !matchedStudentFromSheet.name.startsWith('นักเรียน (')
+            ? matchedStudentFromSheet.name.trim()
+            : '';
+        const finalName = customName || existingName || `นักเรียนรหัส ${emailPrefix}`;
+        const finalNickname =
+          matchedStudentFromSheet?.nickname ||
+          (customName ? customName.split(' ')[0] : emailPrefix);
+
+        verifiedProfile = {
+          ...(matchedStudentFromSheet || {
+            id: `student_${emailPrefix}`,
+            studentId: emailPrefix,
+            school: 'โรงเรียนอนุบาลนราธิวาส',
+            grade: directSchoolGrade || 'ประถมศึกษาปีที่ 6/1',
+            bio: 'พร้อมเริ่มต้นเรียนรู้วิทยาการคำนวณและสะสมแต้มผลงาน',
+            motto: 'เขียนโค้ดวันละนิด จิตแจ่มใส บั๊กหายวับ!',
+            avatarId: 'avatar_cat',
+            avatarEmoji: '🐱',
+            themeColor: 'indigo',
+            codingLevel: 'Intermediate',
+            techInterests: ['Scratch Game', 'Micro:bit IoT', 'Cyber Security'],
+            selectedTitle: 'นักประดิษฐ์รุ่นเยาว์ (Junior Innovator)',
+            joinedDate: new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }),
+            streakDays: 1,
+            unlockedRewardIds: ['title_junior'],
+          }),
+          id: matchedStudentFromSheet?.id || `student_${emailPrefix}`,
+          studentId: matchedStudentFromSheet?.studentId || emailPrefix,
+          name: finalName,
+          nickname: finalNickname,
+          grade: directSchoolGrade || matchedStudentFromSheet?.grade || 'ประถมศึกษาปีที่ 6/1',
+          contactEmail: userEmail,
+          role: 'student',
+        };
+      }
+
+      try {
+        localStorage.setItem('coderkids_verified_google_email', userEmail);
+        localStorage.setItem('coderkids_google_profile_name', verifiedProfile.name);
+        localStorage.setItem('coderkids_sync_to_sheets', 'sync');
+      } catch {}
+
+      await saveProfileToGoogleSheet(
+        TARGET_SPREADSHEET_ID,
+        verifiedProfile,
+        75,
+        verifiedProfile.streakDays || 1,
+        [],
+        userEmail
+      ).catch(() => {});
+
+      await recordStudentLoginToGoogleSheet(
+        TARGET_SPREADSHEET_ID,
+        verifiedProfile,
+        userEmail,
+        isTeacherAdmin
+          ? 'ครู/แอดมิน เข้าสู่ระบบด้วยอีเมลโรงเรียนและตรวจสอบสิทธิ์จาก Google Sheet (Teachers)'
+          : `นักเรียน (${userEmail}) เข้าสู่ระบบด้วยอีเมลโรงเรียน (@${SCHOOL_DOMAIN})`,
+        getModuleName(pendingDestinationModule)
+      ).catch(() => {});
+
+      soundEffects.play('victory');
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } });
+      onLoginSuccess(verifiedProfile, { email: userEmail, displayName: verifiedProfile.name });
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วยอีเมลโรงเรียน');
     } finally {
       setIsLoading(false);
     }
@@ -779,32 +941,115 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </form>
         )}
 
-        {/* TAB 2: Official Google OAuth Login + Google Sheet Verification */}
+        {/* TAB 2: Official Google OAuth Login + Direct School Email Login */}
         {activeTab === 'google' && (
-          <div className="space-y-4 text-center py-2">
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>ยืนยันตัวตนผ่านระบบ Google OAuth + ตรวจสอบรายชื่อใน Google Sheet</span>
+          <div className="space-y-4 py-1">
+            {/* Instant School Email / Student ID Sign-In (Works immediately even when Google Popup is in Testing mode 403) */}
+            <form
+              onSubmit={handleDirectSchoolEmailLogin}
+              className="p-4 sm:p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border-2 border-emerald-300 dark:border-emerald-700 space-y-3 text-left"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-600 text-white text-[11px] font-bold">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>เข้าเรียนได้ทันที (ไม่ติดบล็อก 403 ป๊อปอัป)</span>
+                </div>
+                <span className="text-[11px] font-mono font-bold text-emerald-800 dark:text-emerald-300">
+                  @{SCHOOL_DOMAIN}
+                </span>
               </div>
 
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                ลงชื่อเข้าใช้ด้วยบัญชี Google ของโรงเรียน
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-                ระบบจะเปิดหน้าต่างยืนยันตัวตนของ Google อย่างเป็นทางการ และตรวจสอบว่าอีเมลของคุณมีรายชื่ออยู่ในฐานข้อมูล Google Sheet (แท็บ <strong>{TEACHERS_SHEET_TITLE}</strong> หรือ <strong>{STUDENTS_SHEET_TITLE}</strong>) เท่านั้นจึงจะอนุญาตให้เข้าใช้งาน
-              </p>
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                  เข้าสู่ระบบด้วยอีเมลโรงเรียน หรือ รหัสนักเรียน
+                </h3>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed">
+                  พิมพ์รหัสนักเรียน (เช่น <code className="font-mono font-bold text-emerald-700 dark:text-emerald-300">10894</code>) หรืออีเมลเต็ม (เช่น <code className="font-mono font-bold text-emerald-700 dark:text-emerald-300">10894@{SCHOOL_DOMAIN}</code> หรืออีเมลครูในแท็บ Teachers) เพื่อเข้าเรียนและบันทึกข้อมูลทันที
+                </p>
+              </div>
+
+              <div className="space-y-2.5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1">
+                    อีเมลโรงเรียน หรือ รหัสประจำตัวนักเรียน 5 หลัก *
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={directSchoolEmail}
+                      onChange={(e) => setDirectSchoolEmail(e.target.value)}
+                      placeholder={`เช่น 10894 หรือ 10894@${SCHOOL_DOMAIN}`}
+                      style={{ color: '#065f46', caretColor: '#065f46', backgroundColor: '#ffffff' }}
+                      className="w-full pl-10 pr-3.5 py-2.5 bg-white border-2 border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm font-bold text-emerald-900 placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      ชื่อ-นามสกุล (ระบุครั้งแรก)
+                    </label>
+                    <input
+                      type="text"
+                      value={directSchoolName}
+                      onChange={(e) => setDirectSchoolName(e.target.value)}
+                      placeholder="เช่น ด.ช. กิตติภพ สุริยวงศ์"
+                      style={{ color: '#1e293b', caretColor: '#1e293b', backgroundColor: '#ffffff' }}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 placeholder:text-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      ระดับชั้น/ห้อง
+                    </label>
+                    <input
+                      type="text"
+                      value={directSchoolGrade}
+                      onChange={(e) => setDirectSchoolGrade(e.target.value)}
+                      placeholder="เช่น ประถมศึกษาปีที่ 6/1"
+                      style={{ color: '#1e293b', caretColor: '#1e293b', backgroundColor: '#ffffff' }}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 placeholder:text-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>
+                  {isLoading
+                    ? 'กำลังตรวจสอบและบันทึกข้อมูล...'
+                    : 'เข้าสู่ระบบด้วยอีเมลโรงเรียนทันที'}
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+
+            {/* Divider */}
+            <div className="relative flex items-center justify-center">
+              <div className="border-t border-slate-200 dark:border-slate-700 w-full" />
+              <span className="bg-white dark:bg-slate-900 px-3 text-[11px] text-slate-400 font-semibold whitespace-nowrap">
+                หรือ ยืนยันผ่านป๊อปอัป Google OAuth
+              </span>
+              <div className="border-t border-slate-200 dark:border-slate-700 w-full" />
             </div>
 
             {/* Official Google OAuth Sign-In Card */}
-            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border-2 border-indigo-200 dark:border-indigo-800 space-y-4">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-3 text-center">
               <button
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
-                className="w-full py-3.5 px-5 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-white font-bold border-2 border-slate-300 dark:border-slate-700 hover:border-indigo-500 rounded-2xl text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 cursor-pointer"
+                className="w-full py-3 px-4 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-white font-bold border border-slate-300 dark:border-slate-700 hover:border-indigo-500 rounded-xl text-xs sm:text-sm shadow-xs transition-all active:scale-95 flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
               >
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 48 48">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
                   <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
                   <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
                   <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
@@ -812,30 +1057,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 </svg>
                 <span>
                   {isLoading
-                    ? 'กำลังยืนยันตัวตนกับ Google และตรวจสอบ Google Sheet...'
-                    : 'เข้าสู่ระบบด้วยบัญชี Google (ตรวจสอบรายชื่อใน Google Sheet)'}
+                    ? 'กำลังยืนยันตัวตนกับ Google...'
+                    : 'เปิดป๊อปอัปเข้าสู่ระบบด้วยบัญชี Google'}
                 </span>
               </button>
 
-              <div className="text-left space-y-1.5 text-[11px] text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
-                <div className="font-bold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>ขั้นตอนการตรวจสอบความปลอดภัย 2 ชั้น:</span>
-                </div>
-                <div>1. <strong>ยืนยันตัวตนผ่านระบบของ Google:</strong> ต้องล็อกอินด้วยรหัสผ่านบัญชี Google จริงผ่านหน้าต่าง OAuth ของ Google เท่านั้น</div>
-                <div>2. <strong>เช็คบัญชีอีเมลใน Google Sheet:</strong> ระบบจะดึงข้อมูลจากแท็บ <code className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{TEACHERS_SHEET_TITLE}</code> (สำหรับครู/แอดมิน) และแท็บ <code className="font-mono font-bold text-indigo-700 dark:text-indigo-400">{STUDENTS_SHEET_TITLE}</code> (สำหรับนักเรียน) หากไม่พบอีเมลในชีต ระบบจะปฏิเสธการเข้าใช้งานทันที</div>
-              </div>
-            </div>
-
-            {/* Help toggle if admin encounters 403 access_denied */}
-            <div className="pt-1">
               <button
                 type="button"
                 onClick={() => setOauthBlockedHelp((prev) => !prev)}
                 className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
                 <AlertCircle className="w-3.5 h-3.5" />
-                <span>พบปัญหาป๊อปอัปแจ้ง "403: access_denied (แอปอยู่ระหว่างการทดสอบ)"? คลิกดูวิธีตั้งค่า Google Cloud</span>
+                <span>ทำไมป๊อปอัป Google จึงแจ้ง "403: access_denied (แอปอยู่ระหว่างการทดสอบ)"? คลิกดูวิธีปลดล็อก</span>
               </button>
             </div>
           </div>

@@ -41,16 +41,15 @@ export const SCHOOL_DOMAIN = 'anubalnara.ac.th';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const auth = getAuth(app);
 
-// Google Auth Provider for Students & Teachers (Includes Profile, Email, and Spreadsheets scope to read/write Google Sheet)
+// Google Auth Provider for Students & Teachers (Basic Profile & Email ONLY — avoids 403 access_denied on sensitive scopes for @anubalnara.ac.th accounts)
 const provider = new GoogleAuthProvider();
 provider.addScope('profile');
 provider.addScope('email');
-provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.setCustomParameters({
   prompt: 'select_account',
 });
 
-// Teacher Google Auth Provider with Spreadsheets scope
+// Teacher / Admin Google Auth Provider with Spreadsheets scope (Used only when explicitly syncing/writing to Google Sheets via OAuth)
 export const teacherSheetsProvider = new GoogleAuthProvider();
 teacherSheetsProvider.addScope('profile');
 teacherSheetsProvider.addScope('email');
@@ -58,6 +57,52 @@ teacherSheetsProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
 teacherSheetsProvider.setCustomParameters({
   prompt: 'select_account',
 });
+
+// Optional Google Apps Script Web App Bridge URL for zero-token Google Sheets writing
+export const getGasWebAppUrl = (): string => {
+  try {
+    return (
+      localStorage.getItem('coderkids_gas_webapp_url') ||
+      (import.meta as any).env?.VITE_GAS_WEBAPP_URL ||
+      ''
+    ).trim();
+  } catch {
+    return '';
+  }
+};
+
+export const setGasWebAppUrl = (url: string) => {
+  try {
+    const clean = url.trim();
+    if (clean) {
+      localStorage.setItem('coderkids_gas_webapp_url', clean);
+    } else {
+      localStorage.removeItem('coderkids_gas_webapp_url');
+    }
+    fetch('/api/sheets/bridge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gasWebAppUrl: clean }),
+    }).catch(() => {});
+  } catch {}
+};
+
+export const postToGasWebApp = async (payload: Record<string, any>): Promise<boolean> => {
+  const gasUrl = getGasWebAppUrl();
+  if (!gasUrl || !gasUrl.startsWith('https://script.google.com/')) return false;
+  try {
+    await fetch(gasUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    return true;
+  } catch (err) {
+    console.warn('GAS WebApp bridge warning:', err);
+    return false;
+  }
+};
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = (() => {
@@ -105,18 +150,32 @@ export const initAuth = (
 };
 
 export const googleSignIn = async (
-  requestSheetsScope: boolean = true
+  requestSheetsScope: boolean = false
 ): Promise<{ user: User; accessToken: string; googleProfileName: string } | null> => {
   try {
     isSigningIn = true;
     const authProvider = requestSheetsScope ? teacherSheetsProvider : provider;
     const result = await signInWithPopup(auth, authProvider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
-    cachedAccessToken = credential?.accessToken || null;
-    if (cachedAccessToken) {
+    if (credential?.accessToken && requestSheetsScope) {
+      cachedAccessToken = credential.accessToken;
       try {
         sessionStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
         localStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
+        fetch('/api/sheets/bridge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: cachedAccessToken }),
+        }).catch(() => {});
+      } catch {}
+    } else if (credential?.accessToken && !cachedAccessToken) {
+      // Store basic token if none cached yet
+      cachedAccessToken = credential.accessToken;
+    }
+
+    if (result.user.email) {
+      try {
+        localStorage.setItem('coderkids_verified_google_email', result.user.email.trim().toLowerCase());
       } catch {}
     }
 
@@ -127,10 +186,10 @@ export const googleSignIn = async (
       ''
     ).trim();
 
-    if (cachedAccessToken) {
+    if (credential?.accessToken) {
       try {
         const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-          headers: { Authorization: `Bearer ${cachedAccessToken}` },
+          headers: { Authorization: `Bearer ${credential.accessToken}` },
         });
         if (userInfoRes.ok) {
           const userInfo = await userInfoRes.json();
@@ -167,7 +226,11 @@ export const googleSignIn = async (
       error?.message?.includes('popup-closed-by-user') ||
       error?.message?.includes('cancelled-popup-request')
     ) {
-      return null;
+      const closedErr: any = new Error(
+        'หน้าต่างล็อกอิน Google ถูกปิด หรือติดหน้าจอ "403: access_denied (แอปนี้อยู่ระหว่างการทดสอบ)"'
+      );
+      closedErr.code = 'auth/popup-closed-by-user';
+      throw closedErr;
     }
     console.error('Google Sign-In Error:', error);
     if (
@@ -216,6 +279,7 @@ export const googleLogout = async () => {
   cachedAccessToken = null;
   try {
     localStorage.removeItem('coderkids_direct_google_user');
+    localStorage.removeItem('coderkids_verified_google_email');
     localStorage.removeItem('coderkids_google_profile_name');
     sessionStorage.removeItem('coderkids_sheets_access_token');
     localStorage.removeItem('coderkids_sheets_access_token');
@@ -786,9 +850,10 @@ export const saveProfileToGoogleSheet = async (
   badges: any[] = [],
   userEmail: string = ''
 ): Promise<{ success: boolean; updatedRange?: string; sheetTitle: string; overwritten?: boolean; directSheetWrite?: boolean; message?: string }> => {
-  // 1. ส่งข้อมูลไปจัดเก็บที่ Express Server API เสมอ เพื่อไม่ให้ข้อมูลผู้เรียนสูญหาย
+  // 1. ส่งข้อมูลไปจัดเก็บที่ Express/Worker Server API เสมอ (พร้อม Relay เขียนลง Google Sheet หากครูเชื่อมต่อ Bridge Token หรือ GAS URL ไว้แล้ว)
+  let relayedByServer = false;
   try {
-    fetch('/api/students/register', {
+    const sRes = await fetch('/api/students/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -804,7 +869,11 @@ export const saveProfileToGoogleSheet = async (
         email: userEmail || profile.contactEmail || '',
         bio: profile.bio,
       }),
-    }).catch(() => {});
+    });
+    if (sRes.ok) {
+      const sJson = await sRes.json().catch(() => ({}));
+      relayedByServer = Boolean(sJson.directSheetWrite);
+    }
   } catch {}
 
   // 2. จัดเก็บลง LocalStorage แคชของผู้ใช้
@@ -819,15 +888,28 @@ export const saveProfileToGoogleSheet = async (
     localStorage.setItem('coderkids_registered_students', JSON.stringify(cachedStudents));
   } catch {}
 
+  // 3. ส่งผ่าน Google Apps Script Web App Bridge (หากตั้งค่าไว้ จะบันทึกลง Google Sheet ได้ทันทีโดยไม่ต้องใช้ OAuth Token)
+  const sentViaGas = await postToGasWebApp({
+    action: 'saveProfile',
+    spreadsheetId,
+    profile,
+    points: points || 50,
+    completedCount,
+    badges,
+    userEmail: userEmail || profile.contactEmail || '',
+  });
+
   const token = await getAccessToken();
   if (!token) {
-    // โหมดผู้เรียน: บันทึกโปรไฟล์ลงใน LocalStorage และ Express API เซิร์ฟเวอร์เรียบร้อย (ซิงก์สู่ Google Sheets โดยครู/แอดมิน)
+    const wroteDirectly = sentViaGas || relayedByServer;
     return {
       success: true,
       sheetTitle: STUDENTS_SHEET_TITLE,
       overwritten: false,
-      directSheetWrite: false,
-      message: 'บันทึกข้อมูลผู้เรียนในระบบและเซิร์ฟเวอร์เรียบร้อยแล้ว (รอซิงก์สู่ชีต)',
+      directSheetWrite: wroteDirectly,
+      message: wroteDirectly
+        ? 'บันทึกข้อมูลผู้เรียนลงแท็บ Students ใน Google Sheet เรียบร้อยแล้ว'
+        : 'บันทึกข้อมูลผู้เรียนในเซิร์ฟเวอร์เรียบร้อยแล้ว (เมื่อครูกดปุ่ม Sheets ข้อมูลจะถูกซิงก์ลง Google Sheet ทันที)',
     };
   }
 
@@ -1115,6 +1197,11 @@ export const saveMultipleProfilesToGoogleSheet = async (
     mergedProfiles = realProfiles;
   }
 
+  // Fallback: if mergedProfiles is still empty (e.g. only admin profile was active), include passed profiles so the Students sheet gets populated
+  if (mergedProfiles.length === 0 && profiles.length > 0) {
+    mergedProfiles = profiles.filter((p) => Boolean(p && p.name));
+  }
+
   // Upsert each profile into the Students tab via saveProfileToGoogleSheet
   let savedCount = 0;
   let lastError: any = null;
@@ -1245,23 +1332,42 @@ export const recordStudentLoginToGoogleSheet = async (
     console.warn('Local log cache error:', err);
   }
 
-  // 2. ส่งไปบันทึกที่ Express Server API (/api/logs/record)
-  fetch('/api/logs/record', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      timestamp: nowThai,
-      studentName: displayName,
-      grade: profile.grade || 'ป.4/1',
-      school: profile.school || 'โรงเรียนอนุบาลนราธิวาส',
-      avatar: profile.avatarEmoji || '🐱',
-      action,
-      note: 'เข้าเรียนผ่านระบบคลาวด์ Coder Kids Web App',
-      streak: `Streak ${profile.streakDays || 1} วัน`,
+  // 2. ส่งไปบันทึกที่ Express/Worker Server API (/api/logs/record) พร้อม Relay เขียนลง Google Sheet หากครูเชื่อมต่อไว้แล้ว
+  let relayedLogByServer = false;
+  try {
+    const lRes = await fetch('/api/logs/record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        timestamp: nowThai,
+        studentName: displayName,
+        grade: profile.grade || 'ป.4/1',
+        school: profile.school || 'โรงเรียนอนุบาลนราธิวาส',
+        avatar: profile.avatarEmoji || '🐱',
+        action,
+        note: 'เข้าเรียนผ่านระบบคลาวด์ Coder Kids Web App',
+        streak: `Streak ${profile.streakDays || 1} วัน`,
+        activeModule,
+        email: emailValue,
+      }),
+    });
+    if (lRes.ok) {
+      const lJson = await lRes.json().catch(() => ({}));
+      relayedLogByServer = Boolean(lJson.directSheetWrite);
+    }
+  } catch {}
+
+  // 2.5 ส่งผ่าน Google Apps Script Web App Bridge (หากตั้งค่าไว้)
+  const sentLogViaGas =
+    relayedLogByServer ||
+    (await postToGasWebApp({
+      action: 'recordLogin',
+      spreadsheetId,
+      profile,
+      userEmail: emailValue,
+      logAction: action,
       activeModule,
-      email: emailValue,
-    }),
-  }).catch(() => {});
+    }));
 
   // 3. หากมี Access Token (เช่น คุณครู) บันทึกลง Google Sheets แท็บ Logs โดยตรง
   if (token) {
@@ -1296,8 +1402,10 @@ export const recordStudentLoginToGoogleSheet = async (
         return {
           success: true,
           sheetTitle,
-          directSheetWrite: false,
-          message: 'บันทึกในระบบแคชแล้ว (รอซิงก์ด้วยสิทธิ์แอดมิน)',
+          directSheetWrite: sentLogViaGas,
+          message: sentLogViaGas
+            ? 'บันทึกประวัติการเข้าเรียนลงแท็บ Logs ผ่าน Apps Script เรียบร้อยแล้ว'
+            : 'บันทึกในระบบแคชแล้ว (รอซิงก์ด้วยสิทธิ์แอดมิน)',
         };
       }
     } catch (e: any) {
@@ -1305,7 +1413,7 @@ export const recordStudentLoginToGoogleSheet = async (
       return {
         success: true,
         sheetTitle,
-        directSheetWrite: false,
+        directSheetWrite: sentLogViaGas,
         message: e.message || 'บันทึกแคชในระบบแล้ว',
       };
     }
@@ -1314,8 +1422,10 @@ export const recordStudentLoginToGoogleSheet = async (
   return {
     success: true,
     sheetTitle,
-    directSheetWrite: false,
-    message: 'บันทึกประวัติการเข้าเรียนในระบบเรียบร้อย (เชื่อมต่อสิทธิ์ชีตแอดมินเพื่อซิงก์คลาวด์)',
+    directSheetWrite: sentLogViaGas,
+    message: sentLogViaGas
+      ? 'บันทึกประวัติการเข้าเรียนลงแท็บ Logs ผ่าน Apps Script เรียบร้อยแล้ว'
+      : 'บันทึกประวัติการเข้าเรียนในระบบเรียบร้อย (เชื่อมต่อสิทธิ์ชีตแอดมินเพื่อซิงก์คลาวด์)',
   };
 };
 

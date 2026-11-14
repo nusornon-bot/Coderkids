@@ -149,10 +149,51 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
         }
       }
 
+      // 1B. GOOGLE SHEETS BRIDGE TOKEN / GAS WEBAPP CONFIG (Allows Student ID logins to write directly to Google Sheet)
+      if (url.pathname === '/api/sheets/bridge') {
+        if (request.method === 'POST') {
+          const body = (await request.json().catch(() => ({}))) as any;
+          if (typeof body.accessToken === 'string' && body.accessToken.trim()) {
+            (globalThis as any).__bridgeSheetsToken = body.accessToken.trim();
+            if (env.STUDENTS_KV) {
+              await env.STUDENTS_KV.put('bridge_sheets_token', body.accessToken.trim());
+            }
+          }
+          if (typeof body.gasWebAppUrl === 'string') {
+            (globalThis as any).__bridgeGasUrl = body.gasWebAppUrl.trim();
+            if (env.STUDENTS_KV) {
+              await env.STUDENTS_KV.put('bridge_gas_url', body.gasWebAppUrl.trim());
+            }
+          }
+          return jsonResponse({
+            success: true,
+            hasToken: Boolean((globalThis as any).__bridgeSheetsToken),
+            hasGasUrl: Boolean((globalThis as any).__bridgeGasUrl),
+          });
+        }
+        if (request.method === 'GET') {
+          const token =
+            (globalThis as any).__bridgeSheetsToken ||
+            (env.STUDENTS_KV ? await env.STUDENTS_KV.get('bridge_sheets_token') : '') ||
+            '';
+          const gasUrl =
+            (globalThis as any).__bridgeGasUrl ||
+            (env.STUDENTS_KV ? await env.STUDENTS_KV.get('bridge_gas_url') : '') ||
+            '';
+          return jsonResponse({
+            success: true,
+            hasToken: Boolean(token),
+            hasGasUrl: Boolean(gasUrl),
+            gasWebAppUrl: gasUrl,
+          });
+        }
+      }
+
       // 2. RECORD CLASSROOM ACCESS LOG
       if (url.pathname === '/api/logs/record' && request.method === 'POST') {
         try {
           const log = (await request.json().catch(() => ({}))) as any;
+          let directSheetWrite = false;
           if (log && log.studentName) {
             const nowThai = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' }).replace('T', ' ');
             const logItem = {
@@ -174,8 +215,74 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
             if (env.LOGS_KV) {
               await env.LOGS_KV.put('latest_logs', JSON.stringify(inMemoryLogs.slice(0, 200)));
             }
+
+            const bridgeToken =
+              (globalThis as any).__bridgeSheetsToken ||
+              (env.STUDENTS_KV ? await env.STUDENTS_KV.get('bridge_sheets_token') : '') ||
+              '';
+            const bridgeGasUrl =
+              (globalThis as any).__bridgeGasUrl ||
+              (env.STUDENTS_KV ? await env.STUDENTS_KV.get('bridge_gas_url') : '') ||
+              '';
+            const spreadsheetId = '1tWcZ4OaGZKOcX1PEvVNadyf9mM_igaKcF3ZV_b3L7Ng';
+
+            if (bridgeToken) {
+              try {
+                const rowValues = [
+                  logItem.timestamp,
+                  logItem.studentName,
+                  logItem.grade,
+                  logItem.school,
+                  logItem.avatar,
+                  logItem.action,
+                  logItem.note,
+                  logItem.streak,
+                  logItem.activeModule,
+                  logItem.email,
+                ];
+                const sRes = await fetch(
+                  `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Logs!A:J:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${bridgeToken}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      range: 'Logs!A:J',
+                      majorDimension: 'ROWS',
+                      values: [rowValues],
+                    }),
+                  }
+                );
+                if (sRes.ok) directSheetWrite = true;
+              } catch {}
+            }
+            if (!directSheetWrite && bridgeGasUrl && bridgeGasUrl.startsWith('https://script.google.com/')) {
+              try {
+                const gRes = await fetch(bridgeGasUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                  body: JSON.stringify({
+                    action: 'recordLogin',
+                    spreadsheetId,
+                    profile: {
+                      name: logItem.studentName,
+                      grade: logItem.grade,
+                      school: logItem.school,
+                      avatarEmoji: logItem.avatar,
+                      streakDays: 1,
+                    },
+                    userEmail: logItem.email,
+                    logAction: logItem.action,
+                    activeModule: logItem.activeModule,
+                  }),
+                });
+                if (gRes.ok) directSheetWrite = true;
+              } catch {}
+            }
           }
-          return jsonResponse({ success: true, totalLogs: inMemoryLogs.length });
+          return jsonResponse({ success: true, totalLogs: inMemoryLogs.length, directSheetWrite });
         } catch (err: any) {
           return jsonResponse({ success: false, error: err.message }, 500);
         }
@@ -200,6 +307,7 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
       if (url.pathname === '/api/students/register' && request.method === 'POST') {
         try {
           const student = (await request.json().catch(() => ({}))) as any;
+          let directSheetWrite = false;
           if (student && student.name) {
             const nowThai = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' }).replace('T', ' ');
             const existingIdx = inMemoryStudents.findIndex(
@@ -233,8 +341,76 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
             if (env.STUDENTS_KV) {
               await env.STUDENTS_KV.put('registered_students', JSON.stringify(inMemoryStudents));
             }
+
+            const bridgeToken =
+              (globalThis as any).__bridgeSheetsToken ||
+              (env.STUDENTS_KV ? await env.STUDENTS_KV.get('bridge_sheets_token') : '') ||
+              '';
+            const bridgeGasUrl =
+              (globalThis as any).__bridgeGasUrl ||
+              (env.STUDENTS_KV ? await env.STUDENTS_KV.get('bridge_gas_url') : '') ||
+              '';
+            const spreadsheetId = '1tWcZ4OaGZKOcX1PEvVNadyf9mM_igaKcF3ZV_b3L7Ng';
+
+            if (bridgeToken) {
+              try {
+                const pts = studentRecord.points || 65;
+                const userLevel = Math.max(1, Math.floor(pts / 75) + 1);
+                const displayName =
+                  studentRecord.name + (studentRecord.nickname ? ` (${studentRecord.nickname})` : '');
+                const rowValues = [
+                  studentRecord.studentId,
+                  nowThai,
+                  displayName,
+                  studentRecord.grade,
+                  studentRecord.school,
+                  `${studentRecord.avatarEmoji} (${studentRecord.avatarId})`,
+                  'นักประดิษฐ์รุ่นเยาว์ (Junior Innovator)',
+                  studentRecord.bio || 'พร้อมเรียนรู้วิทยาการคำนวณ',
+                  pts,
+                  `LV.${userLevel}`,
+                  '1/4',
+                  'เริ่มต้นการเรียนรู้',
+                  studentRecord.email || `${studentRecord.studentId}@anubalnara.ac.th`,
+                ];
+                const sRes = await fetch(
+                  `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Students!A:M:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+                  {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${bridgeToken}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      range: 'Students!A:M',
+                      majorDimension: 'ROWS',
+                      values: [rowValues],
+                    }),
+                  }
+                );
+                if (sRes.ok) directSheetWrite = true;
+              } catch {}
+            }
+            if (!directSheetWrite && bridgeGasUrl && bridgeGasUrl.startsWith('https://script.google.com/')) {
+              try {
+                const gRes = await fetch(bridgeGasUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                  body: JSON.stringify({
+                    action: 'saveProfile',
+                    spreadsheetId,
+                    profile: studentRecord,
+                    points: studentRecord.points || 65,
+                    completedCount: 1,
+                    badges: [],
+                    userEmail: studentRecord.email || `${studentRecord.studentId}@anubalnara.ac.th`,
+                  }),
+                });
+                if (gRes.ok) directSheetWrite = true;
+              } catch {}
+            }
           }
-          return jsonResponse({ success: true, totalStudents: inMemoryStudents.length });
+          return jsonResponse({ success: true, totalStudents: inMemoryStudents.length, directSheetWrite });
         } catch (err: any) {
           return jsonResponse({ success: false, error: err.message }, 500);
         }
