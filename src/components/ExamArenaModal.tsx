@@ -2874,6 +2874,87 @@ interface StudentDiagnosticProfile {
   questionAnswers: Record<number, number>; // all answered questionIds -> selectedOptionIndex
 }
 
+// Helper to build a deterministic 10-set historical profile for a given student archetype
+const buildHistoricalProfileForArchetype = (
+  studentName: string,
+  archetype: 'comp_thinking_strong' | 'digital_safety_strong' | 'balanced_progressive'
+): StudentDiagnosticProfile => {
+  const setResults: Record<string, SavedSetResult> = {};
+  const questionAnswers: Record<number, number> = {};
+
+  ONET_EXAM_SETS.forEach((examSet, setIdx) => {
+    const setAnswers: Record<number, number> = {};
+    let setCorrect = 0;
+
+    examSet.questions.forEach((q, qIdx) => {
+      const isCompThinking = q.category === 'thinking' || q.category === 'coding' || q.category === 'debugging';
+      let isCorrect = true;
+
+      if (archetype === 'comp_thinking_strong') {
+        // Strong in Computational Thinking & Coding (~93%), moderate in Digital Safety (~72%)
+        if (isCompThinking) {
+          isCorrect = !(setIdx === 2 && qIdx === 5) && !(setIdx === 6 && qIdx === 8) && !(setIdx === 8 && qIdx === 7);
+        } else {
+          isCorrect = qIdx % 3 !== 1;
+        }
+      } else if (archetype === 'digital_safety_strong') {
+        // Strong in Digital Safety, Fake News & Health (~94%), moderate in Computational Thinking (~71%)
+        if (!isCompThinking) {
+          isCorrect = !(setIdx === 4 && qIdx === 7) && !(setIdx === 9 && qIdx === 6);
+        } else {
+          isCorrect = qIdx % 3 !== 2;
+        }
+      } else {
+        // Balanced progressive learner: starts ~70% in Set 1-3 and climbs to 90-100% in Set 7-10
+        if (setIdx <= 2) {
+          isCorrect = qIdx !== 2 && qIdx !== 6 && !(setIdx === 0 && qIdx === 8);
+        } else if (setIdx <= 5) {
+          isCorrect = qIdx !== 4 && !(setIdx === 3 && qIdx === 7);
+        } else {
+          isCorrect = !(setIdx === 7 && qIdx === 9);
+        }
+      }
+
+      const chosenOption = isCorrect ? q.correctIndex : (q.correctIndex + 1) % 4;
+      setAnswers[q.id] = chosenOption;
+      questionAnswers[q.id] = chosenOption;
+      if (isCorrect) setCorrect += 1;
+    });
+
+    setResults[examSet.id] = {
+      score: setCorrect,
+      points50: setCorrect * 5,
+      percent: setCorrect * 10,
+      completedAt: `ชุดที่ ${examSet.setNumber} • บันทึกผลครบ`,
+      answers: setAnswers,
+    };
+  });
+
+  return {
+    studentName,
+    grade: 'ป.6',
+    school: 'โรงเรียนอนุบาลนราธิวาส',
+    updatedAt: 'ดึงผลคะแนนย้อนหลังครบชุดที่ 1–10',
+    setResults,
+    questionAnswers,
+  };
+};
+
+const SEEDED_STUDENT_DIAGNOSTICS: Record<string, StudentDiagnosticProfile> = {
+  'ด.ช. ปัณณธร ศรีสว่าง (ปันปัน)': buildHistoricalProfileForArchetype(
+    'ด.ช. ปัณณธร ศรีสว่าง (ปันปัน)',
+    'comp_thinking_strong'
+  ),
+  'ด.ญ. ชนัญชิดา สุขสันต์ (ณิชา)': buildHistoricalProfileForArchetype(
+    'ด.ญ. ชนัญชิดา สุขสันต์ (ณิชา)',
+    'digital_safety_strong'
+  ),
+  'ด.ช. กวินท์ พงษ์สถิตย์ (วิน)': buildHistoricalProfileForArchetype(
+    'ด.ช. กวินท์ พงษ์สถิตย์ (วิน)',
+    'balanced_progressive'
+  ),
+};
+
 export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
   isOpen,
   onClose,
@@ -2897,6 +2978,10 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
   const [newStudentInput, setNewStudentInput] = useState<string>('');
   const [showAddStudentInput, setShowAddStudentInput] = useState<boolean>(false);
 
+  // Historical chart view mode & selected set in Diagnostic Report
+  const [chartVisualMode, setChartVisualMode] = useState<'split' | 'trend' | 'radar'>('split');
+  const [selectedHistorySetId, setSelectedHistorySetId] = useState<'set1' | 'set2' | 'set3' | 'set4' | 'set5' | 'set6' | 'set7' | 'set8' | 'set9' | 'set10'>('set1');
+
   const normalizedActiveStudent = (studentName || 'นักเรียนผู้ใช้งาน').trim();
   const [inspectedStudentName, setInspectedStudentName] = useState<string>(normalizedActiveStudent);
 
@@ -2916,14 +3001,17 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
     }
   });
 
-  // Per-student diagnostic storage map: studentName -> StudentDiagnosticProfile
+  // Per-student diagnostic storage map: studentName -> StudentDiagnosticProfile (merged with seeded sample students)
   const [studentDiagnosticsMap, setStudentDiagnosticsMap] = useState<Record<string, StudentDiagnosticProfile>>(() => {
     try {
       const raw = localStorage.getItem('coderkids_onet69_student_diagnostics');
       const parsed: Record<string, StudentDiagnosticProfile> = raw ? JSON.parse(raw) : {};
-      return parsed;
+      return {
+        ...SEEDED_STUDENT_DIAGNOSTICS,
+        ...parsed,
+      };
     } catch {
-      return {};
+      return { ...SEEDED_STUDENT_DIAGNOSTICS };
     }
   });
 
@@ -3061,6 +3149,131 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
       };
     });
 
+    // Historical Set 1-10 Score & Subject Breakdown Series
+    const historicalSetSeries = ONET_EXAM_SETS.map((examSet) => {
+      const savedSet = setResultsForStudent[examSet.id];
+      const setAnsweredQuestions = examSet.questions.filter((q) => questionAnswers[q.id] !== undefined);
+      const isCompleted = Boolean(savedSet) || setAnsweredQuestions.length > 0;
+
+      const compQuestionsInSet = examSet.questions.filter(
+        (q) => q.category === 'thinking' || q.category === 'coding' || q.category === 'debugging'
+      );
+      const safetyQuestionsInSet = examSet.questions.filter(
+        (q) => q.category === 'safety' || q.category === 'search' || q.category === 'data'
+      );
+
+      const compAttempted = compQuestionsInSet.filter((q) => questionAnswers[q.id] !== undefined);
+      const compCorrect = compAttempted.filter((q) => questionAnswers[q.id] === q.correctIndex).length;
+      const compPercent =
+        compAttempted.length > 0 ? Math.round((compCorrect / compQuestionsInSet.length) * 100) : null;
+
+      const safetyAttempted = safetyQuestionsInSet.filter((q) => questionAnswers[q.id] !== undefined);
+      const safetyCorrect = safetyAttempted.filter((q) => questionAnswers[q.id] === q.correctIndex).length;
+      const safetyPercent =
+        safetyAttempted.length > 0 ? Math.round((safetyCorrect / safetyQuestionsInSet.length) * 100) : null;
+
+      const computedCorrect = setAnsweredQuestions.filter((q) => questionAnswers[q.id] === q.correctIndex).length;
+      const score10 = savedSet ? savedSet.score : computedCorrect;
+      const points50 = savedSet ? savedSet.points50 : computedCorrect * 5;
+      const percent = isCompleted ? (savedSet ? savedSet.percent : computedCorrect * 10) : 0;
+
+      const wrongQuestionsInSet = examSet.questions.filter(
+        (q) => questionAnswers[q.id] !== undefined && questionAnswers[q.id] !== q.correctIndex
+      );
+
+      return {
+        setId: examSet.id,
+        setNumber: examSet.setNumber,
+        shortLabel: `ชุดที่ ${examSet.setNumber}`,
+        title: examSet.title,
+        subtitle: examSet.subtitle,
+        isCompleted,
+        completedAt: savedSet?.completedAt || (isCompleted ? 'บันทึกผลแล้ว' : 'ยังไม่เคยทำ'),
+        score10,
+        points50,
+        percent,
+        compTotal: compQuestionsInSet.length,
+        compCorrect,
+        compPercent,
+        safetyTotal: safetyQuestionsInSet.length,
+        safetyCorrect,
+        safetyPercent,
+        wrongQuestionsInSet,
+      };
+    });
+
+    // Macro Subject Comparison: Computational Thinking & Coding VS Digital Safety & Information Literacy
+    const allCompInBank = ALL_ONET_QUESTIONS.filter(
+      (q) => q.category === 'thinking' || q.category === 'coding' || q.category === 'debugging'
+    );
+    const allSafetyInBank = ALL_ONET_QUESTIONS.filter(
+      (q) => q.category === 'safety' || q.category === 'search' || q.category === 'data'
+    );
+
+    const answeredComp = answeredQuestions.filter(
+      (q) => q.category === 'thinking' || q.category === 'coding' || q.category === 'debugging'
+    );
+    const answeredSafety = answeredQuestions.filter(
+      (q) => q.category === 'safety' || q.category === 'search' || q.category === 'data'
+    );
+
+    const compCorrectTotal = answeredComp.filter((q) => questionAnswers[q.id] === q.correctIndex).length;
+    const safetyCorrectTotal = answeredSafety.filter((q) => questionAnswers[q.id] === q.correctIndex).length;
+
+    const compAccuracy =
+      answeredComp.length > 0 ? Math.round((compCorrectTotal / answeredComp.length) * 100) : 0;
+    const safetyAccuracy =
+      answeredSafety.length > 0 ? Math.round((safetyCorrectTotal / answeredSafety.length) * 100) : 0;
+
+    const diffPercent = compAccuracy - safetyAccuracy;
+    let dominantDomain: 'comp_thinking' | 'digital_safety' | 'balanced' | 'untested' = 'untested';
+    let verdictTitle = 'รอข้อมูลผลสอบย้อนหลังจากชุดที่ 1–10';
+    let verdictDetail =
+      'คลิกปุ่ม "ดึงผลคะแนนย้อนหลังตัวอย่างครบ 10 ชุด" หรือเริ่มทำข้อสอบเพื่อเปรียบเทียบจุดแข็งระหว่างการคิดเชิงคำนวณกับความปลอดภัยดิจิทัล';
+
+    if (totalAnswered > 0) {
+      if (diffPercent >= 6) {
+        dominantDomain = 'comp_thinking';
+        verdictTitle = `โดดเด่นด้านการคิดเชิงคำนวณและโค้ดดิ้ง (+${diffPercent}% เหนือกว่าด้านความปลอดภัยดิจิทัล)`;
+        verdictDetail = `${targetName} มีจุดแข็งชัดเจนในกลุ่มวิชาตรรกะ อัลกอริทึม และการเขียนโปรแกรม Scratch/Micro:bit (${compAccuracy}%) แนะนำให้เสริมความแม่นยำในกลุ่มความปลอดภัยไซเบอร์ การคัดกรอง Fake News และสุขอนามัยดิจิทัล (${safetyAccuracy}%) เพื่ออัปคะแนนรวมให้เต็ม 100%`;
+      } else if (diffPercent <= -6) {
+        dominantDomain = 'digital_safety';
+        verdictTitle = `โดดเด่นด้านความปลอดภัยดิจิทัลและสารสนเทศ (+${Math.abs(diffPercent)}% เหนือกว่าด้านการคิดเชิงคำนวณ)`;
+        verdictDetail = `${targetName} มีความแม่นยำสูงมากในกลุ่มวิชาความปลอดภัยไซเบอร์ กฎหมาย PDPA การรู้เท่าทันข่าวปลอม และการจัดการข้อมูล (${safetyAccuracy}%) แนะนำให้ฝึกซ้อมการไล่ค่าตัวแปร ลูป เงื่อนไขซ้อน (Nested If) และเซนเซอร์ Micro:bit (${compAccuracy}%) เพิ่มเติม`;
+      } else {
+        dominantDomain = 'balanced';
+        verdictTitle = `สมรรถนะสมดุลรอบด้าน ทั้งการคิดเชิงคำนวณ (${compAccuracy}%) และความปลอดภัยดิจิทัล (${safetyAccuracy}%)`;
+        verdictDetail = `${targetName} มีพัฒนาการที่สมดุลในทั้ง 2 กลุ่มวิชาหลัก (ผลต่างเพียง ${Math.abs(diffPercent)}%) สามารถเก็บคะแนนได้สม่ำเสมอทั้งพาร์ทอัลกอริทึม/โค้ดดิ้ง และพาร์ทพลเมืองดิจิทัล/สารสนเทศ`;
+      }
+    }
+
+    const domainComparison = {
+      compThinking: {
+        label: 'การคิดเชิงคำนวณ & โค้ดดิ้ง (Computational Thinking & Coding)',
+        shortLabel: 'การคิดเชิงคำนวณ & โค้ดดิ้ง',
+        attempted: answeredComp.length,
+        correct: compCorrectTotal,
+        totalInBank: allCompInBank.length,
+        accuracy: compAccuracy,
+        pointsEarned: compCorrectTotal * 5,
+        maxPointsAttempted: answeredComp.length * 5,
+      },
+      digitalSafety: {
+        label: 'ความปลอดภัยดิจิทัล & สารสนเทศ (Digital Safety & Info Literacy)',
+        shortLabel: 'ความปลอดภัยดิจิทัล & สารสนเทศ',
+        attempted: answeredSafety.length,
+        correct: safetyCorrectTotal,
+        totalInBank: allSafetyInBank.length,
+        accuracy: safetyAccuracy,
+        pointsEarned: safetyCorrectTotal * 5,
+        maxPointsAttempted: answeredSafety.length * 5,
+      },
+      diffPercent,
+      dominantDomain,
+      verdictTitle,
+      verdictDetail,
+    };
+
     const strengths = indicatorStats.filter((item) => item.status === 'strength');
     const needsFix = indicatorStats.filter(
       (item) => item.status === 'needs_fix' || (item.wrongQuestions.length > 0 && (item.accuracy ?? 0) < 80)
@@ -3072,7 +3285,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
 
     return {
       studentName: targetName,
-      completedSetsCount: Object.keys(setResultsForStudent).length,
+      completedSetsCount: historicalSetSeries.filter((s) => s.isCompleted).length,
       setResults: setResultsForStudent,
       questionAnswers,
       totalAnswered,
@@ -3081,6 +3294,8 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
       overallAccuracy,
       categoryStats,
       indicatorStats,
+      historicalSetSeries,
+      domainComparison,
       strengths,
       developing,
       needsFix,
@@ -3331,6 +3546,71 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
     soundEffects.playClick();
     window.print();
   };
+
+  // Pull or simulate 10-set historical records for the currently inspected student
+  const handleApplyHistoricalArchetype = (
+    archetype: 'comp_thinking_strong' | 'digital_safety_strong' | 'balanced_progressive'
+  ) => {
+    soundEffects.playSuccess();
+    const targetName = activeStudentDiagnostic.studentName;
+    const generatedProfile = buildHistoricalProfileForArchetype(targetName, archetype);
+    const nextMap = {
+      ...studentDiagnosticsMap,
+      [targetName]: generatedProfile,
+    };
+    setStudentDiagnosticsMap(nextMap);
+    try {
+      localStorage.setItem('coderkids_onet69_student_diagnostics', JSON.stringify(nextMap));
+    } catch {}
+    if (targetName === normalizedActiveStudent) {
+      setSavedResults(generatedProfile.setResults);
+      try {
+        localStorage.setItem('coderkids_onet69_set_results', JSON.stringify(generatedProfile.setResults));
+      } catch {}
+    }
+  };
+
+  const selectedHistorySetStat =
+    activeStudentDiagnostic.historicalSetSeries.find((s) => s.setId === selectedHistorySetId) ||
+    activeStudentDiagnostic.historicalSetSeries[0];
+
+  // 6-Axis Subject Strength Radar Chart geometry
+  const radarSize = 280;
+  const radarCenter = radarSize / 2;
+  const radarMaxRadius = 92;
+  const radarAngleStep = (Math.PI * 2) / activeStudentDiagnostic.categoryStats.length;
+
+  const getRadarPoint = (valPercent: number, idx: number) => {
+    const angle = idx * radarAngleStep - Math.PI / 2;
+    const r = (Math.max(0, Math.min(100, valPercent)) / 100) * radarMaxRadius;
+    return {
+      x: radarCenter + r * Math.cos(angle),
+      y: radarCenter + r * Math.sin(angle),
+    };
+  };
+
+  const studentRadarPolygon = activeStudentDiagnostic.categoryStats
+    .map((cat, idx) => {
+      const pt = getRadarPoint(cat.accuracy ?? 0, idx);
+      return `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+    })
+    .join(' ');
+
+  const benchmarkRadarPolygon = activeStudentDiagnostic.categoryStats
+    .map((_, idx) => {
+      const pt = getRadarPoint(75, idx);
+      return `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+    })
+    .join(' ');
+
+  const sortedCategoriesByAccuracy = [...activeStudentDiagnostic.categoryStats]
+    .filter((c) => c.accuracy !== null)
+    .sort((a, b) => (b.accuracy ?? 0) - (a.accuracy ?? 0));
+  const strongestCategory = sortedCategoriesByAccuracy[0] || null;
+  const weakestCategory =
+    sortedCategoriesByAccuracy.length > 1
+      ? sortedCategoriesByAccuracy[sortedCategoriesByAccuracy.length - 1]
+      : null;
 
   const score = calculateScore();
   const points50 = score * 5;
@@ -3755,6 +4035,653 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                     ? 'ยอดเยี่ยม! ยังไม่พบจุดวิกฤต'
                     : 'รอข้อมูลผลสอบชุดแรก'}
                 </div>
+              </div>
+            </div>
+
+            {/* HISTORICAL SCORE (SETS 1-10) & SUBJECT STRENGTH ANALYTICS CHARTS */}
+            <div className="p-5 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-slate-800 shadow-xs space-y-5">
+              {/* Top Header & View Switcher */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                    <TrendingUp className="w-4 h-4" />
+                    <span>HISTORICAL SCORE &amp; SUBJECT STRENGTH ANALYTICS (ชุดที่ 1–10)</span>
+                  </div>
+                  <h5 className="font-black text-base sm:text-lg text-slate-900 dark:text-white">
+                    กราฟดึงผลคะแนนย้อนหลัง ชุดที่ 1–10 &amp; วิเคราะห์จุดแข็งรายวิชา ({activeStudentDiagnostic.studentName})
+                  </h5>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    เปรียบเทียบสมรรถนะระหว่าง <strong>การคิดเชิงคำนวณ &amp; โค้ดดิ้ง</strong> กับ <strong>ความปลอดภัยดิจิทัล &amp; สารสนเทศ</strong> จากประวัติการทำข้อสอบทั้ง 10 ชุด
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Chart Mode Tabs */}
+                  <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <button
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setChartVisualMode('split');
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                        chartVisualMode === 'split'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      🔀 ดูครบทั้ง 2 กราฟ
+                    </button>
+                    <button
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setChartVisualMode('trend');
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                        chartVisualMode === 'trend'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      📊 กราฟย้อนหลัง ชุดที่ 1–10
+                    </button>
+                    <button
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setChartVisualMode('radar');
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all ${
+                        chartVisualMode === 'radar'
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      🕸️ เรดาร์จุดแข็ง 6 หมวดวิชา
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Pull/Simulate 10-Set History Bar (for easy testing or loading full 10-set records) */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="text-xs text-slate-600 dark:text-slate-300">
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    📥 ดึงข้อมูลผลสอบย้อนหลัง ชุดที่ 1–10 ({activeStudentDiagnostic.completedSetsCount}/10 ชุด):
+                  </span>{' '}
+                  ระบบดึงคะแนนจริงจากการทำข้อสอบอัตโนมัติ หรือกดดึงข้อมูลตัวอย่างครบ 10 ชุดเพื่อทดสอบกราฟเปรียบเทียบจุดแข็งรายวิชาได้ทันที
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={() => handleApplyHistoricalArchetype('comp_thinking_strong')}
+                    className="px-2.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[11px] font-bold cursor-pointer transition-all"
+                  >
+                    ⚡ จำลองผล 10 ชุด (เด่นคิดเชิงคำนวณ)
+                  </button>
+                  <button
+                    onClick={() => handleApplyHistoricalArchetype('digital_safety_strong')}
+                    className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold cursor-pointer transition-all"
+                  >
+                    🛡️ จำลองผล 10 ชุด (เด่นความปลอดภัยดิจิทัล)
+                  </button>
+                  <button
+                    onClick={() => handleApplyHistoricalArchetype('balanced_progressive')}
+                    className="px-2.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/80 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[11px] font-bold cursor-pointer transition-all"
+                  >
+                    📈 จำลองผล 10 ชุด (พัฒนาการก้าวกระโดด)
+                  </button>
+                </div>
+              </div>
+
+              {/* HEAD-TO-HEAD SUBJECT TRACK COMPARISON: COMPUTATIONAL THINKING VS DIGITAL SAFETY */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-50/70 via-white to-emerald-50/70 dark:from-slate-800/90 dark:via-slate-900 dark:to-slate-800/90 border border-slate-200 dark:border-slate-700 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>⚖️ เปรียบเทียบจุดแข็งรายวิชาหลัก: การคิดเชิงคำนวณ &amp; โค้ดดิ้ง VS ความปลอดภัยดิจิทัล &amp; สารสนเทศ</span>
+                  </div>
+                  <span
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
+                      activeStudentDiagnostic.domainComparison.dominantDomain === 'comp_thinking'
+                        ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700'
+                        : activeStudentDiagnostic.domainComparison.dominantDomain === 'digital_safety'
+                        ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                        : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700'
+                    }`}
+                  >
+                    {activeStudentDiagnostic.domainComparison.verdictTitle}
+                  </span>
+                </div>
+
+                {/* Two Subject Domain Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Track 1: Computational Thinking & Coding */}
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800/70 space-y-2.5 shadow-2xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-sm font-bold">
+                          🧠
+                        </span>
+                        <div>
+                          <div className="text-xs font-black text-indigo-900 dark:text-indigo-300">
+                            การคิดเชิงคำนวณ &amp; การเขียนโปรแกรม
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            ตรรกะอัลกอริทึม • Scratch • Micro:bit • Debugging
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-black text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">
+                          {activeStudentDiagnostic.domainComparison.compThinking.accuracy}%
+                        </div>
+                        <div className="text-[10px] font-bold text-slate-500 tabular-nums">
+                          ถูก {activeStudentDiagnostic.domainComparison.compThinking.correct}/
+                          {activeStudentDiagnostic.domainComparison.compThinking.attempted} ข้อ (
+                          {activeStudentDiagnostic.domainComparison.compThinking.pointsEarned} คะแนน)
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-600 transition-all duration-500"
+                        style={{ width: `${activeStudentDiagnostic.domainComparison.compThinking.accuracy}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Track 2: Digital Safety & Information Literacy */}
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/70 space-y-2.5 shadow-2xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-sm font-bold">
+                          🛡️
+                        </span>
+                        <div>
+                          <div className="text-xs font-black text-emerald-900 dark:text-emerald-300">
+                            ความปลอดภัยดิจิทัล &amp; การรู้เท่าทันสารสนเทศ
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Cybersecurity • PDPA • Fake News • สุขภาพดิจิทัล &amp; ข้อมูล
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono tabular-nums">
+                          {activeStudentDiagnostic.domainComparison.digitalSafety.accuracy}%
+                        </div>
+                        <div className="text-[10px] font-bold text-slate-500 tabular-nums">
+                          ถูก {activeStudentDiagnostic.domainComparison.digitalSafety.correct}/
+                          {activeStudentDiagnostic.domainComparison.digitalSafety.attempted} ข้อ (
+                          {activeStudentDiagnostic.domainComparison.digitalSafety.pointsEarned} คะแนน)
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-full h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 transition-all duration-500"
+                        style={{ width: `${activeStudentDiagnostic.domainComparison.digitalSafety.accuracy}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Head-to-Head Balance Ratio Bar & Insight */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-indigo-700 dark:text-indigo-300">
+                      🧠 สัดส่วนความถนัดด้านการคิดเชิงคำนวณ ({activeStudentDiagnostic.domainComparison.compThinking.accuracy}%)
+                    </span>
+                    <span className="text-emerald-700 dark:text-emerald-300">
+                      🛡️ สัดส่วนความถนัดด้านความปลอดภัยดิจิทัล ({activeStudentDiagnostic.domainComparison.digitalSafety.accuracy}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-3.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex">
+                    {(() => {
+                      const compVal = activeStudentDiagnostic.domainComparison.compThinking.accuracy;
+                      const safeVal = activeStudentDiagnostic.domainComparison.digitalSafety.accuracy;
+                      const sum = compVal + safeVal;
+                      const compRatio = sum > 0 ? Math.round((compVal / sum) * 100) : 50;
+                      const safeRatio = 100 - compRatio;
+                      return (
+                        <>
+                          <div
+                            className="h-full bg-indigo-600 transition-all duration-500"
+                            style={{ width: `${compRatio}%` }}
+                          />
+                          <div
+                            className="h-full bg-emerald-500 transition-all duration-500"
+                            style={{ width: `${safeRatio}%` }}
+                          />
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-slate-200/70 dark:border-slate-800">
+                    <strong>💡 สรุปการวิเคราะห์เปรียบเทียบรายวิชา:</strong>{' '}
+                    {activeStudentDiagnostic.domainComparison.verdictDetail}
+                  </p>
+                </div>
+              </div>
+
+              {/* MAIN INTERACTIVE CHARTS GRID (10-SET HISTORICAL TREND + 6-AXIS SUBJECT RADAR) */}
+              <div
+                className={`grid grid-cols-1 ${
+                  chartVisualMode === 'split' ? ' lg:grid-cols-12' : ''
+                } gap-5 items-start`}
+              >
+                {/* CHART 1: HISTORICAL SCORE TREND ACROSS SETS 1-10 */}
+                {(chartVisualMode === 'split' || chartVisualMode === 'trend') && (
+                  <div
+                    className={`${
+                      chartVisualMode === 'split' ? 'lg:col-span-7' : 'col-span-1'
+                    } p-4 sm:p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-4`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h6 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <span>📊 กราฟผลคะแนนย้อนหลังรายชุด (ชุดที่ 1 – ชุดที่ 10) แยกตามจุดแข็งรายวิชา</span>
+                        </h6>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          คลิกที่แท่งกราฟชุดที่ 1–10 เพื่อเจาะลึกคะแนนรายวิชาและข้อที่ตอบผิดในชุดนั้น
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold">
+                        <span className="flex items-center gap-1 text-indigo-700 dark:text-indigo-300">
+                          <span className="w-2.5 h-2.5 rounded-xs bg-indigo-600 inline-block" /> คิดเชิงคำนวณ
+                        </span>
+                        <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
+                          <span className="w-2.5 h-2.5 rounded-xs bg-emerald-500 inline-block" /> ความปลอดภัยดิจิทัล
+                        </span>
+                        <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> คะแนนรวม (%)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* SVG 10-Set Combo Bar & Line Chart */}
+                    <div className="w-full overflow-x-auto">
+                      <svg
+                        viewBox="0 0 680 235"
+                        className="w-full min-w-[540px] h-auto select-none"
+                        role="img"
+                        aria-label="กราฟผลคะแนนย้อนหลังชุดที่ 1 ถึง 10"
+                      >
+                        {/* Horizontal Grid Lines (0%, 25%, 50%, 75%, 100%) */}
+                        {[0, 25, 50, 75, 100].map((tick) => {
+                          const y = 185 - (tick / 100) * 150;
+                          const isBenchmark = tick === 75;
+                          return (
+                            <g key={tick}>
+                              <line
+                                x1={42}
+                                y1={y}
+                                x2={662}
+                                y2={y}
+                                stroke={isBenchmark ? '#f59e0b' : '#cbd5e1'}
+                                strokeWidth={isBenchmark ? 1.5 : 0.8}
+                                strokeDasharray={isBenchmark ? '4 4' : tick === 0 ? undefined : '2 3'}
+                                opacity={isBenchmark ? 0.85 : 0.6}
+                              />
+                              <text
+                                x={36}
+                                y={y + 4}
+                                textAnchor="end"
+                                className="text-[10px] fill-slate-500 font-mono"
+                              >
+                                {tick}%
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Bars for Each Exam Set (Sets 1 to 10) */}
+                        {activeStudentDiagnostic.historicalSetSeries.map((item, idx) => {
+                          const groupX = 52 + idx * 61;
+                          const isSelectedSet = item.setId === selectedHistorySetId;
+                          const compVal = item.compPercent ?? 0;
+                          const safeVal = item.safetyPercent ?? 0;
+                          const compHeight = (compVal / 100) * 150;
+                          const safeHeight = (safeVal / 100) * 150;
+                          const compY = 185 - compHeight;
+                          const safeY = 185 - safeHeight;
+
+                          return (
+                            <g
+                              key={item.setId}
+                              onClick={() => {
+                                soundEffects.playClick();
+                                setSelectedHistorySetId(item.setId);
+                              }}
+                              className="cursor-pointer"
+                            >
+                              {/* Selection Highlight Background */}
+                              <rect
+                                x={groupX - 6}
+                                y={22}
+                                width={48}
+                                height={192}
+                                rx={8}
+                                fill={isSelectedSet ? 'rgba(99, 102, 241, 0.12)' : 'transparent'}
+                                stroke={isSelectedSet ? '#6366f1' : 'transparent'}
+                                strokeWidth={1.2}
+                              />
+
+                              {/* Bar 1: Computational Thinking % in this set */}
+                              {item.compTotal > 0 && (
+                                <rect
+                                  x={groupX}
+                                  y={item.isCompleted ? compY : 181}
+                                  width={16}
+                                  height={item.isCompleted ? Math.max(4, compHeight) : 4}
+                                  rx={3}
+                                  fill={item.isCompleted ? '#4f46e5' : '#cbd5e1'}
+                                />
+                              )}
+
+                              {/* Bar 2: Digital Safety % in this set */}
+                              {item.safetyTotal > 0 && (
+                                <rect
+                                  x={groupX + 19}
+                                  y={item.isCompleted ? safeY : 181}
+                                  width={16}
+                                  height={item.isCompleted ? Math.max(4, safeHeight) : 4}
+                                  rx={3}
+                                  fill={item.isCompleted ? '#10b981' : '#cbd5e1'}
+                                />
+                              )}
+
+                              {/* X-Axis Set Label */}
+                              <text
+                                x={groupX + 18}
+                                y={202}
+                                textAnchor="middle"
+                                className={`text-[10px] font-bold ${
+                                  isSelectedSet ? 'fill-indigo-600' : 'fill-slate-600'
+                                }`}
+                              >
+                                ชุดที่ {item.setNumber}
+                              </text>
+
+                              {/* Score Badge under label */}
+                              <text
+                                x={groupX + 18}
+                                y={215}
+                                textAnchor="middle"
+                                className="text-[9px] fill-slate-500 font-mono"
+                              >
+                                {item.isCompleted ? `${item.points50}/50` : '-'}
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Overall Set Score Trend Line & Points */}
+                        {(() => {
+                          const completedPoints = activeStudentDiagnostic.historicalSetSeries
+                            .map((item, idx) => {
+                              if (!item.isCompleted) return null;
+                              const cx = 52 + idx * 61 + 18;
+                              const cy = 185 - (item.percent / 100) * 150;
+                              return { cx, cy, percent: item.percent, setId: item.setId };
+                            })
+                            .filter(
+                              (pt): pt is { cx: number; cy: number; percent: number; setId: typeof selectedSetId } =>
+                                Boolean(pt)
+                            );
+
+                          if (completedPoints.length === 0) return null;
+
+                          const polylinePoints = completedPoints.map((p) => `${p.cx},${p.cy}`).join(' ');
+
+                          return (
+                            <g>
+                              {completedPoints.length > 1 && (
+                                <polyline
+                                  fill="none"
+                                  stroke="#f59e0b"
+                                  strokeWidth={2.5}
+                                  points={polylinePoints}
+                                />
+                              )}
+                              {completedPoints.map((pt) => (
+                                <g key={pt.setId}>
+                                  <circle
+                                    cx={pt.cx}
+                                    cy={pt.cy}
+                                    r={4.5}
+                                    fill="#ffffff"
+                                    stroke="#d97706"
+                                    strokeWidth={2.5}
+                                  />
+                                  <text
+                                    x={pt.cx}
+                                    y={Math.max(15, pt.cy - 8)}
+                                    textAnchor="middle"
+                                    className="text-[9px] font-black fill-amber-700 font-mono"
+                                  >
+                                    {pt.percent}%
+                                  </text>
+                                </g>
+                              ))}
+                            </g>
+                          );
+                        })()}
+                      </svg>
+                    </div>
+
+                    {/* Selected Set Historical Breakdown Inspector */}
+                    {selectedHistorySetStat && (
+                      <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-slate-700 space-y-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white text-xs font-bold">
+                              เจาะลึกผลสอบย้อนหลัง: ชุดที่ {selectedHistorySetStat.setNumber}
+                            </span>
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                              {selectedHistorySetStat.title.split(':')[1] || selectedHistorySetStat.title}
+                            </span>
+                          </div>
+                          <span className="text-xs font-mono font-black text-indigo-600 dark:text-indigo-400">
+                            {selectedHistorySetStat.isCompleted
+                              ? `ได้ ${selectedHistorySetStat.score10}/10 ข้อ (${selectedHistorySetStat.points50}/50 คะแนน • ${selectedHistorySetStat.percent}%)`
+                              : 'ยังไม่มีประวัติการทำชุดนี้'}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                          <div className="p-2.5 rounded-lg bg-indigo-50/70 dark:bg-slate-800 border border-indigo-100 dark:border-slate-700 flex items-center justify-between">
+                            <span className="font-semibold text-indigo-900 dark:text-indigo-300">
+                              🧠 พาร์ทการคิดเชิงคำนวณในชุดนี้:
+                            </span>
+                            <span className="font-mono font-black text-indigo-700 dark:text-indigo-300">
+                              {selectedHistorySetStat.compTotal > 0
+                                ? `${selectedHistorySetStat.compCorrect}/${selectedHistorySetStat.compTotal} ข้อ (${
+                                    selectedHistorySetStat.compPercent ?? 0
+                                  }%)`
+                                : 'ไม่มีในชุดนี้'}
+                            </span>
+                          </div>
+                          <div className="p-2.5 rounded-lg bg-emerald-50/70 dark:bg-slate-800 border border-emerald-100 dark:border-slate-700 flex items-center justify-between">
+                            <span className="font-semibold text-emerald-900 dark:text-emerald-300">
+                              🛡️ พาร์ทความปลอดภัยดิจิทัลในชุดนี้:
+                            </span>
+                            <span className="font-mono font-black text-emerald-700 dark:text-emerald-300">
+                              {selectedHistorySetStat.safetyTotal > 0
+                                ? `${selectedHistorySetStat.safetyCorrect}/${selectedHistorySetStat.safetyTotal} ข้อ (${
+                                    selectedHistorySetStat.safetyPercent ?? 0
+                                  }%)`
+                                : 'ไม่มีในชุดนี้'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {selectedHistorySetStat.wrongQuestionsInSet.length > 0
+                              ? `พบข้อที่ตอบผิดในชุดนี้ ${selectedHistorySetStat.wrongQuestionsInSet.length} ข้อ (สามารถกดฝึกซ่อมเสริมเฉพาะข้อที่ผิดได้ทันที)`
+                              : selectedHistorySetStat.isCompleted
+                              ? '🌟 ยอดเยี่ยม! ตอบถูกครบทุกข้อในชุดนี้'
+                              : 'กดเริ่มทำข้อสอบชุดนี้เพื่อบันทึกคะแนนลงกราฟ'}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {selectedHistorySetStat.wrongQuestionsInSet.length > 0 && (
+                              <button
+                                onClick={() =>
+                                  handleStartRemedialQuiz(
+                                    selectedHistorySetStat.wrongQuestionsInSet,
+                                    `ซ่อมเสริมข้อที่ผิดจากชุดที่ ${selectedHistorySetStat.setNumber}`
+                                  )
+                                }
+                                className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold cursor-pointer"
+                              >
+                                🎯 ซ่อมข้อที่ผิดชุดที่ {selectedHistorySetStat.setNumber}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleStartSet(selectedHistorySetStat.setId)}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold cursor-pointer"
+                            >
+                              {selectedHistorySetStat.isCompleted
+                                ? `ทำชุดที่ ${selectedHistorySetStat.setNumber} อีกครั้ง`
+                                : `เริ่มทำชุดที่ ${selectedHistorySetStat.setNumber}`}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* CHART 2: 6-AXIS SUBJECT STRENGTH RADAR CHART */}
+                {(chartVisualMode === 'split' || chartVisualMode === 'radar') && (
+                  <div
+                    className={`${
+                      chartVisualMode === 'split' ? 'lg:col-span-5' : 'col-span-1'
+                    } p-4 sm:p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-4`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <h6 className="font-black text-sm text-slate-900 dark:text-white">
+                          🕸️ กราฟเรดาร์จุดแข็ง 6 หมวดวิชาย่อย
+                        </h6>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          เทียบคะแนนจริงของนักเรียน (สีคราม) กับเกณฑ์มาตรฐาน O-NET 75% (เส้นประสีทอง)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center">
+                      <svg
+                        viewBox={`0 0 ${radarSize} ${radarSize}`}
+                        className="w-full max-w-[270px] h-auto select-none"
+                        role="img"
+                        aria-label="กราฟเรดาร์วิเคราะห์จุดแข็ง 6 หมวดวิชา"
+                      >
+                        {/* Concentric Hexagons (25%, 50%, 75%, 100%) */}
+                        {[25, 50, 75, 100].map((lvl) => {
+                          const ringPoints = activeStudentDiagnostic.categoryStats
+                            .map((_, idx) => {
+                              const pt = getRadarPoint(lvl, idx);
+                              return `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+                            })
+                            .join(' ');
+                          return (
+                            <polygon
+                              key={lvl}
+                              points={ringPoints}
+                              fill="none"
+                              stroke={lvl === 75 ? '#f59e0b' : '#cbd5e1'}
+                              strokeWidth={lvl === 75 ? 1.5 : 0.9}
+                              strokeDasharray={lvl === 75 ? '3 3' : undefined}
+                            />
+                          );
+                        })}
+
+                        {/* Axis Spokes & Labels */}
+                        {activeStudentDiagnostic.categoryStats.map((cat, idx) => {
+                          const outerPt = getRadarPoint(100, idx);
+                          const labelPt = getRadarPoint(123, idx);
+                          return (
+                            <g key={cat.category}>
+                              <line
+                                x1={radarCenter}
+                                y1={radarCenter}
+                                x2={outerPt.x}
+                                y2={outerPt.y}
+                                stroke="#cbd5e1"
+                                strokeWidth={0.9}
+                              />
+                              <text
+                                x={labelPt.x}
+                                y={labelPt.y}
+                                textAnchor="middle"
+                                dominantBaseline="middle"
+                                className="text-[9.5px] font-bold fill-slate-700"
+                              >
+                                {cat.meta.shortLabel} ({cat.accuracy ?? 0}%)
+                              </text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Benchmark 75% Polygon */}
+                        <polygon
+                          points={benchmarkRadarPolygon}
+                          fill="rgba(245, 158, 11, 0.08)"
+                          stroke="#f59e0b"
+                          strokeWidth={1.5}
+                          strokeDasharray="4 3"
+                        />
+
+                        {/* Student Historical Accuracy Polygon */}
+                        <polygon
+                          points={studentRadarPolygon}
+                          fill="rgba(79, 70, 229, 0.28)"
+                          stroke="#4f46e5"
+                          strokeWidth={2.5}
+                        />
+
+                        {/* Data Nodes on Student Polygon */}
+                        {activeStudentDiagnostic.categoryStats.map((cat, idx) => {
+                          const pt = getRadarPoint(cat.accuracy ?? 0, idx);
+                          return (
+                            <circle
+                              key={cat.category}
+                              cx={pt.x}
+                              cy={pt.y}
+                              r={4}
+                              fill="#4f46e5"
+                              stroke="#ffffff"
+                              strokeWidth={1.5}
+                            />
+                          );
+                        })}
+                      </svg>
+                    </div>
+
+                    {/* Top Strongest vs Weakest Subject Summary */}
+                    <div className="space-y-2 text-xs">
+                      <div className="p-2.5 rounded-xl bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/70 flex items-center justify-between gap-2">
+                        <span className="font-bold text-emerald-900 dark:text-emerald-300">
+                          🏆 หมวดวิชาที่แข็งแกร่งที่สุด:
+                        </span>
+                        <span className="font-black text-emerald-700 dark:text-emerald-300">
+                          {strongestCategory
+                            ? `${strongestCategory.meta.icon} ${strongestCategory.meta.shortLabel} (${strongestCategory.accuracy}%)`
+                            : 'รอข้อมูลผลสอบ'}
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-rose-50/90 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/70 flex items-center justify-between gap-2">
+                        <span className="font-bold text-rose-900 dark:text-rose-300">
+                          🎯 หมวดวิชาที่ควรเร่งเสริม:
+                        </span>
+                        <span className="font-black text-rose-700 dark:text-rose-300">
+                          {weakestCategory
+                            ? `${weakestCategory.meta.icon} ${weakestCategory.meta.shortLabel} (${weakestCategory.accuracy}%)`
+                            : 'รอข้อมูลผลสอบ'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
