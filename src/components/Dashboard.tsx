@@ -43,6 +43,7 @@ import { PersonalizedLearningMap } from './PersonalizedLearningMap.tsx';
 import { DailyLearningActivityStreakChart } from './DailyLearningActivityStreakChart.tsx';
 import { VisualSyllabusOverview } from './VisualSyllabusOverview.tsx';
 import { PointsSummaryCard } from './PointsSummaryCard.tsx';
+import { TeacherRealtimeNotificationPanel } from './TeacherRealtimeNotificationPanel.tsx';
 import { INITIAL_LEADERBOARD, QUICK_GOAL_SUGGESTIONS } from '../data/learningData.ts';
 import { UserProfile, TodayLearningGoal, PointTransaction } from '../types/index.ts';
 import { TARGET_SPREADSHEET_ID, syncAllToGoogleSheet } from '../services/googleSheetsService.ts';
@@ -827,6 +828,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </button>
                 )}
 
+                {/* O-NET & IPST Exam Arena (10 Sets x 10 Questions) */}
+                {onOpenExamArena && (
+                  <button
+                    type="button"
+                    onClick={onOpenExamArena}
+                    className="p-3.5 rounded-2xl bg-amber-50/70 dark:bg-amber-950/30 hover:bg-amber-100/80 dark:hover:bg-amber-950/50 border border-amber-200 dark:border-amber-800/70 hover:border-amber-400 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                      <Award className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white">คลังข้อสอบ O-NET 🏆</div>
+                    <div className="text-[11px] text-amber-700 dark:text-amber-300 font-semibold mt-0.5">10 ชุด (100 ข้อ) ผังปี 69</div>
+                  </button>
+                )}
+
                 {/* Smart Exam */}
                 {onOpenSmartExam && (
                   <button
@@ -1547,6 +1563,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
               ระบบสนับสนุนการจัดการเรียนรู้ การวัดผลประเมินผล และเอกสารราชการ
             </div>
           </div>
+
+          {/* Real-time Notification Center (Google Sheets Sync Monitor for Teachers) */}
+          <TeacherRealtimeNotificationPanel
+            profile={profile}
+            profiles={profiles}
+            isAdmin={isAdmin}
+            onNavigate={onNavigate}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* PorPor5 Mastery Hub */}

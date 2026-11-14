@@ -983,9 +983,9 @@ export const Header: React.FC<HeaderProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between text-amber-700 dark:text-amber-300">
                             <span>คลังข้อสอบ O-NET &amp; สสวท. ป.6</span>
-                            <span className="text-[10px] bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.2 rounded font-mono font-bold">15 นาที</span>
+                            <span className="text-[10px] bg-amber-100 dark:bg-amber-900/60 px-1.5 py-0.2 rounded font-mono font-bold">10 ชุด (100 ข้อ)</span>
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">10 ข้อจับเวลา + วิเคราะห์สมรรถนะ</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ผัง O-NET 69 • 10 ชุด ชุดละ 10 ข้อ + วิเคราะห์ตัวชี้วัด</div>
                         </div>
                       </button>
                     )}
@@ -1906,8 +1906,8 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenExamArena)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
                   >
-                    <span>🏆 คลังข้อสอบ O-NET &amp; สสวท. ป.6 (15 นาที)</span>
-                    <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded font-mono">10 ข้อ</span>
+                    <span>🏆 คลังข้อสอบ O-NET &amp; สสวท. ป.6 (ผังปี 69)</span>
+                    <span className="text-[10px] bg-amber-200 dark:bg-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">10 ชุด (100 ข้อ)</span>
                   </button>
                 )}
                 {onOpenDigitalPassport && (

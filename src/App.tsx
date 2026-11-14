@@ -109,6 +109,7 @@ import {
   checkIsTeacherAdmin,
   getAdminProfileData,
   recordStudentLoginToGoogleSheet,
+  saveProfileToGoogleSheet,
   syncAllToGoogleSheet,
   auth,
   initAuth,
@@ -1016,6 +1017,67 @@ export default function App() {
       }, 500);
     }
 
+    // 3. Real-time Notification Broadcast & Automatic Google Sheets Sync
+    if (amount > 0) {
+      const completedCountNow = Object.values(moduleProgress).filter(Boolean).length;
+      const isModuleCompletionReason = reason.includes('สำเร็จการเรียนรู้โมดูล:');
+      const eventPayload = {
+        id: `rt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        studentId: profile.studentId || '10241',
+        studentName: profile.name,
+        grade: profile.grade || 'ป.4/1',
+        school: profile.school || 'โรงเรียนอนุบาลนราธิวาส',
+        avatarEmoji: profile.avatarEmoji || '🐱',
+        eventType: isModuleCompletionReason ? 'module_complete' : 'mission_complete',
+        title: isModuleCompletionReason ? `🎉 ${reason}` : `⚡ สำเร็จภารกิจ: ${reason}`,
+        detail: `${profile.name} (${profile.grade || 'ป.4/1'}) ได้รับ +${amount} XP (สะสมรวม ${newTotal} XP • ผ่านแล้ว ${completedCountNow}/4 โมดูล)`,
+        moduleOrCategory: category,
+        pointsEarned: amount,
+        totalPoints: newTotal,
+        completedModulesText: `${completedCountNow}/4`,
+        timestampThai: new Date().toLocaleTimeString('th-TH', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }),
+        timestampMs: Date.now(),
+        read: false,
+        source: 'live_event',
+      };
+
+      try {
+        window.dispatchEvent(new CustomEvent('coderkids:student-achievement', { detail: eventPayload }));
+      } catch {}
+
+      try {
+        if (typeof BroadcastChannel !== 'undefined') {
+          const bc = new BroadcastChannel('coderkids_realtime_sync');
+          bc.postMessage({ type: 'STUDENT_ACHIEVEMENT', payload: eventPayload });
+          bc.close();
+        }
+      } catch {}
+
+      // Background sync to Google Sheet (Logs & Students tabs) so Teacher's Dashboard sheet monitor detects it immediately
+      if (localStorage.getItem('coderkids_sync_to_sheets') !== 'nosync' && !isModuleCompletionReason) {
+        const activeEmail = auth.currentUser?.email || profile.contactEmail || '';
+        recordStudentLoginToGoogleSheet(
+          TARGET_SPREADSHEET_ID,
+          profile,
+          activeEmail,
+          `สำเร็จภารกิจ: ${reason} (+${amount} XP)`,
+          category
+        ).catch(() => {});
+        saveProfileToGoogleSheet(
+          TARGET_SPREADSHEET_ID,
+          profile,
+          newTotal,
+          completedCountNow,
+          badges,
+          activeEmail
+        ).catch(() => {});
+      }
+    }
+
     return true;
   };
 
@@ -1123,6 +1185,28 @@ export default function App() {
             nextStepTitle: meta.nextTitle,
             nextStepModule: meta.next,
           });
+        }
+
+        // Sync completed module status immediately to Google Sheet (Students & Logs tabs)
+        if (localStorage.getItem('coderkids_sync_to_sheets') !== 'nosync') {
+          const newCompletedCount = Object.values(updated).filter(Boolean).length;
+          const activeEmail = auth.currentUser?.email || profile.contactEmail || '';
+          const moduleTitleLabel = meta ? meta.title.replace('🎉 ', '') : `ผ่านโมดูล ${moduleKey} สำเร็จ`;
+          recordStudentLoginToGoogleSheet(
+            TARGET_SPREADSHEET_ID,
+            profile,
+            activeEmail,
+            `${moduleTitleLabel} (+50 XP | สะสม ${newCompletedCount}/4 โมดูล)`,
+            moduleKey
+          ).catch(() => {});
+          saveProfileToGoogleSheet(
+            TARGET_SPREADSHEET_ID,
+            profile,
+            points + 50,
+            newCompletedCount,
+            badges,
+            activeEmail
+          ).catch(() => {});
         }
       }
 
