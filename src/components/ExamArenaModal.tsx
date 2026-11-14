@@ -19,6 +19,13 @@ import {
   Code2,
   Cpu,
   HelpCircle,
+  TrendingUp,
+  AlertTriangle,
+  UserCheck,
+  Lightbulb,
+  BarChart3,
+  GraduationCap,
+  PlayCircle,
 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects.ts';
 import confetti from 'canvas-confetti';
@@ -2548,6 +2555,300 @@ export const ONET_EXAM_SETS: ExamSetMeta[] = [
   },
 ];
 
+export const ALL_ONET_QUESTIONS: ExamQuestion[] = ONET_EXAM_SETS.flatMap((s) => s.questions);
+
+export interface ReviewLessonItem {
+  indicator: string;
+  grade: string;
+  isMustKnow: boolean;
+  title: string;
+  category: ExamQuestion['category'];
+  categoryName: string;
+  summary: string;
+  keyConcepts: string[];
+  visualCheatSheet: string;
+  commonMistake: string;
+  examProTip: string;
+  recommendedSets: string;
+}
+
+export const CATEGORY_DIAGNOSTIC_META: Record<
+  ExamQuestion['category'],
+  { label: string; shortLabel: string; icon: string; colorClass: string; barClass: string }
+> = {
+  thinking: {
+    label: 'การใช้เหตุผลเชิงตรรกะและอัลกอริทึมแก้ปัญหา',
+    shortLabel: 'เหตุผลเชิงตรรกะ',
+    icon: '🧩',
+    colorClass: 'text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800',
+    barClass: 'bg-indigo-600',
+  },
+  coding: {
+    label: 'การเขียนโปรแกรม Scratch & เซนเซอร์ Micro:bit',
+    shortLabel: 'การเขียนโค้ด',
+    icon: '💻',
+    colorClass: 'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-950/60 border-violet-200 dark:border-violet-800',
+    barClass: 'bg-violet-600',
+  },
+  debugging: {
+    label: 'การตรวจหาและแก้ไขข้อผิดพลาดของโปรแกรม (Debugging)',
+    shortLabel: 'การหาข้อผิดพลาด',
+    icon: '🐞',
+    colorClass: 'text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800',
+    barClass: 'bg-amber-500',
+  },
+  data: {
+    label: 'การรวบรวม ประมวลผล และวิเคราะห์ข้อมูลสารสนเทศ',
+    shortLabel: 'ข้อมูลสารสนเทศ',
+    icon: '📊',
+    colorClass: 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800',
+    barClass: 'bg-emerald-600',
+  },
+  search: {
+    label: 'การค้นหาข้อมูลขั้นสูงและการตรวจสอบข่าวปลอม (Fake News)',
+    shortLabel: 'การค้นหา & ข่าวปลอม',
+    icon: '🔍',
+    colorClass: 'text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-800',
+    barClass: 'bg-sky-600',
+  },
+  safety: {
+    label: 'ความปลอดภัยไซเบอร์ PDPA จริยธรรม และสุขภาพดิจิทัล',
+    shortLabel: 'ความปลอดภัย & สุขภาพ',
+    icon: '🛡️',
+    colorClass: 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800',
+    barClass: 'bg-rose-600',
+  },
+};
+
+export const REVIEW_LESSONS_BY_INDICATOR: ReviewLessonItem[] = [
+  {
+    indicator: 'ว 4.2 ป.4/1',
+    grade: 'ป.4',
+    isMustKnow: true,
+    title: 'บททบทวนที่ 1: เหตุผลเชิงตรรกะ สถานะเริ่มต้น & การสื่อสารระหว่างตัวละคร',
+    category: 'thinking',
+    categoryName: 'การใช้เหตุผลเชิงตรรกะและอัลกอริทึม',
+    summary:
+      'การใช้กฎเกณฑ์หรือเงื่อนไขที่ครอบคลุมทุกกรณีมาวิเคราะห์ปัญหา โดยต้องระลึกเสมอว่า "สถานะเริ่มต้นที่ต่างกัน ย่อมให้ผลลัพธ์สุดท้ายที่ต่างกัน"',
+    keyConcepts: [
+      'วิเคราะห์สถานะเริ่มต้น (Initial State) ก่อนเสมอ เช่น ตำแหน่งตัวละครเริ่มต้น ค่าตัวแปรเริ่มต้น หรือตาเดินบนกระดาน OX',
+      'ไล่เรียงตามกฎหรือเงื่อนไขทีละขั้นตอน (Step-by-step) โดยไม่ข้ามขั้น',
+      'กรณีตัวละครส่งสารสื่อสารกันเป็นทอดๆ (Broadcast Chain) ให้ไล่ตามลำดับตัวที่รับสารและบวก/ลบค่าตัวแปรตามจริง',
+    ],
+    visualCheatSheet:
+      '📌 สูตรลัดการไล่สถานะเริ่มต้น & การส่งสารเป็นทอดๆ:\n[สถานะเริ่มต้น: Status = 0]\n  └─> ตัวละคร A ส่งสาร [ขั้นที่ 1] (ตั้งค่า Status = 10)\n        └─> ตัวละคร B รับสาร [ขั้นที่ 1] -> เปลี่ยนค่า Status +15 (รวมเป็น 25)\n              └─> ตัวละคร C รับสาร [ขั้นที่ 2] -> เปลี่ยนค่า Status +5 (รวมเป็น 30)',
+    commonMistake:
+      'นักเรียนมักลืมดู "ค่าเริ่มต้น" หรือ "ทิศทางเริ่มต้น" ของตัวละคร ทำให้บวกค่าตัวแปรหรือเลี้ยวซ้าย-ขวาผิดทิศ',
+    examProTip:
+      'เขียนตารางทดสั้นๆ ระบุ "ก่อนทำ -> คำสั่ง -> หลังทำ" ทุกครั้งที่โจทย์ถามผลลัพธ์สุดท้าย',
+    recommendedSets: 'ชุดที่ 1 (ข้อ 1–3), ชุดที่ 4 (ข้อ 3, 9) & ชุดที่ 9 (ข้อ 2)',
+  },
+  {
+    indicator: 'ว 4.2 ป.4/2',
+    grade: 'ป.4',
+    isMustKnow: false,
+    title: 'บททบทวนที่ 2: การออกแบบโปรแกรม (Storyboard) & การตรวจหาข้อผิดพลาดเบื้องต้น',
+    category: 'debugging',
+    categoryName: 'การตรวจหาและแก้ไขข้อผิดพลาดของโปรแกรม',
+    summary:
+      'ก่อนเขียนโปรแกรมควรวางแผนด้วยผังลำดับภาพ (Storyboard) หรืออัลกอริทึมข้อความ และเมื่อโปรแกรมทำงานผิดพลาดต้องตรวจสอบทีละคำสั่ง (Debugging)',
+    keyConcepts: [
+      'Storyboard ที่ดีต้องระบุ: ลำดับฉาก, ตัวละคร, ข้อความสนทนา/เสียง และการเคลื่อนไหวอย่างชัดเจน',
+      'การเดินตามช่องตาราง: ต้องนับจำนวนก้าวและตรวจทิศทางการหมุน (เลี้ยวซ้าย vs เลี้ยวขวา) เทียบกับหัวลูกศรของตัวละคร',
+      'การวาดรูปเรขาคณิตด้วยลูป repeat: มุมหมุนภายนอกรวมกันต้องได้ 360° เสมอ (เช่น สี่เหลี่ยมหมุน 4 ครั้ง × 90°, สามเหลี่ยมด้านเท่าหมุน 3 ครั้ง × 120°)',
+    ],
+    visualCheatSheet:
+      '📌 สูตรมุมหมุนวาดรูปหลายเหลี่ยมด้านเท่าใน Scratch:\n• รูปสามเหลี่ยมด้านเท่า : repeat (3) [ move 100 steps -> turn 120 degrees ]\n• รูปสี่เหลี่ยมจัตุรัส    : repeat (4) [ move 100 steps -> turn 90 degrees ]\n• รูปหกเหลี่ยมด้านเท่า  : repeat (6) [ move 100 steps -> turn 60 degrees ]\n(จำง่ายๆ: จำนวนรอบ × มุมหมุน = 360 องศาเสมอ!)',
+    commonMistake:
+      'สับสนระหว่าง "มุมภายในรูปสามเหลี่ยม (60°)" กับ "มุมหมุนภายนอกของปากกาใน Scratch (180° - 60° = 120°)"',
+    examProTip:
+      'หากโจทย์ให้แก้บั๊กหุ่นยนต์เดินชนสิ่งกีดขวาง ให้ขีดเส้นทางเดินตามโค้ดเดิมลงบนตารางทีละบล็อก จะเห็นจุดที่เลี้ยวผิดทันที',
+    recommendedSets: 'ชุดที่ 1 (ข้อ 4–6)',
+  },
+  {
+    indicator: 'ว 4.2 ป.4/4',
+    grade: 'ป.4',
+    isMustKnow: false,
+    title: 'บททบทวนที่ 3: การรวบรวม ประมวลผลด้วยตารางทำงาน & การวิเคราะห์ตารางข้อมูล',
+    category: 'data',
+    categoryName: 'การรวบรวม ประมวลผล และวิเคราะห์ข้อมูลสารสนเทศ',
+    summary:
+      'การนำข้อมูลที่รวบรวมได้มาจัดกลุ่ม เรียงลำดับ หาผลรวมหรือค่าเฉลี่ยในโปรแกรมตารางทำงาน (Spreadsheet) เพื่อช่วยตัดสินใจแก้ปัญหาในชีวิตประจำวัน',
+    keyConcepts: [
+      'สูตรคำนวณในตารางทำงานต้องขึ้นต้นด้วยเครื่องหมายเท่ากับ (=) เสมอ',
+      'ฟังก์ชันพื้นฐานที่ออกสอบบ่อย: =SUM(ช่วงเซลล์) หาผลรวม, =AVERAGE(ช่วงเซลล์) หาค่าเฉลี่ย, =MAX(...) หาค่าสูงสุด, =MIN(...) หาค่าต่ำสุด',
+      'การวิเคราะห์ตารางหลายเงื่อนไข (เช่น พลังงานแคลอรี + ราคา หรือ เวลาหน้าจอ + เวลานอน) ต้องตัดตัวเลือกที่ไม่ผ่านเกณฑ์ออกทีละเงื่อนไข',
+    ],
+    visualCheatSheet:
+      '📌 สรุปฟังก์ชันตารางทำงาน (Spreadsheet Functions):\n• =SUM(B2:B6)     --> หาผลรวมตั้งแต่เซลล์ B2 ถึง B6\n• =AVERAGE(B2:B6) --> หาค่าเฉลี่ยตั้งแต่เซลล์ B2 ถึง B6\n• =MAX(B2:B6)     --> หาค่าที่มากที่สุดในช่วง B2 ถึง B6\n• =MIN(B2:B6)     --> หาค่าที่น้อยที่สุดในช่วง B2 ถึง B6',
+    commonMistake:
+      'สลับหน้าที่ระหว่าง =SUM (ผลรวมทั้งหมด) กับ =AVERAGE (ค่าเฉลี่ย) หรือใช้เครื่องหมายคูณ (*) แทนเครื่องหมายทวิภาค (:) ในการระบุช่วงเซลล์',
+    examProTip:
+      'เมื่อเจอโจทย์ตารางข้อมูล ให้ขีดเส้นใต้ "เงื่อนไขที่โจทย์บังคับ" (เช่น งบไม่เกิน 45 บาท หรือ นอนน้อยกว่า 6 ชม.) แล้วเช็กทีละแถว',
+    recommendedSets: 'ชุดที่ 1 (ข้อ 7–8) & ชุดที่ 10 (ข้อ 4)',
+  },
+  {
+    indicator: 'ว 4.2 ป.5/1',
+    grade: 'ป.5',
+    isMustKnow: false,
+    title: 'บททบทวนที่ 4: การแก้ปัญหาด้วยเหตุผลเชิงตรรกะ (Sudoku & การจัดลำดับเงื่อนไข)',
+    category: 'thinking',
+    categoryName: 'การใช้เหตุผลเชิงตรรกะและอัลกอริทึม',
+    summary:
+      'การใช้กฎเกณฑ์และข้อจำกัดทั้งหมดมาตัดทางเลือกที่เป็นไปไม่ได้ออก (Elimination) จนได้คำตอบที่ถูกต้องเพียงหนึ่งเดียว',
+    keyConcepts: [
+      'เกมตาราง Sudoku: ตัวเลขในแต่ละ "แถวแนวนอน", "หลักแนวตั้ง" และ "ตารางย่อย" ห้ามซ้ำกันเด็ดขาด',
+      'การเรียงลำดับตามเงื่อนไขเปรียบเทียบ (เช่น ใครเสร็จก่อน-หลัง, ของสิ่งใดวางชั้นไหน): ให้เริ่มจากเงื่อนไขที่ระบุตำแหน่งชัดเจนที่สุดก่อน',
+      'การตรวจสอบเงื่อนไขตัวเลข (เช่น หารด้วย 3 ลงตัว และ เป็นเลขคู่): ต้องเป็นจริงครบทุกเงื่อนไขย่อย',
+    ],
+    visualCheatSheet:
+      '📌 เทคนิคแก้โจทย์ Sudoku & ตารางตรรกะ:\n1) มองหาแถวหรือหลักที่มีตัวเลขปรากฏอยู่แล้วมากที่สุด (เหลือช่องว่างเพียง 1 ช่อง)\n2) ตัดตัวเลขที่มีอยู่แล้วในแถวเดียวกันและหลักเดียวกันออก\n3) ตรวจสอบซ้ำว่าตัวเลขที่เติมไม่ชนกับตารางย่อย',
+    commonMistake:
+      'ตรวจสอบเฉพาะแถวแนวนอนแต่ลืมตรวจสอบหลักแนวตั้ง หรืออ่านเงื่อนไข "มากกว่า" (>) สลับกับ "ตั้งแต่...ขึ้นไป" (>=)',
+    examProTip:
+      'โจทย์เปรียบเทียบลำดับ (เช่น A เร็วกว่า B แต่ช้ากว่า C) ให้เขียนเรียงบนเส้นจำนวนจากซ้ายไปขวา จะไม่สับสน',
+    recommendedSets: 'ชุดที่ 1 (ข้อ 9–10), ชุดที่ 2 (ข้อ 1–2) & ชุดที่ 4 (ข้อ 4, 7)',
+  },
+  {
+    indicator: 'ว 4.2 ป.5/2',
+    grade: 'ป.5',
+    isMustKnow: false,
+    title: 'บททบทวนที่ 5: ผังงาน (Flowchart) พิกัด-ทิศทาง & การจัดลำดับชั้นตัวละคร (Layer)',
+    category: 'coding',
+    categoryName: 'การเขียนโปรแกรม Scratch & เซนเซอร์ Micro:bit',
+    summary:
+      'การออกแบบโปรแกรมด้วยผังงานสัญลักษณ์มาตรฐาน การควบคุมทิศทาง/พิกัดของตัวละคร และการจัดการลำดับชั้นการแสดงผล (Layer) บนเวที Scratch',
+    keyConcepts: [
+      'สัญลักษณ์ผังงาน (Flowchart): วงรี = เริ่มต้น/สิ้นสุด, สี่เหลี่ยมด้านขนาน = รับค่า/แสดงผล, สี่เหลี่ยมผืนผ้า = ประมวลผล/คำนวณ, สี่เหลี่ยมขนมเปียกปูน = การตัดสินใจ (เงื่อนไข จริง/เท็จ)',
+      'ระบบพิกัดฉากใน Scratch: แกน X คือแนวนอน (ซ้ายเป็นลบ, ขวาเป็นบวก) และแกน Y คือแนวตั้ง (ล่างเป็นลบ, บนเป็นบวก) จุดกึ่งกลางเวทีคือ (0, 0)',
+      'ลำดับชั้นตัวละคร (Layer): go to [front] layer ดึงมาหน้าสุด, go to [back] layer ส่งไปหลังสุด, go [backward] (1) layers ถอยหลังลงไป 1 ชั้น',
+    ],
+    visualCheatSheet:
+      '📌 สัญลักษณ์ผังงาน (Flowchart) & พิกัด Scratch:\n• ( เริ่มต้น / สิ้นสุด )     --> สัญลักษณ์เริ่มต้นและจบการทำงาน\n• / รับข้อมูล / แสดงผล /   --> สี่เหลี่ยมด้านขนาน\n• [ ประมวลผล / คำนวณ ]   --> สี่เหลี่ยมผืนผ้า\n• < เงื่อนไขตัดสินใจ? >     --> สี่เหลี่ยมขนมเปียกปูน (แยกทาง จริง / เท็จ)\n• พิกัด Scratch: ขวา (+x), ซ้าย (-x), บน (+y), ล่าง (-y)',
+    commonMistake:
+      'สลับแกน X กับแกน Y เวลาสั่งเคลื่อนที่ขึ้น-ลง หรือลืมสั่ง show คู่กับ go to [front] layer เมื่อต้องการให้ป้ายคะแนนแสดงหน้าสุด',
+    examProTip:
+      'เวลาไล่ผังงานที่มีทางแยก จริง (Yes) / เท็จ (No) ให้แทนค่าตัวเลขลงในช่องเงื่อนไขแล้วขีดลูกศรตามเส้นทางที่ไปจริงๆ',
+    recommendedSets: 'ชุดที่ 2 (ข้อ 3–5), ชุดที่ 7 (ข้อ 3), ชุดที่ 8 (ข้อ 4) & ชุดที่ 9 (ข้อ 4)',
+  },
+  {
+    indicator: 'ว 4.2 ป.5/4',
+    grade: 'ป.5',
+    isMustKnow: false,
+    title: 'บททบทวนที่ 6: การใช้บริการออนไลน์จัดการสารสนเทศ & การรู้เท่าทันสื่อสังคมออนไลน์',
+    category: 'data',
+    categoryName: 'การรวบรวม ประมวลผล และวิเคราะห์ข้อมูลสารสนเทศ',
+    summary:
+      'การเลือกใช้ซอฟต์แวร์หรือบริการบนอินเทอร์เน็ตให้ตรงกับวัตถุประสงค์ของงาน และการจัดการผลกระทบทางอารมณ์จากการใช้โซเชียลมีเดีย',
+    keyConcepts: [
+      'รวบรวมความคิดเห็นคนจำนวนมากอย่างรวดเร็ว -> ใช้แบบฟอร์มออนไลน์ (Google Forms) ซึ่งสรุปผลเป็นกราฟอัตโนมัติ',
+      'สำรวจเส้นทางและพื้นที่ในชุมชน -> ใช้แผนที่ออนไลน์และภาพถ่ายดาวเทียม (Google Maps)',
+      'ทำงานเอกสาร/สไลด์ร่วมกันเป็นกลุ่มจากที่บ้าน -> ใช้บริการคลาวด์ร่วมกัน (Google Docs / Slides) และตั้งสิทธิ์เข้าถึงให้เหมาะสม',
+      'การรับมือภาวะกลัวตกกระแส (FOMO): กำหนดเวลาใช้โซเชียลให้ชัดเจน และเข้าใจว่าภาพบนโลกออนไลน์เป็นเพียงมุมที่คัดสรรมา',
+    ],
+    visualCheatSheet:
+      '📌 การจับคู่เครื่องมือดิจิทัลให้ตรงกับงาน:\n• สำรวจความเห็น / ลงทะเบียน  --> แบบฟอร์มออนไลน์ (Online Form)\n• คำนวณสถิติ / สร้างกราฟเปรียบเทียบ --> ตารางทำงาน (Spreadsheet)\n• นำเสนอผลงานหน้าชั้นเรียน     --> โปรแกรมนำเสนอ (Presentation)\n• เผยแพร่บทความให้สาธารณะอ่าน  --> บล็อก / เว็บเพจ (Blog / Web page)',
+    commonMistake:
+      'เลือกใช้วิธีแจกกระดาษแล้วนั่งนับมือเมื่อต้องการสำรวจข้อมูลคนจำนวนมากในเวลาจำกัด หรือตั้งสิทธิ์ไฟล์งานกลุ่มเป็น "ลบได้ทุกคนโดยไม่จำกัด"',
+    examProTip:
+      'ดูคำสำคัญในโจทย์: ถ้าโจทย์เน้น "รวดเร็ว แม่นยำ สรุปผลอัตโนมัติ" ให้เลือกเครื่องมือแบบฟอร์มออนไลน์และตารางทำงานบนคลาวด์',
+    recommendedSets: 'ชุดที่ 2 (ข้อ 6–7), ชุดที่ 6 (ข้อ 5) & ชุดที่ 10 (ข้อ 8)',
+  },
+  {
+    indicator: 'ว 4.2 ป.6/1',
+    grade: 'ป.6',
+    isMustKnow: true,
+    title: 'บททบทวนที่ 7: อัลกอริทึมแก้ปัญหาในชีวิตประจำวัน การค้นหาแบบแบ่งครึ่ง & เงื่อนไขซ้อน (Nested If)',
+    category: 'thinking',
+    categoryName: 'การใช้เหตุผลเชิงตรรกะและอัลกอริทึม',
+    summary:
+      'ตัวชี้วัดต้องรู้ที่เน้นการออกแบบวิธีแก้ปัญหาอย่างมีประสิทธิภาพด้วยแนวคิดการวนซ้ำ (Loop) การตรวจสอบเงื่อนไขซ้อน (Nested Condition) และการคำนวณเวลา/เส้นทาง',
+    keyConcepts: [
+      'การค้นหาแบบแบ่งครึ่ง (Binary Search): ใช้กับข้อมูลที่เรียงลำดับแล้ว โดยเปิด/ทายค่ากึ่งกลางเพื่อตัดข้อมูลทิ้งทีละครึ่ง (50%) เสมอ',
+      'การคำนวณระยะทางและเวลาเดินทาง: เวลาเดินทาง (ชม.) = ระยะทาง ÷ ความเร็วเฉลี่ย และต้องอย่าลืมบวก "เวลาแวะพัก" ในแต่ละจุด!',
+      'เงื่อนไขเชื่อมด้วย "และ (AND)" ต้องเป็นจริงทุกข้อจึงจะทำคำสั่ง ส่วนเชื่อมด้วย "หรือ (OR)" ขอเพียงเป็นจริงอย่างน้อย 1 ข้อก็ทำคำสั่งทันที',
+      'เงื่อนไขซ้อน (Nested If): ต้องผ่านเงื่อนไขชั้นนอกก่อน จึงจะเข้าไปตรวจเงื่อนไขชั้นในได้ หากไม่ผ่านชั้นนอกจะกระโดดไปที่ else ชั้นนอกทันที',
+    ],
+    visualCheatSheet:
+      '📌 เปรียบเทียบตัวดำเนินการตรรกะ & เงื่อนไขซ้อน (Nested If):\n1) เงื่อนไข [A และ B (AND)] -> ต้องจริงทั้งคู่ (True + True = True)\n2) เงื่อนไข [A หรือ B (OR)]  -> จริงแค่ข้อเดียวก็ผ่าน (True + False = True)\n3) เงื่อนไขซ้อน (Nested If):\n   ถ้า <เงื่อนไขชั้นนอกเป็นจริง> แล้ว\n      └─ จึงจะได้เข้ามาตรวจ <เงื่อนไขชั้นใน>\n   มิฉะนั้น (ถ้าชั้นนอกเป็นเท็จ)\n      └─ ข้ามไปทำคำสั่ง else ชั้นนอกทันที (ไม่ดูชั้นในเลย!)',
+    commonMistake:
+      'ลืมบวกเวลาหยุดพักระหว่างทางเมื่อคำนวณเวลาถึงที่หมาย หรือเผลอเข้าไปเช็กเงื่อนไขชั้นในของ Nested If ทั้งที่เงื่อนไขชั้นนอกเป็นเท็จไปแล้ว',
+    examProTip:
+      'สำหรับข้อสอบรูปแบบเลือกตอบเชิงซ้อน (ก) และ (ข) ให้แยกคิดทีละข้อความ เขียน "ใช่" หรือ "ไม่ใช่" กำกับไว้ข้างๆ ก่อนไปเลือกช้อยส์ 1–4',
+    recommendedSets: 'ชุดที่ 2 (ข้อ 8–10), ชุดที่ 3 (ข้อ 1–2), ชุดที่ 4 (ทั้งชุด), ชุดที่ 7–10',
+  },
+  {
+    indicator: 'ว 4.2 ป.6/2',
+    grade: 'ป.6',
+    isMustKnow: false,
+    title: 'บททบทวนที่ 8: การเขียนโค้ด Scratch ขั้นสูง (ตัวแปร, ลูป, Broadcast, Clone) & เซนเซอร์ Micro:bit',
+    category: 'coding',
+    categoryName: 'การเขียนโปรแกรม Scratch & เซนเซอร์ Micro:bit',
+    summary:
+      'การเขียนโปรแกรมที่มีตัวแปร การวนซ้ำ การตรวจสอบเงื่อนไข การควบคุมตัวละครขั้นสูงใน Scratch และการประยุกต์ใช้เซนเซอร์บอร์ดสมองกลฝังตัว Micro:bit',
+    keyConcepts: [
+      'Scratch ขั้นสูง: broadcast [...] and wait จะรอให้ตัวรับสารทำงานจบก่อนทำบรรทัดถัดไป, และตัวโคลนต้องสั่ง delete this clone เมื่อใช้งานเสร็จเพื่อไม่ให้ค้างเกิน 300 ตัว',
+      'การหา ค.ร.น. ของเลข A และ B ด้วยโปรแกรม: เพิ่มค่าตัวแปรทีละขั้น แล้วตรวจเงื่อนไข < (N mod A = 0) และ (N mod B = 0) > จนกว่าจะเป็นจริงครั้งแรก',
+      'เซนเซอร์ Micro:bit ที่ต้องรู้: light level (แสง 0–255), temperature (อุณหภูมิ °C), sound level (เสียง 0–255), compass heading (ทิศ 0°–359°), on shake (เขย่า), analog read pin (ความชื้นดิน 0–1023), radio set group (ส่งวิทยุไร้สายกลุ่มเดียวกัน)',
+      'การอ่านค่าเซนเซอร์อย่างต่อเนื่องตลอดเวลาใน Micro:bit ต้องวางบล็อกตรวจเงื่อนไขไว้ในลูป forever (ไม่ใช่ on start)',
+    ],
+    visualCheatSheet:
+      '📌 สรุปเซนเซอร์สำคัญของบอร์ด Micro:bit:\n• ความเข้มแสง : light level (0 = มืดสนิท ถึง 255 = สว่างจ้า)\n• อุณหภูมิ    : temperature (°C)\n• เข็มทิศ     : compass heading (0°=เหนือ, 90°=ตะวันออก, 180°=ใต้, 270°=ตะวันตก)\n• การสั่น/ก้าว : on shake (Accelerometer)\n• วิทยุไร้สาย  : บอร์ดส่งและบอร์ดรับต้องตั้งค่า radio set group (...) ให้ตรงกัน!',
+    commonMistake:
+      'วางโค้ดอ่านค่าเซนเซอร์ไว้ในบล็อก on start ทำให้บอร์ดวัดค่าแค่ครั้งเดียวตอนเปิดเครื่อง หรือสั่ง broadcast ชื่อเดียวกับหัวบล็อก when I receive ของตัวเองจนค้าง',
+    examProTip:
+      'เมื่อโจทย์ถามค่าตัวแปรหลังจบลูป repeat (N) ให้เขียนตารางไล่ค่ารอบที่ 1, 2, ..., N ทีละรอบ จะได้คำตอบที่แม่นยำ 100%',
+    recommendedSets: 'ชุดที่ 3 (ข้อ 3–6), ชุดที่ 7 (ข้อ 1–5), ชุดที่ 8 (ข้อ 1–7) & ชุดที่ 9',
+  },
+  {
+    indicator: 'ว 4.2 ป.6/3',
+    grade: 'ป.6',
+    isMustKnow: false,
+    title: 'บททบทวนที่ 9: เทคนิคการค้นหาข้อมูลขั้นสูง & การประเมินความน่าเชื่อถือ (ตรวจสอบ Fake News)',
+    category: 'search',
+    categoryName: 'การค้นหาข้อมูลขั้นสูงและการตรวจสอบข่าวปลอม',
+    summary:
+      'การใช้ตัวดำเนินการค้นหา (Search Operators) เพื่อให้ได้ข้อมูลตรงตามต้องการอย่างรวดเร็ว และการตรวจสอบความน่าเชื่อถือของแหล่งข้อมูลเพื่อคัดกรองข่าวปลอม',
+    keyConcepts: [
+      'เครื่องหมายคำพูด "..." : ค้นหาข้อความที่ตรงกับวลีในเครื่องหมายคำพูดทุกคำและเรียงตามลำดับเดิมเป๊ะ',
+      'เครื่องหมายลบ (-) : ตัดคำที่ไม่ต้องการออกจากผลการค้นหา (เช่น อาหารคลีน -ไก่)',
+      'คำสั่งระบุชนิดไฟล์ filetype: : เช่น filetype:pdf หรือ filetype:pptx เพื่อเจาะจงประเภทเอกสาร',
+      'คำสั่งระบุเว็บไซต์ site: : เช่น site:go.th (หน่วยงานรัฐ) หรือ site:ac.th (สถาบันการศึกษา)',
+      'การตรวจสอบ Fake News: ตรวจสอบผู้เขียน, วันที่เผยแพร่, โดเมนเนม (.go.th/.ac.th/.or.th น่าเชื่อถือสูง) และเปรียบเทียบความสอดคล้องจากหลายแหล่ง (Cross-check) ก่อนแชร์',
+    ],
+    visualCheatSheet:
+      '📌 ตารางตัวดำเนินการค้นหาขั้นสูง (Search Operators):\n• "ภาวะโลกร้อน"           --> ค้นหาวลีตรงตัวห้ามแยกคำ\n• ที่เที่ยวทะเล -ภูเก็ต       --> ค้นหาที่เที่ยวทะเล โดยตัดคำว่าภูเก็ตออก\n• โภชนาการวัยเรียน filetype:pdf --> ค้นหาเฉพาะไฟล์เอกสาร PDF\n• ทุนการศึกษา site:ac.th   --> ค้นหาเฉพาะในเว็บไซต์สถาบันการศึกษา (.ac.th)',
+    commonMistake:
+      'เว้นวรรคผิดตำแหน่งหลังเครื่องหมายลบ หรือหลงเชื่อข่าวที่พาดหัวเร้าอารมณ์/อ้างว่า "แชร์ด่วนก่อนโดนลบ" โดยไม่ตรวจสอบแหล่งอ้างอิงทางการ',
+    examProTip:
+      'จำรหัสโดเมนเนมให้แม่น: .go.th = รัฐบาล (Government), .ac.th = การศึกษา (Academic), .or.th = องค์กรไม่แสวงหากำไร, .co.th = บริษัทเอกชน',
+    recommendedSets: 'ชุดที่ 3 (ข้อ 7–10) & ชุดที่ 6 (ข้อ 1–5)',
+  },
+  {
+    indicator: 'ว 4.2 ป.6/4',
+    grade: 'ป.6',
+    isMustKnow: true,
+    title: 'บททบทวนที่ 10: ความปลอดภัยไซเบอร์ กฎหมาย PDPA จริยธรรม & สุขภาพจากการใช้เทคโนโลยี',
+    category: 'safety',
+    categoryName: 'ความปลอดภัยไซเบอร์ PDPA จริยธรรม และสุขภาพดิจิทัล',
+    summary:
+      'ตัวชี้วัดต้องรู้ครอบคลุมการป้องกันภัยคุกคามออนไลน์ การเคารพสิทธิส่วนบุคคล (PDPA) มารยาทดิจิทัล และการดูแลสุขภาพกาย-ใจ-การเรียนจากการใช้เทคโนโลยี',
+    keyConcepts: [
+      'รหัสผ่านปลอดภัย & 2FA: ยาวอย่างน้อย 8–12 ตัวอักษร ผสมตัวพิมพ์ใหญ่-เล็ก-ตัวเลข-สัญลักษณ์ และเปิดยืนยันตัวตน 2 ชั้น (2FA)',
+      'รู้ทัน Phishing & เครื่องสาธารณะ: ห้ามคลิกลิงก์เลียนแบบชื่อโดเมนแปลกๆ และเมื่อใช้คอมพิวเตอร์สาธารณะต้องไม่กดจำรหัสผ่าน + กด Log out ทุกครั้ง',
+      'กฎหมาย PDPA & ลิขสิทธิ์: ห้ามโพสต์ข้อมูลส่วนตัวหรือภาพน่าอับอายของผู้อื่นโดยไม่ได้รับอนุญาต และต้องอ้างอิงแหล่งที่มาของผลงานเสมอ',
+      'การดูแลสุขภาพและการเรียน: พักสายตาตาม "กฎ 20-20-20", นั่งตามหลักการยศาสตร์ (Ergonomics), งดหน้าจอแสงสีฟ้าก่อนนอน 1 ชม. (ป้องกันการยับยั้งเมลาโทนิน), ใช้หูฟังตาม "กฎ 60/60" และปิดแจ้งเตือนขณะอ่านหนังสือ',
+    ],
+    visualCheatSheet:
+      '📌 สูตรจำหลักสุขอนามัยและความปลอดภัยดิจิทัล ป.6:\n• กฎพักสายตา 20-20-20 : จ้องจอทุก 20 นาที -> มองไกล 20 ฟุต -> นาน 20 วินาที\n• กฎใช้หูฟัง 60/60     : ความดังไม่เกิน 60% -> ติดต่อกันไม่เกิน 60 นาที\n• กฎสำรองข้อมูล 3-2-1  : มีข้อมูล 3 ชุด -> เก็บในสื่อ 2 ชนิด -> แยกเก็บนอกสถานที่/คลาวด์ 1 ชุด\n• แสงสีฟ้าก่อนนอน      : ยับยั้งฮอร์โมนเมลาโทนิน -> นอนไม่หลับ -> สมาธิเรียนลดลง',
+    commonMistake:
+      'คิดว่าการปิดหน้าต่างเว็บเบราว์เซอร์ (กากบาท X) บนเครื่องสาธารณะเท่ากับการออกจากระบบ (Log out) หรือคิดว่าการใช้ AI คัดลอกการบ้านส่งครูช่วยพัฒนาการเรียน',
+    examProTip:
+      'หากโจทย์ถามวิธีรับมือภัยไซเบอร์หรือการกลั่นแกล้งออนไลน์ (Cyberbullying) คำตอบที่ถูกคือ "ไม่ตอบโต้ เก็บหลักฐาน (แคปหน้าจอ) บล็อก และแจ้งผู้ปกครอง/ครู"',
+    recommendedSets: 'ชุดที่ 5 (ทั้งชุด), ชุดที่ 6 (ข้อ 6–10) & ชุดที่ 10 (ข้อ 1–3, 5, 7, 9)',
+  },
+];
+
 export interface ExamArenaModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -2561,6 +2862,16 @@ interface SavedSetResult {
   points50: number; // out of 50 (O-NET 5 pts/question)
   percent: number;
   completedAt: string;
+  answers?: Record<number, number>; // questionId -> selectedOptionIndex
+}
+
+interface StudentDiagnosticProfile {
+  studentName: string;
+  grade: string;
+  school: string;
+  updatedAt: string;
+  setResults: Record<string, SavedSetResult>;
+  questionAnswers: Record<number, number>; // all answered questionIds -> selectedOptionIndex
 }
 
 export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
@@ -2571,11 +2882,30 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
   studentName,
 }) => {
   const [selectedSetId, setSelectedSetId] = useState<'set1' | 'set2' | 'set3' | 'set4' | 'set5' | 'set6' | 'set7' | 'set8' | 'set9' | 'set10'>('set1');
-  const [activeView, setActiveView] = useState<'hub' | 'blueprint' | 'exam'>('hub');
+  const [activeView, setActiveView] = useState<'hub' | 'diagnostic' | 'blueprint' | 'exam'>('hub');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<{ [qId: number]: number }>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(900); // 15 mins per set
+
+  // Remedial custom quiz mode (สำหรับฝึกทำข้อสอบทบทวนเฉพาะจุดที่ต้องแก้ไข)
+  const [remedialQuestions, setRemedialQuestions] = useState<ExamQuestion[] | null>(null);
+  const [remedialTitle, setRemedialTitle] = useState<string>('');
+
+  // Selected indicator filter in Review Content section
+  const [selectedReviewIndicator, setSelectedReviewIndicator] = useState<string>('ALL_WEAK');
+  const [newStudentInput, setNewStudentInput] = useState<string>('');
+  const [showAddStudentInput, setShowAddStudentInput] = useState<boolean>(false);
+
+  const normalizedActiveStudent = (studentName || 'นักเรียนผู้ใช้งาน').trim();
+  const [inspectedStudentName, setInspectedStudentName] = useState<string>(normalizedActiveStudent);
+
+  // Sync inspectedStudentName when studentName prop changes
+  useEffect(() => {
+    if (studentName && studentName.trim()) {
+      setInspectedStudentName(studentName.trim());
+    }
+  }, [studentName]);
 
   const [savedResults, setSavedResults] = useState<Record<string, SavedSetResult>>(() => {
     try {
@@ -2586,8 +2916,42 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
     }
   });
 
+  // Per-student diagnostic storage map: studentName -> StudentDiagnosticProfile
+  const [studentDiagnosticsMap, setStudentDiagnosticsMap] = useState<Record<string, StudentDiagnosticProfile>>(() => {
+    try {
+      const raw = localStorage.getItem('coderkids_onet69_student_diagnostics');
+      const parsed: Record<string, StudentDiagnosticProfile> = raw ? JSON.parse(raw) : {};
+      return parsed;
+    } catch {
+      return {};
+    }
+  });
+
+  // Collect roster of all known students from localStorage ('coderkids_profiles') + diagnostics map + current user
+  const availableStudentNames = React.useMemo(() => {
+    const namesSet = new Set<string>();
+    if (normalizedActiveStudent) namesSet.add(normalizedActiveStudent);
+    Object.keys(studentDiagnosticsMap).forEach((n) => {
+      if (n && n.trim()) namesSet.add(n.trim());
+    });
+    try {
+      const rawProfiles = localStorage.getItem('coderkids_profiles');
+      if (rawProfiles) {
+        const parsed = JSON.parse(rawProfiles);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((p: { name?: string }) => {
+            if (p?.name && p.name.trim()) {
+              namesSet.add(p.name.trim());
+            }
+          });
+        }
+      }
+    } catch {}
+    return Array.from(namesSet);
+  }, [normalizedActiveStudent, studentDiagnosticsMap]);
+
   const currentSet = ONET_EXAM_SETS.find((s) => s.id === selectedSetId) || ONET_EXAM_SETS[0];
-  const currentQuestions = currentSet.questions;
+  const currentQuestions = remedialQuestions && remedialQuestions.length > 0 ? remedialQuestions : currentSet.questions;
 
   // Timer countdown
   useEffect(() => {
@@ -2603,7 +2967,126 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [isOpen, activeView, isSubmitted, selectedSetId]);
+  }, [isOpen, activeView, isSubmitted, selectedSetId, remedialQuestions]);
+
+  // Compute comprehensive diagnostic report for the currently inspected student
+  const activeStudentDiagnostic = React.useMemo(() => {
+    const targetName = inspectedStudentName || normalizedActiveStudent;
+    const storedProfile = studentDiagnosticsMap[targetName];
+
+    // Merge legacy savedResults if inspecting the current active user and they don't have full questionAnswers yet
+    const setResultsForStudent: Record<string, SavedSetResult> =
+      storedProfile?.setResults || (targetName === normalizedActiveStudent ? savedResults : {});
+
+    const questionAnswers: Record<number, number> = {
+      ...(storedProfile?.questionAnswers || {}),
+    };
+
+    // Also pull any per-set answers stored inside setResultsForStudent
+    Object.values(setResultsForStudent).forEach((sr) => {
+      if (sr?.answers) {
+        Object.entries(sr.answers).forEach(([qIdStr, ansIdx]) => {
+          questionAnswers[Number(qIdStr)] = ansIdx;
+        });
+      }
+    });
+
+    // If a set was completed in legacy savedResults without per-question answers, infer answered status from score
+    Object.entries(setResultsForStudent).forEach(([setId, sr]) => {
+      if (!sr.answers) {
+        const foundSet = ONET_EXAM_SETS.find((s) => s.id === setId);
+        if (foundSet) {
+          foundSet.questions.forEach((q, idx) => {
+            if (questionAnswers[q.id] === undefined) {
+              questionAnswers[q.id] = idx < sr.score ? q.correctIndex : (q.correctIndex + 1) % 4;
+            }
+          });
+        }
+      }
+    });
+
+    const answeredQuestionIds = Object.keys(questionAnswers).map(Number);
+    const answeredQuestions = ALL_ONET_QUESTIONS.filter((q) => answeredQuestionIds.includes(q.id));
+
+    const totalAnswered = answeredQuestions.length;
+    const totalCorrect = answeredQuestions.filter((q) => questionAnswers[q.id] === q.correctIndex).length;
+    const overallAccuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+
+    // Breakdown by 6 Core Categories
+    const categoryStats = (Object.keys(CATEGORY_DIAGNOSTIC_META) as ExamQuestion['category'][]).map((catKey) => {
+      const catQuestions = answeredQuestions.filter((q) => q.category === catKey);
+      const totalInBank = ALL_ONET_QUESTIONS.filter((q) => q.category === catKey).length;
+      const correctCount = catQuestions.filter((q) => questionAnswers[q.id] === q.correctIndex).length;
+      const attemptedCount = catQuestions.length;
+      const accuracy = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : null;
+
+      return {
+        category: catKey,
+        meta: CATEGORY_DIAGNOSTIC_META[catKey],
+        attemptedCount,
+        correctCount,
+        totalInBank,
+        accuracy,
+      };
+    });
+
+    // Breakdown by 10 O-NET Indicators
+    const indicatorStats = REVIEW_LESSONS_BY_INDICATOR.map((lesson) => {
+      const indQuestions = answeredQuestions.filter((q) => q.indicator === lesson.indicator);
+      const allIndQuestions = ALL_ONET_QUESTIONS.filter((q) => q.indicator === lesson.indicator);
+      const correctCount = indQuestions.filter((q) => questionAnswers[q.id] === q.correctIndex).length;
+      const wrongQuestions = indQuestions.filter((q) => questionAnswers[q.id] !== q.correctIndex);
+      const attemptedCount = indQuestions.length;
+      const accuracy = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : null;
+
+      let status: 'strength' | 'developing' | 'needs_fix' | 'untested' = 'untested';
+      if (accuracy !== null) {
+        if (accuracy >= 80) status = 'strength';
+        else if (accuracy >= 50 && wrongQuestions.length === 0) status = 'strength';
+        else if (accuracy >= 60) status = 'developing';
+        else status = 'needs_fix';
+      }
+
+      return {
+        indicator: lesson.indicator,
+        grade: lesson.grade,
+        isMustKnow: lesson.isMustKnow,
+        lesson,
+        attemptedCount,
+        correctCount,
+        totalInBank: allIndQuestions.length,
+        wrongQuestions,
+        accuracy,
+        status,
+      };
+    });
+
+    const strengths = indicatorStats.filter((item) => item.status === 'strength');
+    const needsFix = indicatorStats.filter(
+      (item) => item.status === 'needs_fix' || (item.wrongQuestions.length > 0 && (item.accuracy ?? 0) < 80)
+    );
+    const developing = indicatorStats.filter(
+      (item) => item.status === 'developing' && !needsFix.some((nf) => nf.indicator === item.indicator)
+    );
+    const allWrongQuestions = answeredQuestions.filter((q) => questionAnswers[q.id] !== q.correctIndex);
+
+    return {
+      studentName: targetName,
+      completedSetsCount: Object.keys(setResultsForStudent).length,
+      setResults: setResultsForStudent,
+      questionAnswers,
+      totalAnswered,
+      totalCorrect,
+      totalWrong: totalAnswered - totalCorrect,
+      overallAccuracy,
+      categoryStats,
+      indicatorStats,
+      strengths,
+      developing,
+      needsFix,
+      allWrongQuestions,
+    };
+  }, [inspectedStudentName, normalizedActiveStudent, studentDiagnosticsMap, savedResults]);
 
   if (!isOpen) return null;
 
@@ -2614,11 +3097,26 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
 
   const handleStartSet = (setId: 'set1' | 'set2' | 'set3' | 'set4' | 'set5' | 'set6' | 'set7' | 'set8' | 'set9' | 'set10') => {
     soundEffects.playClick();
+    setRemedialQuestions(null);
+    setRemedialTitle('');
     setSelectedSetId(setId);
     setSelectedAnswers({});
     setIsSubmitted(false);
     setCurrentIndex(0);
     setTimeLeftSeconds(900);
+    setActiveView('exam');
+  };
+
+  // Start a targeted remedial quiz for a specific indicator or all wrong questions of the student
+  const handleStartRemedialQuiz = (questionsToPractice: ExamQuestion[], titleLabel: string) => {
+    if (!questionsToPractice || questionsToPractice.length === 0) return;
+    soundEffects.playClick();
+    setRemedialQuestions(questionsToPractice.slice(0, 10));
+    setRemedialTitle(titleLabel);
+    setSelectedAnswers({});
+    setIsSubmitted(false);
+    setCurrentIndex(0);
+    setTimeLeftSeconds(questionsToPractice.slice(0, 10).length * 90);
     setActiveView('exam');
   };
 
@@ -2660,19 +3158,71 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
     const score = calculateScore();
     const points50 = score * 5; // ข้อละ 5 คะแนน ตามเกณฑ์ O-NET สทศ.
     const percent = Math.round((score / currentQuestions.length) * 100);
+    const nowTimeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
 
-    const updatedResults: Record<string, SavedSetResult> = {
-      ...savedResults,
-      [selectedSetId]: {
-        score,
-        points50,
-        percent,
-        completedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    // Ensure every question in currentQuestions has a recorded answer for diagnostic analysis
+    const normalizedSetAnswers: Record<number, number> = {};
+    currentQuestions.forEach((q) => {
+      normalizedSetAnswers[q.id] = selectedAnswers[q.id] !== undefined ? selectedAnswers[q.id] : -1;
+    });
+
+    if (!remedialQuestions) {
+      const updatedResults: Record<string, SavedSetResult> = {
+        ...savedResults,
+        [selectedSetId]: {
+          score,
+          points50,
+          percent,
+          completedAt: nowTimeStr,
+          answers: normalizedSetAnswers,
+        },
+      };
+      setSavedResults(updatedResults);
+      try {
+        localStorage.setItem('coderkids_onet69_set_results', JSON.stringify(updatedResults));
+      } catch {}
+    }
+
+    // Update per-student diagnostic profile in localStorage
+    const targetStudentKey = inspectedStudentName || normalizedActiveStudent;
+    const existingDiag = studentDiagnosticsMap[targetStudentKey] || {
+      studentName: targetStudentKey,
+      grade: 'ป.6',
+      school: 'โรงเรียนอนุบาลนราธิวาส',
+      updatedAt: nowTimeStr,
+      setResults: {},
+      questionAnswers: {},
+    };
+
+    const updatedStudentDiag: StudentDiagnosticProfile = {
+      ...existingDiag,
+      studentName: targetStudentKey,
+      updatedAt: nowTimeStr,
+      setResults: remedialQuestions
+        ? existingDiag.setResults
+        : {
+            ...existingDiag.setResults,
+            [selectedSetId]: {
+              score,
+              points50,
+              percent,
+              completedAt: nowTimeStr,
+              answers: normalizedSetAnswers,
+            },
+          },
+      questionAnswers: {
+        ...existingDiag.questionAnswers,
+        ...normalizedSetAnswers,
       },
     };
-    setSavedResults(updatedResults);
+
+    const nextMap = {
+      ...studentDiagnosticsMap,
+      [targetStudentKey]: updatedStudentDiag,
+    };
+    setStudentDiagnosticsMap(nextMap);
     try {
-      localStorage.setItem('coderkids_onet69_set_results', JSON.stringify(updatedResults));
+      localStorage.setItem('coderkids_onet69_student_diagnostics', JSON.stringify(nextMap));
     } catch {}
 
     if (percent >= 70) {
@@ -2690,15 +3240,16 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
       onCompleteExam(score);
     }
     if (onAwardPoints) {
+      const examLabel = remedialQuestions ? remedialTitle : currentSet.title.split(':')[0];
       if (percent >= 70) {
         onAwardPoints(
           30,
-          `พิชิตข้อสอบ O-NET 69 & สสวท. ป.6 (${currentSet.title.split(':')[0]}) ได้ ${score}/10 ข้อ (${points50}/50 คะแนน)`
+          `พิชิตข้อสอบ O-NET 69 & สสวท. ป.6 (${examLabel}) ได้ ${score}/${currentQuestions.length} ข้อ (${points50} คะแนน)`
         );
       } else {
         onAwardPoints(
           15,
-          `ทำข้อสอบ O-NET 69 & สสวท. ป.6 (${currentSet.title.split(':')[0]}) ได้ ${score}/10 ข้อ (${points50}/50 คะแนน)`
+          `ทำข้อสอบ O-NET 69 & สสวท. ป.6 (${examLabel}) ได้ ${score}/${currentQuestions.length} ข้อ (${points50} คะแนน)`
         );
       }
     }
@@ -2709,7 +3260,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
     setSelectedAnswers({});
     setIsSubmitted(false);
     setCurrentIndex(0);
-    setTimeLeftSeconds(900);
+    setTimeLeftSeconds(currentQuestions.length * 90);
   };
 
   const handleReadQuestion = () => {
@@ -2726,6 +3277,38 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
     );
   };
 
+  const handleReadReviewLesson = (lesson: ReviewLessonItem) => {
+    soundEffects.speakThai(
+      `${lesson.title} ตัวชี้วัด ${lesson.indicator} สรุปสาระสำคัญคือ ${lesson.summary} จุดสำคัญที่ต้องจำคือ ${lesson.keyConcepts.join(' ')} เทคนิคพิชิตข้อสอบคือ ${lesson.examProTip}`
+    );
+  };
+
+  const handleAddOrSelectStudent = () => {
+    const trimmed = newStudentInput.trim();
+    if (!trimmed) return;
+    soundEffects.playClick();
+    if (!studentDiagnosticsMap[trimmed]) {
+      const nextMap = {
+        ...studentDiagnosticsMap,
+        [trimmed]: {
+          studentName: trimmed,
+          grade: 'ป.6',
+          school: 'โรงเรียนอนุบาลนราธิวาส',
+          updatedAt: 'เพิ่งสร้างโปรไฟล์วิเคราะห์',
+          setResults: {},
+          questionAnswers: {},
+        },
+      };
+      setStudentDiagnosticsMap(nextMap);
+      try {
+        localStorage.setItem('coderkids_onet69_student_diagnostics', JSON.stringify(nextMap));
+      } catch {}
+    }
+    setInspectedStudentName(trimmed);
+    setNewStudentInput('');
+    setShowAddStudentInput(false);
+  };
+
   const handlePrintReport = () => {
     soundEffects.playClick();
     window.print();
@@ -2735,6 +3318,41 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
   const points50 = score * 5;
   const percent = Math.round((score / currentQuestions.length) * 100);
   const completedSetsCount = Object.keys(savedResults).length;
+
+  // Post-submission current exam set strengths & weaknesses analysis
+  const currentSubmissionWrongQuestions = currentQuestions.filter((q) => selectedAnswers[q.id] !== q.correctIndex);
+  const currentSubmissionCorrectQuestions = currentQuestions.filter((q) => selectedAnswers[q.id] === q.correctIndex);
+  const currentSubmissionWeakIndicators = Array.from(
+    new Set(currentSubmissionWrongQuestions.map((q) => q.indicator))
+  )
+    .map((ind) => REVIEW_LESSONS_BY_INDICATOR.find((l) => l.indicator === ind))
+    .filter((l): l is ReviewLessonItem => Boolean(l));
+
+  const currentSubmissionStrongIndicators = Array.from(
+    new Set(
+      currentSubmissionCorrectQuestions
+        .map((q) => q.indicator)
+        .filter((ind) => !currentSubmissionWrongQuestions.some((wq) => wq.indicator === ind))
+    )
+  );
+
+  // Filter review lessons to display in Diagnostic & Review view
+  const filteredReviewLessons = React.useMemo(() => {
+    if (selectedReviewIndicator === 'ALL') {
+      return REVIEW_LESSONS_BY_INDICATOR;
+    }
+    if (selectedReviewIndicator === 'ALL_WEAK') {
+      if (activeStudentDiagnostic.needsFix.length > 0) {
+        return activeStudentDiagnostic.needsFix.map((nf) => nf.lesson);
+      }
+      if (activeStudentDiagnostic.developing.length > 0) {
+        return activeStudentDiagnostic.developing.map((dev) => dev.lesson);
+      }
+      // If student hasn't made mistakes yet or got 100%, show Must-Know indicators first
+      return REVIEW_LESSONS_BY_INDICATOR.filter((l) => l.isMustKnow);
+    }
+    return REVIEW_LESSONS_BY_INDICATOR.filter((l) => l.indicator === selectedReviewIndicator);
+  }, [selectedReviewIndicator, activeStudentDiagnostic]);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
@@ -2755,7 +3373,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                แยกเป็น 10 ชุดมาตรฐาน ชุดละ 10 ข้อ (รวม 100 ข้อ • 500 คะแนน) ครบทั้งปรนัย 4 ตัวเลือก และเลือกตอบเชิงซ้อน (ข้อละ 5 คะแนน)
+                แยกเป็น 10 ชุดมาตรฐาน ชุดละ 10 ข้อ (รวม 100 ข้อ • 500 คะแนน) พร้อมระบบวิเคราะห์จุดเด่น-จุดที่ต้องแก้ไข &amp; สร้างเนื้อหาทบทวนรายบุคคล
               </p>
             </div>
           </div>
@@ -2778,6 +3396,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
               <button
                 onClick={() => {
                   soundEffects.playClick();
+                  setRemedialQuestions(null);
                   setActiveView('hub');
                 }}
                 className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
@@ -2795,10 +3414,10 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
           </div>
         </div>
 
-        {/* Navigation Switcher (Hub vs Blueprint Analysis) */}
+        {/* Navigation Switcher (Hub vs Individual Diagnostic & Review vs Blueprint Analysis) */}
         {activeView !== 'exam' && (
           <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-2 rounded-2xl border border-slate-200/80 dark:border-slate-800">
-            <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 onClick={() => {
                   soundEffects.playClick();
@@ -2813,6 +3432,27 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                 <Layers className="w-3.5 h-3.5" />
                 <span>ชุดข้อสอบทั้ง 10 ชุด (100 ข้อ)</span>
               </button>
+
+              <button
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveView('diagnostic');
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeView === 'diagnostic'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/70 hover:bg-emerald-100/80'
+                }`}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>วิเคราะห์จุดเด่น-จุดที่ต้องแก้ไข &amp; เนื้อหาทบทวนรายบุคคล</span>
+                {activeStudentDiagnostic.needsFix.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-black tabular-nums">
+                    ควรทบทวน {activeStudentDiagnostic.needsFix.length} จุด
+                  </span>
+                )}
+              </button>
+
               <button
                 onClick={() => {
                   soundEffects.playClick();
@@ -2825,14 +3465,14 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                 }`}
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>วิเคราะห์ผังการสร้างข้อสอบ O-NET 2569 (10 ตัวชี้วัด)</span>
+                <span>ผังการสร้างข้อสอบ O-NET 2569 (10 ตัวชี้วัด)</span>
               </button>
             </div>
 
             <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs">
-              <span className="text-slate-500 dark:text-slate-400">ความก้าวหน้า:</span>
+              <span className="text-slate-500 dark:text-slate-400">ความก้าวหน้า ({activeStudentDiagnostic.studentName}):</span>
               <span className="font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
-                ทำสำเร็จแล้ว {completedSetsCount} / 10 ชุด
+                ทำสำเร็จแล้ว {activeStudentDiagnostic.completedSetsCount} / 10 ชุด
               </span>
             </div>
           </div>
@@ -2841,32 +3481,44 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
         {/* VIEW 1: EXAM SETS HUB (10 SETS X 10 QUESTIONS) */}
         {activeView === 'hub' && (
           <div className="space-y-6">
-            {/* Summary Banner of Blueprint Analysis */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-50 via-amber-50/60 to-orange-50 dark:from-slate-800/90 dark:via-slate-800 dark:to-slate-800/90 border border-indigo-200/80 dark:border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Summary Banner of Blueprint Analysis & Individual Diagnostic CTA */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-50 via-amber-50/60 to-emerald-50 dark:from-slate-800/90 dark:via-slate-800 dark:to-slate-800/90 border border-indigo-200/80 dark:border-slate-700 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">
                   <Target className="w-4 h-4" />
-                  <span>สรุปผลการวิเคราะห์ผังข้อสอบ O-NET ปีการศึกษา 2569 &amp; สสวท. ป.6 (สาระที่ 4 เทคโนโลยี มาตรฐาน ว 4.2)</span>
+                  <span>ระบบคลังข้อสอบ O-NET 69 &amp; สสวท. ป.6 พร้อมวิเคราะห์จุดเด่น-จุดที่ต้องแก้ไขและสร้างเนื้อหาทบทวนรายบุคคล</span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  ครอบคลุม <strong>10 ตัวชี้วัด</strong> พร้อมชุดขยายพิเศษ: <strong>ชุดที่ 4 เหตุผลเชิงตรรกะในชีวิตประจำวัน</strong>, <strong>ชุดที่ 5 ความปลอดภัยไซเบอร์ &amp; PDPA</strong>, <strong>ชุดที่ 6 การตรวจสอบ Fake News &amp; การใช้ไอทีอย่างรับผิดชอบ</strong>, <strong>ชุดที่ 7 การเขียนโปรแกรม Scratch &amp; สถานการณ์จำลอง</strong>, <strong>ชุดที่ 8 การประยุกต์ใช้ Micro:bit &amp; เซนเซอร์</strong>, <strong>ชุดที่ 9 โค้ด Scratch ขั้นสูง (Broadcast, Layer &amp; Nested If)</strong> และ <strong>ชุดที่ 10 การวิเคราะห์ผลกระทบจากการใช้ไอทีต่อสุขภาพและการเรียน</strong>
+                  ครอบคลุมครบ <strong>10 ชุดมาตรฐาน (100 ข้อ • 500 คะแนน)</strong> เมื่อนักเรียนทำข้อสอบ ระบบจะวิเคราะห์ความแม่นยำแยกตาม <strong>6 หมวดทักษะ</strong> และ <strong>10 ตัวชี้วัด ว 4.2</strong> เพื่อระบุจุดเด่น จุดที่ต้องแก้ไข และสร้างบทเรียนทบทวนพร้อมแบบฝึกหัดซ่อมเสริมให้อัตโนมัติ
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  soundEffects.playClick();
-                  setActiveView('blueprint');
-                }}
-                className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-indigo-50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-slate-700 text-xs font-bold shrink-0 cursor-pointer transition-all"
-              >
-                ดูตารางวิเคราะห์ผังข้อสอบ →
-              </button>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setActiveView('diagnostic');
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  <span>เปิดรายงานวิเคราะห์รายบุคคล &amp; เนื้อหาทบทวน →</span>
+                </button>
+                <button
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setActiveView('blueprint');
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-indigo-50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-slate-700 text-xs font-bold cursor-pointer transition-all"
+                >
+                  ดูผังข้อสอบ →
+                </button>
+              </div>
             </div>
 
-            {/* 8 Exam Set Cards */}
+            {/* 10 Exam Set Cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               {ONET_EXAM_SETS.map((setItem) => {
-                const result = savedResults[setItem.id];
+                const result = activeStudentDiagnostic.setResults[setItem.id] || savedResults[setItem.id];
                 const complexCount = setItem.questions.filter((q) => q.questionFormat === 'complex_choice').length;
                 const singleCount = setItem.questions.length - complexCount;
 
@@ -2950,6 +3602,547 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
           </div>
         )}
 
+        {/* VIEW 1.5: INDIVIDUAL STUDENT DIAGNOSTIC REPORT & PERSONALIZED REVIEW CONTENT */}
+        {activeView === 'diagnostic' && (
+          <div className="space-y-6">
+            {/* Student Selector & Individual Profile Header */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/70 to-indigo-50 dark:from-slate-800 dark:via-slate-800/90 dark:to-slate-800 border border-emerald-200 dark:border-slate-700 space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                    <UserCheck className="w-4 h-4" />
+                    <span>รายงานวิเคราะห์จุดเด่น • จุดที่ต้องแก้ไข • เนื้อหาทบทวนรายบุคคล (Individual Diagnostic &amp; Smart Review)</span>
+                  </div>
+                  <h4 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                    ผู้เรียนที่กำลังวิเคราะห์: <span className="text-indigo-600 dark:text-indigo-400">{activeStudentDiagnostic.studentName}</span>
+                  </h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
+                    วิเคราะห์จากประวัติการทำข้อสอบ O-NET &amp; สสวท. ป.6 รายข้อ เพื่อระบุตัวชี้วัดที่เป็นจุดแข็งและสร้างเนื้อหาสรุปทบทวนตรงตามจุดที่ต้องแก้ไข
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handlePrintReport}
+                    className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>พิมพ์ใบวิเคราะห์ &amp; เนื้อหาทบทวน (A4)</span>
+                  </button>
+                  {activeStudentDiagnostic.allWrongQuestions.length > 0 && (
+                    <button
+                      onClick={() =>
+                        handleStartRemedialQuiz(
+                          activeStudentDiagnostic.allWrongQuestions,
+                          `ชุดฝึกซ้อมซ่อมเสริมเฉพาะข้อที่ผิดของ ${activeStudentDiagnostic.studentName}`
+                        )
+                      }
+                      className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                    >
+                      <PlayCircle className="w-3.5 h-3.5" />
+                      <span>ฝึกทำซ้ำเฉพาะข้อที่ผิด ({activeStudentDiagnostic.allWrongQuestions.length} ข้อ)</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Student Roster Switcher Bar */}
+              <div className="pt-3 border-t border-emerald-200/70 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 mr-1">
+                    เลือกดูนักเรียนรายบุคคล:
+                  </span>
+                  {availableStudentNames.map((nameItem) => {
+                    const isSelected = nameItem === activeStudentDiagnostic.studentName;
+                    return (
+                      <button
+                        key={nameItem}
+                        onClick={() => {
+                          soundEffects.playClick();
+                          setInspectedStudentName(nameItem);
+                        }}
+                        className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-indigo-50'
+                        }`}
+                      >
+                        👤 {nameItem}
+                      </button>
+                    );
+                  })}
+
+                  {!showAddStudentInput ? (
+                    <button
+                      onClick={() => setShowAddStudentInput(true)}
+                      className="px-2.5 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 text-xs font-bold cursor-pointer hover:bg-emerald-200/70"
+                    >
+                      + เพิ่ม/ค้นหาชื่อนักเรียน
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={newStudentInput}
+                        onChange={(e) => setNewStudentInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleAddOrSelectStudent();
+                        }}
+                        placeholder="ระบุชื่อ-นามสกุลนักเรียน..."
+                        className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
+                      />
+                      <button
+                        onClick={handleAddOrSelectStudent}
+                        className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-xs font-bold cursor-pointer"
+                      >
+                        ตกลง
+                      </button>
+                      <button
+                        onClick={() => setShowAddStudentInput(false)}
+                        className="px-2 py-1 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer"
+                      >
+                        ยกเลิก
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 4 KPI Summary Cards for Selected Student */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">จำนวนข้อสอบที่ทำแล้ว</div>
+                <div className="text-2xl font-black text-slate-900 dark:text-white font-mono tabular-nums">
+                  {activeStudentDiagnostic.totalAnswered} / 100 ข้อ
+                </div>
+                <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                  ทำสำเร็จ {activeStudentDiagnostic.completedSetsCount} จาก 10 ชุด
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">ความแม่นยำเฉลี่ยรวม</div>
+                <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">
+                  {activeStudentDiagnostic.overallAccuracy}%
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+                  ตอบถูก {activeStudentDiagnostic.totalCorrect} ข้อ • ผิด {activeStudentDiagnostic.totalWrong} ข้อ
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/70 space-y-1">
+                <div className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">🌟 จุดเด่น (Strengths ≥ 80%)</div>
+                <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400 font-mono tabular-nums">
+                  {activeStudentDiagnostic.strengths.length} ตัวชี้วัด
+                </div>
+                <div className="text-[11px] text-emerald-700 dark:text-emerald-300 font-semibold truncate">
+                  {activeStudentDiagnostic.strengths.length > 0
+                    ? activeStudentDiagnostic.strengths.map((s) => s.indicator).join(', ')
+                    : 'ทำข้อสอบเพิ่มเพื่อระบุจุดเด่น'}
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/70 space-y-1">
+                <div className="text-[11px] font-bold text-rose-800 dark:text-rose-300">🚨 จุดที่ต้องแก้ไขและทบทวน</div>
+                <div className="text-2xl font-black text-rose-600 dark:text-rose-400 font-mono tabular-nums">
+                  {activeStudentDiagnostic.needsFix.length} ตัวชี้วัด
+                </div>
+                <div className="text-[11px] text-rose-700 dark:text-rose-300 font-semibold truncate">
+                  {activeStudentDiagnostic.needsFix.length > 0
+                    ? activeStudentDiagnostic.needsFix.map((n) => n.indicator).join(', ')
+                    : activeStudentDiagnostic.totalAnswered > 0
+                    ? 'ยอดเยี่ยม! ยังไม่พบจุดวิกฤต'
+                    : 'รอข้อมูลผลสอบชุดแรก'}
+                </div>
+              </div>
+            </div>
+
+            {/* 6 Competency Domains Breakdown */}
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h5 className="font-black text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-indigo-600" />
+                  <span>การวิเคราะห์สมรรถนะรายด้านทั้ง 6 หมวดทักษะ (ตามผัง O-NET 69 &amp; สสวท. ป.6)</span>
+                </h5>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  เกณฑ์ประเมิน: ดีเยี่ยม (≥ 80%) • กำลังพัฒนา (60–79%) • ต้องแก้ไขเร่งด่วน (&lt; 60%)
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {activeStudentDiagnostic.categoryStats.map((cat) => {
+                  const acc = cat.accuracy ?? 0;
+                  const statusBadge =
+                    cat.accuracy === null
+                      ? 'ยังไม่ได้ทดสอบ'
+                      : acc >= 80
+                      ? '🌟 จุดเด่น (ดีเยี่ยม)'
+                      : acc >= 60
+                      ? '⚠️ กำลังพัฒนา'
+                      : '🚨 ต้องแก้ไขเร่งด่วน';
+
+                  return (
+                    <div
+                      key={cat.category}
+                      className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 space-y-2"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {cat.meta.icon} {cat.meta.label}
+                        </span>
+                        <span className="font-mono font-bold text-slate-700 dark:text-slate-300 tabular-nums shrink-0">
+                          {cat.accuracy !== null ? `${cat.accuracy}% (${cat.correctCount}/${cat.attemptedCount} ข้อ)` : `0/${cat.totalInBank} ข้อ`}
+                        </span>
+                      </div>
+                      <div className="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            cat.accuracy === null
+                              ? 'w-0'
+                              : acc >= 80
+                              ? 'bg-emerald-500'
+                              : acc >= 60
+                              ? 'bg-amber-500'
+                              : 'bg-rose-500'
+                          }`}
+                          style={{ width: `${cat.accuracy ?? 0}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                        <span>ข้อสอบในคลังทั้งหมด {cat.totalInBank} ข้อ</span>
+                        <span
+                          className={`font-bold ${
+                            cat.accuracy === null
+                              ? 'text-slate-400'
+                              : acc >= 80
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : acc >= 60
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                          }`}
+                        >
+                          {statusBadge}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Two-Column Strengths vs Priority Areas to Fix */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Column 1: Strengths */}
+              <div className="p-5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/70 space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h5 className="font-black text-sm sm:text-base text-emerald-900 dark:text-emerald-300 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    <span>🌟 วิเคราะห์จุดเด่นของผู้เรียน ({activeStudentDiagnostic.studentName})</span>
+                  </h5>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-200">
+                    ความแม่นยำ ≥ 80%
+                  </span>
+                </div>
+
+                {activeStudentDiagnostic.strengths.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {activeStudentDiagnostic.strengths.map((st) => (
+                      <div
+                        key={st.indicator}
+                        className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+                              {st.indicator} {st.isMustKnow ? '(ต้องรู้)' : ''}
+                            </span>
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {st.lesson.categoryName}
+                            </span>
+                          </div>
+                          <span className="text-xs font-black text-emerald-600 font-mono tabular-nums">
+                            ✓ {st.accuracy}% ({st.correctCount}/{st.attemptedCount} ข้อ)
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                          <strong>จุดเด่น:</strong> เข้าใจเรื่อง{st.lesson.title.split(':')[1] || st.lesson.title} ได้อย่างแม่นยำ สามารถวิเคราะห์โจทย์และตัดตัวเลือกหลอกได้ถูกต้อง
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-emerald-200/60 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 leading-relaxed space-y-2">
+                    <p>
+                      {activeStudentDiagnostic.totalAnswered === 0
+                        ? 'ยังไม่มีประวัติการทำข้อสอบของนักเรียนคนนี้ แนะนำให้เริ่มทำข้อสอบชุดที่ 1 เพื่อวิเคราะห์จุดเด่นทันที'
+                        : 'กำลังสะสมคะแนนให้ถึงเกณฑ์จุดเด่น (ความแม่นยำตั้งแต่ 80% ขึ้นไปในแต่ละตัวชี้วัด)'}
+                    </p>
+                    <button
+                      onClick={() => handleStartSet('set1')}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer"
+                    >
+                      เริ่มทำข้อสอบเพื่อประเมินจุดเด่น →
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Column 2: Areas Needing Improvement */}
+              <div className="p-5 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/70 space-y-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h5 className="font-black text-sm sm:text-base text-rose-900 dark:text-rose-300 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-600" />
+                    <span>🚨 จุดที่ต้องแก้ไขและเร่งทบทวน ({activeStudentDiagnostic.studentName})</span>
+                  </h5>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900/70 text-rose-800 dark:text-rose-200">
+                    วิเคราะห์จากข้อที่ตอบผิด
+                  </span>
+                </div>
+
+                {activeStudentDiagnostic.needsFix.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {activeStudentDiagnostic.needsFix.map((nf) => (
+                      <div
+                        key={nf.indicator}
+                        className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-800/60 space-y-2"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 text-xs font-bold">
+                              {nf.indicator} {nf.isMustKnow ? '(ตัวชี้วัดต้องรู้!)' : ''}
+                            </span>
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">
+                              {nf.lesson.title.split(':')[1] || nf.lesson.title}
+                            </span>
+                          </div>
+                          <span className="text-xs font-black text-rose-600 font-mono tabular-nums">
+                            ความแม่นยำ {nf.accuracy}% (ผิด {nf.wrongQuestions.length} ข้อ)
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-slate-600 dark:text-slate-300 bg-rose-50/70 dark:bg-rose-950/40 p-2.5 rounded-lg border border-rose-100 dark:border-rose-900/50">
+                          <strong>สาเหตุที่ต้องแก้ไข:</strong> {nf.lesson.commonMistake}
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                          <button
+                            onClick={() => {
+                              soundEffects.playClick();
+                              setSelectedReviewIndicator(nf.indicator);
+                            }}
+                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                          >
+                            📖 อ่านสรุปเนื้อหาทบทวน {nf.indicator} ด้านล่าง ↓
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStartRemedialQuiz(
+                                ALL_ONET_QUESTIONS.filter((q) => q.indicator === nf.indicator),
+                                `ทบทวนซ่อมเสริมตัวชี้วัด ${nf.indicator}`
+                              )
+                            }
+                            className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold cursor-pointer"
+                          >
+                            🎯 ฝึกทำโจทย์ {nf.indicator} ทันที
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-rose-200/60 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 leading-relaxed space-y-2">
+                    <p>
+                      {activeStudentDiagnostic.totalAnswered === 0
+                        ? 'เมื่อนักเรียนทำข้อสอบชุดใดๆ เสร็จสิ้น ระบบจะตรวจจับข้อที่ผิดและสรุปสาเหตุที่ต้องแก้ไขพร้อมสร้างบทเรียนทบทวนให้ในกรอบนี้โดยอัตโนมัติ'
+                        : 'ยอดเยี่ยมมาก! จากข้อสอบที่ทำมาทั้งหมด ยังไม่พบตัวชี้วัดที่ต่ำกว่าเกณฑ์ สามารถศึกษาเนื้อหาทบทวนตัวชี้วัดต้องรู้ด้านล่างเพื่อเตรียมสอบเต็ม 100 คะแนน'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* PERSONALIZED REVIEW CONTENT GENERATOR SECTION */}
+            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-indigo-50/80 via-white to-amber-50/60 dark:from-slate-800/90 dark:via-slate-900 dark:to-slate-800/90 border border-indigo-200 dark:border-slate-700 space-y-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-indigo-100 dark:border-slate-800">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                    <Lightbulb className="w-4 h-4 text-amber-500" />
+                    <span>ระบบสร้างเนื้อหาให้ทบทวนรายบุคคล (Personalized Smart Review Sheet &amp; Cheat-Sheet)</span>
+                  </div>
+                  <h4 className="font-black text-base sm:text-lg text-slate-900 dark:text-white">
+                    คลังสรุปเนื้อหาทบทวน แผนภาพจำง่าย &amp; เทคนิคพิชิตข้อสอบสำหรับ {activeStudentDiagnostic.studentName}
+                  </h4>
+                </div>
+
+                {/* Filter buttons for review content */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      soundEffects.playClick();
+                      setSelectedReviewIndicator('ALL_WEAK');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                      selectedReviewIndicator === 'ALL_WEAK'
+                        ? 'bg-rose-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    🚨 เฉพาะจุดที่ต้องแก้ไข / ต้องรู้
+                  </button>
+                  <button
+                    onClick={() => {
+                      soundEffects.playClick();
+                      setSelectedReviewIndicator('ALL');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                      selectedReviewIndicator === 'ALL'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    📚 ดูครบทั้ง 10 ตัวชี้วัด
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Indicator Pills */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {REVIEW_LESSONS_BY_INDICATOR.map((item) => {
+                  const isWeak = activeStudentDiagnostic.needsFix.some((nf) => nf.indicator === item.indicator);
+                  const isSelected = selectedReviewIndicator === item.indicator;
+                  return (
+                    <button
+                      key={item.indicator}
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setSelectedReviewIndicator(item.indicator);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : isWeak
+                          ? 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800'
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span>{item.indicator}</span>
+                      {item.isMustKnow && <span className="text-[10px] text-amber-500">★</span>}
+                      {isWeak && <span className="text-[10px]">⚠️</span>}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Render Review Lesson Cards */}
+              <div className="space-y-4">
+                {filteredReviewLessons.map((lesson) => {
+                  const indStat = activeStudentDiagnostic.indicatorStats.find((s) => s.indicator === lesson.indicator);
+                  const indicatorQuestions = ALL_ONET_QUESTIONS.filter((q) => q.indicator === lesson.indicator);
+
+                  return (
+                    <div
+                      key={lesson.indicator}
+                      className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-4"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded-md bg-indigo-600 text-white text-xs font-bold">
+                              {lesson.indicator}
+                            </span>
+                            {lesson.isMustKnow && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700 text-[11px] font-bold">
+                                ★ ตัวชี้วัดต้องรู้ O-NET 69
+                              </span>
+                            )}
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                              หมวด: {lesson.categoryName}
+                            </span>
+                            {indStat && indStat.accuracy !== null && (
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                                  indStat.accuracy >= 80
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                }`}
+                              >
+                                ผลสอบปัจจุบัน: {indStat.accuracy}% ({indStat.correctCount}/{indStat.attemptedCount} ข้อ)
+                              </span>
+                            )}
+                          </div>
+                          <h5 className="font-black text-sm sm:text-base text-slate-900 dark:text-white">
+                            {lesson.title}
+                          </h5>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleReadReviewLesson(lesson)}
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Volume2 className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>ฟังสรุปเนื้อหา</span>
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStartRemedialQuiz(
+                                indicatorQuestions,
+                                `แบบฝึกหัดทบทวนตัวชี้วัด ${lesson.indicator} (${lesson.title.split(':')[1] || lesson.title})`
+                              )
+                            }
+                            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <PlayCircle className="w-3.5 h-3.5" />
+                            <span>ฝึกทำโจทย์เรื่องนี้ ({indicatorQuestions.length} ข้อ)</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                        <strong>สรุปแก่นความรู้สำคัญ:</strong> {lesson.summary}
+                      </p>
+
+                      {/* Key Concepts List */}
+                      <div className="p-3.5 rounded-xl bg-indigo-50/60 dark:bg-slate-800/70 border border-indigo-100 dark:border-slate-700 space-y-1.5">
+                        <div className="text-xs font-bold text-indigo-900 dark:text-indigo-300">
+                          📌 ประเด็นสำคัญที่ต้องแม่นยำก่อนสอบ:
+                        </div>
+                        <ul className="list-disc list-inside text-xs text-slate-700 dark:text-slate-300 space-y-1 leading-relaxed">
+                          {lesson.keyConcepts.map((kc, idx) => (
+                            <li key={idx}>{kc}</li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Visual Cheat Sheet */}
+                      <pre className="p-3.5 rounded-2xl bg-slate-900 text-amber-300 font-mono text-xs overflow-x-auto border border-slate-800 leading-relaxed">
+                        {lesson.visualCheatSheet}
+                      </pre>
+
+                      {/* Common Mistake & Exam Pro Tip */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div className="p-3 rounded-xl bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 space-y-1">
+                          <div className="font-bold text-rose-800 dark:text-rose-300">
+                            ⚠️ จุดที่นักเรียนมักเข้าใจผิดและต้องระวัง:
+                          </div>
+                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{lesson.commonMistake}</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-1">
+                          <div className="font-bold text-emerald-800 dark:text-emerald-300">
+                            💡 เทคนิคพิชิตโจทย์ O-NET 69 &amp; สสวท. ป.6:
+                          </div>
+                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{lesson.examProTip}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* VIEW 2: TEST BLUEPRINT ANALYSIS TABLE */}
         {activeView === 'blueprint' && (
           <div className="space-y-5">
@@ -3019,27 +4212,29 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-2 bg-indigo-50/70 dark:bg-slate-800/90 px-4 py-2.5 rounded-2xl border border-indigo-200/80 dark:border-slate-700">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 rounded-md bg-indigo-600 text-white text-xs font-bold">
-                      ชุดที่ {currentSet.setNumber}
+                      {remedialQuestions ? 'โหมดทบทวนซ่อมเสริม' : `ชุดที่ ${currentSet.setNumber}`}
                     </span>
                     <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">
-                      {currentSet.title}
+                      {remedialQuestions ? remedialTitle : currentSet.title}
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    {ONET_EXAM_SETS.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => handleStartSet(s.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          s.id === selectedSetId
-                            ? 'bg-indigo-600 text-white'
-                            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
-                        }`}
-                      >
-                        ชุดที่ {s.setNumber}
-                      </button>
-                    ))}
-                  </div>
+                  {!remedialQuestions && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {ONET_EXAM_SETS.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => handleStartSet(s.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                            s.id === selectedSetId
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          ชุดที่ {s.setNumber}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Top Question Metadata & TTS Reader */}
@@ -3174,38 +4369,133 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                       className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer flex items-center gap-1.5"
                     >
                       <FileCheck className="w-4 h-4" />
-                      <span>ส่งข้อสอบชุดที่ {currentSet.setNumber} &amp; ตรวจคำตอบ</span>
+                      <span>
+                        {remedialQuestions
+                          ? 'ส่งแบบฝึกหัดทบทวน & ดูผลวิเคราะห์'
+                          : `ส่งข้อสอบชุดที่ ${currentSet.setNumber} & ตรวจคำตอบ`}
+                      </span>
                     </button>
                   )}
                 </div>
               </div>
             ) : (
-              /* Result & Solution View */
+              /* Result, Personalized Diagnostic & Solution View */
               <div className="space-y-6">
                 <div className="p-6 rounded-3xl bg-gradient-to-br from-indigo-50 via-white to-amber-50 dark:from-slate-800 dark:via-slate-800 dark:to-slate-900 border border-indigo-200 dark:border-slate-700 text-center space-y-3">
                   <div className="text-4xl">{percent >= 80 ? '🏆' : percent >= 60 ? '🌟' : '📚'}</div>
                   <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                    {currentSet.title}
+                    {remedialQuestions ? remedialTitle : currentSet.title}
                   </div>
                   <h4 className="text-xl font-black text-slate-900 dark:text-white">
-                    ผลการประเมินตามผังข้อสอบ O-NET 69: {studentName}
+                    ผลการประเมินตามผังข้อสอบ O-NET 69: {activeStudentDiagnostic.studentName}
                   </h4>
                   <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">
-                    ทำถูก {score} / {currentQuestions.length} ข้อ • {points50} / 50 คะแนน ({percent}%)
+                    ทำถูก {score} / {currentQuestions.length} ข้อ • {points50} / {currentQuestions.length * 5} คะแนน ({percent}%)
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
                     {percent >= 80
                       ? 'ระดับดีเยี่ยม (Advanced): เข้าใจการใช้เหตุผลเชิงตรรกะ การออกแบบโปรแกรม และการค้นหาข้อมูลตามตัวชี้วัด ว 4.2 ได้อย่างแม่นยำ'
                       : percent >= 60
-                      ? 'ระดับผ่านเกณฑ์มาตรฐาน (Proficient): มีพื้นฐานที่ดี แนะนำให้ทบทวนข้อที่ผิดด้านล่างเพื่อเตรียมพร้อมเต็มร้อย'
-                      : 'ระดับกำลังพัฒนา (Developing): แนะนำให้อ่านคำอธิบายเฉลยรายข้อด้านล่างและลองทำซ้ำอีกครั้ง'}
+                      ? 'ระดับผ่านเกณฑ์มาตรฐาน (Proficient): มีพื้นฐานที่ดี แนะนำให้ศึกษาบทเรียนทบทวนเฉพาะจุดที่ผิดด้านล่างเพื่อเตรียมพร้อมเต็มร้อย'
+                      : 'ระดับกำลังพัฒนา (Developing): ระบบได้สร้างเนื้อหาสรุปให้ทบทวนตามจุดที่ต้องแก้ไขไว้ด้านล่างแล้ว แนะนำให้อ่านทบทวนและลองฝึกทำซ้ำ'}
                   </p>
+                </div>
+
+                {/* Instant Post-Set Diagnostic Summary & Targeted Review Content */}
+                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h5 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-emerald-600" />
+                      <span>สรุปวิเคราะห์จุดเด่น &amp; จุดที่ต้องแก้ไขจากข้อสอบชุดนี้ ({activeStudentDiagnostic.studentName})</span>
+                    </h5>
+                    <button
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setRemedialQuestions(null);
+                        setActiveView('diagnostic');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5"
+                    >
+                      <GraduationCap className="w-3.5 h-3.5" />
+                      <span>เปิดรายงานวิเคราะห์รวม &amp; เนื้อหาทบทวนฉบับเต็ม →</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+                    <div className="p-3.5 rounded-xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 space-y-1.5">
+                      <div className="font-bold text-emerald-800 dark:text-emerald-300">
+                        🌟 จุดเด่นที่ทำได้แม่นยำในชุดนี้:
+                      </div>
+                      {currentSubmissionStrongIndicators.length > 0 ? (
+                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                          ทำถูกต้องครบทุกข้อในตัวชี้วัด <strong>{currentSubmissionStrongIndicators.join(', ')}</strong> แสดงถึงความเข้าใจหลักการอย่างแม่นยำ
+                        </p>
+                      ) : (
+                        <p className="text-slate-600 dark:text-slate-400">
+                          ตอบถูก {score} ข้อ — แนะนำให้ทบทวนตัวชี้วัดที่ยังมีข้อผิดพลาดด้านขวาเพื่อยกระดับเป็นจุดเด่น
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800/60 space-y-1.5">
+                      <div className="font-bold text-rose-800 dark:text-rose-300">
+                        🚨 จุดที่ต้องแก้ไขและเนื้อหาที่ระบบสร้างให้ทบทวน:
+                      </div>
+                      {currentSubmissionWeakIndicators.length > 0 ? (
+                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                          พบข้อที่ควรทบทวนในตัวชี้วัด{' '}
+                          <strong>{currentSubmissionWeakIndicators.map((l) => l.indicator).join(', ')}</strong>{' '}
+                          (รวม {currentSubmissionWrongQuestions.length} ข้อ) ระบบได้ดึงสรุปเนื้อหาทบทวนมาให้ด้านล่างแล้ว
+                        </p>
+                      ) : (
+                        <p className="text-emerald-700 dark:text-emerald-300 font-bold">
+                          🎉 ยอดเยี่ยม! ตอบถูกครบทุกข้อในชุดนี้ ไม่พบจุดที่ต้องแก้ไขเพิ่มเติม
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Auto-Generated Review Cards for Weak Indicators in This Submission */}
+                  {currentSubmissionWeakIndicators.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <div className="text-xs font-black text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                        <Lightbulb className="w-4 h-4 text-amber-500" />
+                        <span>📖 เนื้อหาสรุปทบทวนเฉพาะจุดที่ต้องแก้ไขจากชุดนี้:</span>
+                      </div>
+                      {currentSubmissionWeakIndicators.map((lesson) => (
+                        <div
+                          key={lesson.indicator}
+                          className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 space-y-2.5 text-xs"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-black text-indigo-700 dark:text-indigo-300">
+                              [{lesson.indicator}] {lesson.title}
+                            </span>
+                            <button
+                              onClick={() => handleReadReviewLesson(lesson)}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 font-bold flex items-center gap-1 cursor-pointer"
+                            >
+                              <Volume2 className="w-3.5 h-3.5" />
+                              <span>ฟังสรุป</span>
+                            </button>
+                          </div>
+                          <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{lesson.summary}</p>
+                          <pre className="p-3 rounded-xl bg-slate-900 text-amber-300 font-mono text-[11px] overflow-x-auto leading-relaxed">
+                            {lesson.visualCheatSheet}
+                          </pre>
+                          <div className="text-[11px] text-rose-700 dark:text-rose-300">
+                            <strong>⚠️ ข้อควรระวัง:</strong> {lesson.commonMistake}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Detailed Solutions & Blueprint Mapping */}
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                   <h5 className="font-bold text-xs text-slate-500 uppercase tracking-wider">
-                    เฉลยละเอียดพร้อมตัวชี้วัด O-NET ปีการศึกษา 2569 (ชุดที่ {currentSet.setNumber})
+                    เฉลยละเอียดรายข้อพร้อมตัวชี้วัด O-NET ปีการศึกษา 2569
                   </h5>
                   {currentQuestions.map((q, idx) => {
                     const userAns = selectedAnswers[q.id];
@@ -3254,11 +4544,22 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                       className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all flex items-center gap-2 cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
-                      <span>ทำชุดที่ {currentSet.setNumber} ใหม่</span>
+                      <span>{remedialQuestions ? 'ฝึกทำชุดทบทวนซ้ำอีกครั้ง' : `ทำชุดที่ ${currentSet.setNumber} ใหม่`}</span>
                     </button>
                     <button
                       onClick={() => {
                         soundEffects.playClick();
+                        setRemedialQuestions(null);
+                        setActiveView('diagnostic');
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer"
+                    >
+                      📊 ดูรายงานวิเคราะห์จุดเด่น-จุดที่ต้องแก้ไข &amp; เนื้อหาทบทวน
+                    </button>
+                    <button
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setRemedialQuestions(null);
                         setActiveView('hub');
                       }}
                       className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
@@ -3291,3 +4592,4 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
     </div>
   );
 };
+
