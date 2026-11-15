@@ -3,7 +3,7 @@
  * Handles server-side Gemini AI Tutor API and persistent student/log endpoints
  * Fully compatible with Cloudflare Workers (Static Assets) and Cloudflare Pages
  */
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 
 export interface KVNamespace {
   get: (key: string) => Promise<string | null>;
@@ -146,6 +146,112 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
           return jsonResponse({
             reply: 'ครูพี่โค้ดดิ้งยินดีต้อนรับสู่โลกแห่งการเขียนโค้ด! มีข้อสงสัยเกี่ยวกับ Flowchart หรือ Scratch สอบถามได้เลยนะครับ 🚀✨',
           });
+        }
+      }
+
+      // 1A. AI BOOK SUMMARY API (Digital Library Pre-Quiz Review)
+      if (url.pathname === '/api/books/summarize' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) as any;
+        const { bookId, title, subtitle, synopsis, level, learningOutcomes, sections } = body;
+
+        const buildFallbackSummary = () => {
+          const sectionPoints = Array.isArray(sections)
+            ? sections
+                .map((s: any, idx: number) =>
+                  s?.keyTakeaway
+                    ? `บทที่ ${idx + 1} (${s.title}): ${s.keyTakeaway}`
+                    : s?.title
+                    ? `บทที่ ${idx + 1}: ${s.title}`
+                    : ''
+                )
+                .filter(Boolean)
+            : [];
+          const outcomes = Array.isArray(learningOutcomes) ? learningOutcomes.filter(Boolean) : [];
+          return {
+            bookId: bookId || 'book',
+            overview: `${title || 'e-Book'} (${level || 'ป.4-6'}) — ${synopsis || subtitle || 'สรุปสาระสำคัญเพื่อทบทวนก่อนทำแบบทดสอบท้ายเล่ม'}`,
+            keyConcepts:
+              sectionPoints.length > 0
+                ? sectionPoints
+                : outcomes.length > 0
+                ? outcomes
+                : ['เข้าใจหลักการพื้นฐานของบทเรียน', 'วิเคราะห์ขั้นตอนการทำงานและหาจุดผิดพลาด', 'ประยุกต์ใช้ความรู้สร้างโครงงานแก้ปัญหาจริง'],
+            examTips: [
+              '📘 มิติความเข้าใจ: ทบทวนคำศัพท์สำคัญและหน้าที่ของคำสั่ง/อุปกรณ์หลักในแต่ละบท',
+              '🔍 มิติการคิดวิเคราะห์: สังเกตลำดับการทำงาน เงื่อนไข if-else และการวนซ้ำ forever',
+              '🚀 มิติการนำไปใช้: เชื่อมโยงความรู้ในหนังสือเข้ากับการแก้ปัญหาจริงอย่างปลอดภัย',
+            ],
+            memoryMnemonic:
+              'จำง่ายก่อนสอบ: "รับค่า (Input) ➔ ประมวลผลเงื่อนไข (Process) ➔ แสดงผลลัพธ์ (Output) ➔ ตรวจสอบแก้ไข (Debug)"',
+          };
+        };
+
+        try {
+          const apiKey = env.GEMINI_API_KEY;
+          if (!apiKey) {
+            return jsonResponse({ summary: buildFallbackSummary(), source: 'fallback' });
+          }
+
+          const sectionDigest = Array.isArray(sections)
+            ? sections
+                .map(
+                  (s: any, idx: number) =>
+                    `ตอนที่ ${idx + 1}: ${s.title}\nเนื้อหา: ${(s.paragraphs || []).join(' ')}\nสรุปสำคัญ: ${s.keyTakeaway || '-'}`
+                )
+                .join('\n\n')
+            : '';
+
+          const prompt = `กรุณาสรุปเนื้อหาสำคัญของหนังสืออิเล็กทรอนิกส์ (e-Book) เรื่อง "${title}" (${subtitle || ''}) สำหรับนักเรียนระดับชั้น ${level || 'ป.4-ป.6'} เพื่อใช้ทบทวนก่อนทำแบบทดสอบท้ายเล่ม 3 มิติ\n\nบทคัดย่อ: ${synopsis || '-'}\nจุดประสงค์: ${(learningOutcomes || []).join(', ')}\n\nเนื้อหารายบท:\n${sectionDigest}`;
+
+          const ai = new GoogleGenAI({
+            apiKey,
+            httpOptions: {
+              headers: {
+                'User-Agent': 'aistudio-build',
+              },
+            },
+          });
+
+          const response = await ai.models.generateContent({
+            model: 'gemini-4-hydrogen',
+            contents: prompt,
+            config: {
+              systemInstruction:
+                'คุณคือ "ครูพี่โค้ดดิ้ง" สรุปเนื้อหาหนังสือวิทยาการคำนวณ สพฐ. และ สสวท. ให้กระชับ เข้าใจง่าย สำหรับนักเรียนประถมศึกษาใช้ทบทวนก่อนทำแบบทดสอบ 3 มิติ (ความเข้าใจ, คิดวิเคราะห์, การนำไปใช้) ตอบเป็น JSON เท่านั้น',
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  overview: { type: Type.STRING },
+                  keyConcepts: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  examTips: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  memoryMnemonic: { type: Type.STRING },
+                },
+                required: ['overview', 'keyConcepts', 'examTips', 'memoryMnemonic'],
+              },
+            },
+          });
+
+          const parsed = JSON.parse((response.text ?? '{}').trim());
+          return jsonResponse({
+            summary: {
+              bookId: bookId || 'book',
+              overview: parsed.overview || buildFallbackSummary().overview,
+              keyConcepts:
+                Array.isArray(parsed.keyConcepts) && parsed.keyConcepts.length > 0
+                  ? parsed.keyConcepts
+                  : buildFallbackSummary().keyConcepts,
+              examTips:
+                Array.isArray(parsed.examTips) && parsed.examTips.length > 0
+                  ? parsed.examTips
+                  : buildFallbackSummary().examTips,
+              memoryMnemonic: parsed.memoryMnemonic || buildFallbackSummary().memoryMnemonic,
+            },
+            source: 'gemini',
+          });
+        } catch (err) {
+          console.error('Worker Book Summary Error:', err);
+          return jsonResponse({ summary: buildFallbackSummary(), source: 'fallback' });
         }
       }
 

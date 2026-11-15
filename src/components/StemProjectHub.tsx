@@ -430,7 +430,17 @@ export const StemProjectHub: React.FC<StemProjectHubProps> = ({
   addPoints,
   onCelebrate,
 }) => {
-  const [selectedProject, setSelectedProject] = useState<StemProject>(STEM_PROJECTS[0]);
+  const [selectedProject, setSelectedProject] = useState<StemProject>(() => {
+    try {
+      const savedId = localStorage.getItem('coderkids_selected_stem_project');
+      if (savedId) {
+        localStorage.removeItem('coderkids_selected_stem_project');
+        const found = STEM_PROJECTS.find((p) => p.id === savedId);
+        if (found) return found;
+      }
+    } catch {}
+    return STEM_PROJECTS[0];
+  });
   const [activeGradeFilter, setActiveGradeFilter] = useState<'All' | 'ป.4' | 'ป.5' | 'ป.6'>('All');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('All');
   const [activeTab, setActiveTab] = useState<'guide' | 'circuit' | 'canvas'>('guide');

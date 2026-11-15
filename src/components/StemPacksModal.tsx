@@ -27,7 +27,7 @@ interface StemPacksModalProps {
   onRewardPoints?: (points: number, reason: string) => void;
 }
 
-interface StemProjectDetail {
+export interface StemProjectDetail {
   id: string;
   title: string;
   subtitle: string;
@@ -54,7 +54,7 @@ interface StemProjectDetail {
   pythonCode: string;
 }
 
-const STEM_PACKS: StemProjectDetail[] = [
+export const STEM_PACKS: StemProjectDetail[] = [
   {
     id: 'smart_farm',
     title: '🌱 แปลงผักอัจฉริยะ (Smart Farm & Auto Watering)',
@@ -471,6 +471,22 @@ export const StemPacksModal: React.FC<StemPacksModalProps> = ({
   const [selectedPackIndex, setSelectedPackIndex] = useState(0);
   const [simValue, setSimValue] = useState<number>(STEM_PACKS[0].simulationState.defaultVal);
   const [isSimActive, setIsSimActive] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      try {
+        const savedId = localStorage.getItem('coderkids_selected_stem_pack');
+        if (savedId) {
+          localStorage.removeItem('coderkids_selected_stem_pack');
+          const idx = STEM_PACKS.findIndex((p) => p.id === savedId);
+          if (idx >= 0) {
+            setSelectedPackIndex(idx);
+            setSimValue(STEM_PACKS[idx].simulationState.defaultVal);
+          }
+        }
+      } catch {}
+    }
+  }, [isOpen]);
 
   const currentPack = STEM_PACKS[selectedPackIndex];
 

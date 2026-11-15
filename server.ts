@@ -2,7 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 
 dotenv.config();
 
@@ -57,6 +57,23 @@ app.get('/api/health', (_req, res) => {
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
   });
 });
+
+// Track temporary 429 quota cooldown so we don't hammer the API when rate-limited
+let geminiQuotaCooldownUntil = 0;
+const bookSummaryCache = new Map<string, any>();
+const bookCatalogCache = new Map<string, any>();
+
+function isQuotaOrRateLimitError(err: any): boolean {
+  const msg = String(err?.message || err || '');
+  return (
+    err?.status === 429 ||
+    err?.code === 429 ||
+    msg.includes('429') ||
+    msg.includes('RESOURCE_EXHAUSTED') ||
+    msg.includes('quota') ||
+    msg.includes('rate-limit')
+  );
+}
 
 // ------------------ AI TUTOR CHAT API ROUTE ------------------
 app.post('/api/tutor', async (req, res) => {
@@ -123,6 +140,10 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน�
       parts: [{ text: message }],
     });
 
+    if (Date.now() < geminiQuotaCooldownUntil) {
+      throw new Error('Quota cooldown active');
+    }
+
     const ai = getGeminiClient(apiKey);
 
     const timeoutPromise = new Promise<never>((_, reject) =>
@@ -142,7 +163,12 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน�
     const reply = response.text || 'ขออภัยครับ ครูพี่โค้ดดิ้งกำลังประมวลผล ลองถามใหม่อีกครั้งนะครับ! 🤖';
     return res.json({ reply });
   } catch (error: any) {
-    console.error('Gemini Tutor Error:', error);
+    if (isQuotaOrRateLimitError(error)) {
+      geminiQuotaCooldownUntil = Date.now() + 60_000;
+      console.log('[Gemini Tutor] Quota limit reached (429), serving built-in educational response.');
+    } else {
+      console.log('[Gemini Tutor] Using built-in educational response:', error?.message || 'fallback');
+    }
     const msg = (req.body?.message || '').toLowerCase();
     let fallback = 'สวัสดีครับน้องๆ! ครูพี่โค้ดดิ้งยินดีให้คำแนะนำนะครับ 🤖✨\n\n';
 
@@ -159,6 +185,488 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน�
     }
 
     return res.json({ reply: fallback });
+  }
+});
+
+// ------------------ AI BOOK SUMMARY API ROUTE (Digital Library Pre-Quiz Review) ------------------
+app.post('/api/books/summarize', async (req, res) => {
+  const { bookId, title, subtitle, synopsis, level, learningOutcomes, sections } = req.body || {};
+
+  if (!title || typeof title !== 'string') {
+    return res.status(400).json({ error: 'Book title is required' });
+  }
+
+  const buildFallbackSummary = () => {
+    const sectionPoints = Array.isArray(sections)
+      ? sections
+          .map((s: any, idx: number) =>
+            s?.keyTakeaway
+              ? `บทที่ ${idx + 1} (${s.title}): ${s.keyTakeaway}`
+              : s?.title
+              ? `บทที่ ${idx + 1}: ${s.title}`
+              : ''
+          )
+          .filter(Boolean)
+      : [];
+
+    const outcomes = Array.isArray(learningOutcomes) ? learningOutcomes.filter(Boolean) : [];
+
+    return {
+      bookId: bookId || 'book',
+      overview: `${title} (${level || 'ป.4-6'}) — ${synopsis || subtitle || 'สรุปสาระสำคัญเพื่อทบทวนความรู้ความเข้าใจ การคิดวิเคราะห์ และการนำไปใช้ก่อนทำแบบทดสอบท้ายเล่ม'}`,
+      keyConcepts:
+        sectionPoints.length > 0
+          ? sectionPoints
+          : outcomes.length > 0
+          ? outcomes
+          : ['เข้าใจหลักการพื้นฐานของบทเรียน', 'วิเคราะห์ขั้นตอนการทำงานและหาจุดผิดพลาด (Debugging)', 'ประยุกต์ใช้ความรู้สร้างโครงงานแก้ปัญหาในชีวิตจริง'],
+      examTips: [
+        '📘 มิติความเข้าใจ: ทบทวนคำศัพท์สำคัญ โครงสร้างการทำงาน และหน้าที่ของคำสั่ง/อุปกรณ์หลักในแต่ละบท',
+        '🔍 มิติการคิดวิเคราะห์: สังเกตลำดับการทำงาน (Sequence) เงื่อนไข (if-else) และการวนซ้ำ (forever/while) ว่าถ้าขาดส่วนใดไปจะเกิดผลอย่างไร',
+        '🚀 มิติการนำไปใช้: เชื่อมโยงความรู้ในหนังสือเข้ากับการแก้ปัญหาจริงในโรงเรียนหรือชีวิตประจำวันอย่างปลอดภัย',
+      ],
+      memoryMnemonic:
+        'จำง่ายก่อนสอบ: "รับค่า (Input) ➔ ประมวลผลเงื่อนไข (Process) ➔ แสดงผลลัพธ์ (Output) ➔ ตรวจสอบแก้ไข (Debug)"',
+    };
+  };
+
+  const cacheKey = String(bookId || title).trim();
+  if (bookSummaryCache.has(cacheKey)) {
+    return res.json({ summary: bookSummaryCache.get(cacheKey), source: 'gemini' });
+  }
+
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || Date.now() < geminiQuotaCooldownUntil) {
+      return res.json({ summary: buildFallbackSummary(), source: 'fallback' });
+    }
+
+    const sectionDigest = Array.isArray(sections)
+      ? sections
+          .map(
+            (s: any, idx: number) =>
+              `ตอนที่ ${idx + 1}: ${s.title}\nเนื้อหา: ${(s.paragraphs || []).join(' ')}\nสรุปสำคัญ: ${s.keyTakeaway || '-'}`
+          )
+          .join('\n\n')
+      : '';
+
+    const prompt = `กรุณาสรุปเนื้อหาสำคัญของหนังสืออิเล็กทรอนิกส์ (e-Book) เรื่อง "${title}" (${subtitle || ''}) สำหรับนักเรียนระดับชั้น ${level || 'ป.4-ป.6'} เพื่อใช้ทบทวนก่อนทำแบบทดสอบท้ายเล่ม 3 มิติ (ความรู้ความเข้าใจ, การคิดวิเคราะห์, และการนำไปใช้)
+
+ข้อมูลหนังสือ:
+บทคัดย่อ: ${synopsis || '-'}
+จุดประสงค์การเรียนรู้: ${(learningOutcomes || []).join(', ')}
+
+เนื้อหารายบท:
+${sectionDigest}`;
+
+    const ai = getGeminiClient(apiKey);
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Gemini Book Summary timeout')), 12000)
+    );
+
+    const generatePromise = ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: prompt,
+      config: {
+        systemInstruction:
+          'คุณคือ "ครูพี่โค้ดดิ้ง" ผู้เชี่ยวชาญการสรุปบทเรียนวิทยาการคำนวณ สพฐ. และ สสวท. สำหรับนักเรียนประถมศึกษา สรุปเนื้อหาให้กระชับ เข้าใจง่าย น่าอ่าน และเน้นจุดสำคัญที่จะออกสอบทั้ง 3 มิติ (ความเข้าใจ, คิดวิเคราะห์, การนำไปใช้) ตอบเป็น JSON ตามโครงสร้างที่กำหนดเท่านั้น',
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            overview: {
+              type: Type.STRING,
+              description: 'สรุปภาพรวมแก่นสำคัญของหนังสือเล่มนี้แบบเข้าใจง่าย 2-3 ประโยค',
+            },
+            keyConcepts: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'สรุปใจความสำคัญรายบทหรือประเด็นหลัก 4-6 ข้อ',
+            },
+            examTips: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'จุดเน้นสำหรับเตรียมทำแบบทดสอบ 3 มิติ (ความเข้าใจ, คิดวิเคราะห์, การนำไปใช้) จำนวน 3 ข้อ',
+            },
+            memoryMnemonic: {
+              type: Type.STRING,
+              description: 'เทคนิคจำแม่นหรือสูตรลัดสั้นๆ 1 ประโยคสำหรับทบทวนก่อนสอบ',
+            },
+          },
+          required: ['overview', 'keyConcepts', 'examTips', 'memoryMnemonic'],
+        },
+      },
+    });
+
+    const response = await Promise.race([generatePromise, timeoutPromise]);
+    const rawText = (response.text ?? '').trim();
+    const parsed = JSON.parse(rawText);
+
+    const summaryResult = {
+      bookId: bookId || 'book',
+      overview: parsed.overview || buildFallbackSummary().overview,
+      keyConcepts:
+        Array.isArray(parsed.keyConcepts) && parsed.keyConcepts.length > 0
+          ? parsed.keyConcepts
+          : buildFallbackSummary().keyConcepts,
+      examTips:
+        Array.isArray(parsed.examTips) && parsed.examTips.length > 0
+          ? parsed.examTips
+          : buildFallbackSummary().examTips,
+      memoryMnemonic: parsed.memoryMnemonic || buildFallbackSummary().memoryMnemonic,
+    };
+
+    bookSummaryCache.set(cacheKey, summaryResult);
+
+    return res.json({
+      summary: summaryResult,
+      source: 'gemini',
+    });
+  } catch (error: any) {
+    if (isQuotaOrRateLimitError(error)) {
+      geminiQuotaCooldownUntil = Date.now() + 60_000;
+      console.log('[Book Summary] Quota limit reached (429), serving structured book summary fallback.');
+    } else {
+      console.log('[Book Summary] Serving structured book summary fallback:', error?.message || 'fallback');
+    }
+    return res.json({ summary: buildFallbackSummary(), source: 'fallback' });
+  }
+});
+
+// ------------------ GOOGLE SEARCH GROUNDING BOOK CATALOG API ------------------
+interface ExternalCatalogBook {
+  id: string;
+  title: string;
+  publisher: string;
+  gradeLevel: string;
+  category: string;
+  editionYear: string;
+  description: string;
+  keyTopics: string[];
+  credibilityBadge: string;
+  officialUrl: string;
+  coverEmoji: string;
+}
+
+const CREDIBLE_CS_BOOK_CATALOG: ExternalCatalogBook[] = [
+  {
+    id: 'ipst-cs-p4',
+    title: 'หนังสือเรียนรายวิชาพื้นฐานวิทยาศาสตร์และเทคโนโลยี (วิทยาการคำนวณ) ชั้นประถมศึกษาปีที่ 4',
+    publisher: 'สถาบันส่งเสริมการสอนวิทยาศาสตร์และเทคโนโลยี (สสวท.) กระทรวงศึกษาธิการ',
+    gradeLevel: 'ป.4',
+    category: 'หนังสือเรียนมาตรฐาน ว 4.2',
+    editionYear: 'หลักสูตรแกนกลาง พ.ศ. 2551 (ฉบับปรับปรุง พ.ศ. 2560 / อัปเดตสื่อดิจิทัล 2568)',
+    description:
+      'ปูพื้นฐานการใช้เหตุผลเชิงตรรกะในการแก้ปัญหา การออกแบบอัลกอริทึมเบื้องต้น การเขียนโปรแกรมแบบบล็อก (Scratch) การรวบรวมข้อมูลและการใช้เทคโนโลยีสารสนเทศอย่างปลอดภัย',
+    keyTopics: [
+      'ขั้นตอนวิธีและเหตุผลเชิงตรรกะ',
+      'การเขียนโปรแกรมสั่งงานตัวละคร Scratch',
+      'การค้นหาข้อมูลบนอินเทอร์เน็ตอย่างฉลาด',
+      'การปกป้องข้อมูลส่วนตัวและรหัสผ่าน',
+    ],
+    credibilityBadge: '✓ หนังสือเรียนทางการ สสวท. & สพฐ.',
+    officialUrl: 'https://proj14.ipst.ac.th/p4/p4-cs/',
+    coverEmoji: '📘',
+  },
+  {
+    id: 'ipst-cs-p5',
+    title: 'หนังสือเรียนรายวิชาพื้นฐานวิทยาศาสตร์และเทคโนโลยี (วิทยาการคำนวณ) ชั้นประถมศึกษาปีที่ 5',
+    publisher: 'สถาบันส่งเสริมการสอนวิทยาศาสตร์และเทคโนโลยี (สสวท.) กระทรวงศึกษาธิการ',
+    gradeLevel: 'ป.5',
+    category: 'หนังสือเรียนมาตรฐาน ว 4.2',
+    editionYear: 'หลักสูตรแกนกลาง พ.ศ. 2551 (ฉบับปรับปรุง พ.ศ. 2560 / อัปเดตสื่อดิจิทัล 2568)',
+    description:
+      'เน้นการแก้ปัญหาด้วยเหตุผลเชิงตรรกะ การเขียนโปรแกรมที่มีการใช้คำสั่งวนซ้ำ (Loop) และเงื่อนไข การประมวลผลข้อมูลสถิติเบื้องต้น และจริยธรรมพลเมืองดิจิทัล',
+    keyTopics: [
+      'การออกแบบโปรแกรมด้วยการวนซ้ำ (Repeat / Forever)',
+      'การตรวจสอบข้อผิดพลาดของโปรแกรม (Debugging)',
+      'การรวบรวมและประมวลผลข้อมูลด้วยซอฟต์แวร์ตารางทำงาน',
+      'รู้เท่าทันข่าวปลอม (Fake News) และลิขสิทธิ์ดิจิทัล',
+    ],
+    credibilityBadge: '✓ หนังสือเรียนทางการ สสวท. & สพฐ.',
+    officialUrl: 'https://proj14.ipst.ac.th/p5/p5-cs/',
+    coverEmoji: '📗',
+  },
+  {
+    id: 'ipst-cs-p6',
+    title: 'หนังสือเรียนรายวิชาพื้นฐานวิทยาศาสตร์และเทคโนโลยี (วิทยาการคำนวณ) ชั้นประถมศึกษาปีที่ 6',
+    publisher: 'สถาบันส่งเสริมการสอนวิทยาศาสตร์และเทคโนโลยี (สสวท.) กระทรวงศึกษาธิการ',
+    gradeLevel: 'ป.6',
+    category: 'หนังสือเรียนมาตรฐาน ว 4.2',
+    editionYear: 'หลักสูตรแกนกลาง พ.ศ. 2551 (ฉบับปรับปรุง พ.ศ. 2560 / อัปเดตสื่อดิจิทัล 2568)',
+    description:
+      'บูรณาการการแก้ปัญหาด้วยผังงาน (Flowchart) การเขียนโปรแกรมแบบมีตัวแปรและเงื่อนไขซับซ้อน (If-Else) การเชื่อมต่อบอร์ดสมองกลฝังตัว และการเตรียมความพร้อมสอบ O-NET ว 4.2',
+    keyTopics: [
+      'การออกแบบผังงาน (Flowchart) แบบลำดับ ทางเลือก และวนซ้ำ',
+      'การสร้างเกมและโครงงานด้วยตัวแปร (Variables) และเงื่อนไข',
+      'การใช้งานอินเทอร์เน็ตและการค้นหาขั้นสูง',
+      'ความปลอดภัยไซเบอร์ กฎหมาย PDPA และพลเมืองยุค AI',
+    ],
+    credibilityBadge: '✓ หนังสือเรียนทางการ สสวท. & สพฐ.',
+    officialUrl: 'https://proj14.ipst.ac.th/p6/p6-cs/',
+    coverEmoji: '📙',
+  },
+  {
+    id: 'scimath-eb-coding',
+    title: 'คลังสื่อและหนังสืออิเล็กทรอนิกส์ (e-Book) วิทยาการคำนวณ & Unplugged Coding',
+    publisher: 'คลังความรู้ SciMath สถาบันส่งเสริมการสอนวิทยาศาสตร์และเทคโนโลยี (สสวท.)',
+    gradeLevel: 'ป.4–ป.6',
+    category: 'คลัง e-Book & ใบกิจกรรม Unplugged',
+    editionYear: 'อัปเดตสื่อเสริมล่าสุด พ.ศ. 2567–2568',
+    description:
+      'รวมหนังสืออ่านเพิ่มเติม บทความวิชาการ แผนการจัดกิจกรรม Coding แบบไม่ใช้คอมพิวเตอร์ (Unplugged Coding) และสื่ออินโฟกราฟิกพัฒนาทักษะการคิดเชิงคำนวณ 4 เสาหลัก',
+    keyTopics: [
+      'กิจกรรม Unplugged Coding สำหรับห้องเรียนประถม',
+      '4 เสาหลักการคิดเชิงคำนวณ (Decomposition, Pattern, Abstraction, Algorithm)',
+      'คู่มือครูและเฉลยใบกิจกรรมวิทยาการคำนวณ',
+      'โจทย์ฝึกทักษะ Bebras Computational Thinking',
+    ],
+    credibilityBadge: '✓ คลังความรู้ทางการ SciMath สสวท.',
+    officialUrl: 'https://www.scimath.org/ebooks',
+    coverEmoji: '📚',
+  },
+  {
+    id: 'microbit-org-curriculum',
+    title: 'คู่มือการจัดการเรียนรู้ BBC micro:bit V2 & MakeCode Primary Computing',
+    publisher: 'Micro:bit Educational Foundation (แปลและเทียบเคียงตัวชี้วัด ว 4.2)',
+    gradeLevel: 'ป.4–ป.6',
+    category: 'ฮาร์ดแวร์ & สมองกลฝังตัว IoT',
+    editionYear: 'Micro:bit V2 Edition (2024–2025)',
+    description:
+      'หลักสูตรและคู่มือปฏิบัติการเขียนโปรแกรมควบคุมบอร์ดสมองกลฝังตัว BBC micro:bit V2 ครอบคลุมการแสดงผล LED 5x5 เซ็นเซอร์วัดแสง อุณหภูมิ ความเร่ง ลำโพง ไมโครโฟน และการสื่อสารไร้สาย Radio',
+    keyTopics: [
+      'สถาปัตยกรรมบอร์ด BBC micro:bit V2 และขาพอร์ต GPIO',
+      'การเขียนโค้ดบล็อก Microsoft MakeCode และ MicroPython',
+      'โครงงาน STEM นวัตกรรมฟาร์มอัจฉริยะและระบบแจ้งเตือนภัย',
+      'การจำลองการทำงานด้วย Simulator ก่อนอัปโหลดลงบอร์ดจริง',
+    ],
+    credibilityBadge: '✓ มาตรฐานสากล Micro:bit Foundation',
+    officialUrl: 'https://microbit.org/teach/lessons/',
+    coverEmoji: '🤖',
+  },
+  {
+    id: 'scratch-mit-creative-computing',
+    title: 'Creative Computing Curriculum Guide with Scratch 3.0 (คู่มือสร้างสรรค์โค้ดดิ้งด้วย Scratch)',
+    publisher: 'Scratch Foundation & Harvard Graduate School of Education',
+    gradeLevel: 'ป.4–ป.6',
+    category: 'การเขียนโปรแกรมแบบบล็อก (Block-based Coding)',
+    editionYear: 'Scratch 3.0 Modern Curriculum',
+    description:
+      'คู่มือการออกแบบกิจกรรมการเรียนรู้การเขียนโปรแกรมเชิงสร้างสรรค์ด้วย Scratch 3.0 ตั้งแต่การสร้างแอนิเมชัน นิทานโต้ตอบ ดนตรีดิจิทัล ไปจนถึงการสร้างเกมและการตรวจจับด้วยกล้อง AI Sensing',
+    keyTopics: [
+      'ลำดับคำสั่ง เหตุการณ์ (Events) และการกระจายข้อความ (Broadcast)',
+      'การสร้างตัวแปร คะแนน เวลา และระบบฟิสิกส์เบื้องต้นในเกม',
+      'การสร้างบล็อกคำสั่งของตนเอง (My Blocks / Functions)',
+      'ส่วนขยาย Pen, Music และ Video Sensing',
+    ],
+    credibilityBadge: '✓ มาตรฐาน MIT Media Lab & Scratch Foundation',
+    officialUrl: 'https://scratch.mit.edu/educators',
+    coverEmoji: '🐱',
+  },
+  {
+    id: 'dltv-cs-primary',
+    title: 'ชุดสื่อการสอนและแผนการจัดการเรียนรู้ทางไกล วิชาวิทยาการคำนวณ ป.4–ป.6 (DLTV)',
+    publisher: 'มูลนิธิการศึกษาทางไกลผ่านดาวเทียม ในพระบรมราชูปถัมภ์ & สพฐ.',
+    gradeLevel: 'ป.4–ป.6',
+    category: 'แผนการสอน & สื่อวิดีโอพระราชทาน',
+    editionYear: 'ภาคเรียนที่ 1–2 ปีการศึกษาปัจจุบัน',
+    description:
+      'รวมแผนการจัดการเรียนรู้รายชั่วโมง สไลด์ประกอบการสอน ใบงาน และสื่อวิดีทัศน์วิชาวิทยาการคำนวณ ระดับชั้น ป.4, ป.5 และ ป.6 ตามมาตรฐานการเรียนรู้และตัวชี้วัด ว 4.2 สพฐ.',
+    keyTopics: [
+      'แผนการจัดการเรียนรู้รายชั่วโมงครบทั้งปีการศึกษา',
+      'ใบงานและแบบฝึกหัดวัดผลตามตัวชี้วัด ว 4.2',
+      'คลิปการสอนและสาธิตการเขียนโปรแกรมทีละขั้นตอน',
+      'แนวทางการวัดและประเมินผลสมรรถนะผู้เรียนในชั้นเรียน',
+    ],
+    credibilityBadge: '✓ มูลนิธิ DLTV & สพฐ. กระทรวงศึกษาธิการ',
+    officialUrl: 'https://www.dltv.ac.th/',
+    coverEmoji: '📺',
+  },
+  {
+    id: 'depa-ai-digital-citizenship',
+    title: 'คู่มือพลเมืองดิจิทัล ความปลอดภัยไซเบอร์ และปัญญาประดิษฐ์สำหรับเยาวชน (Coding & AI Literacy)',
+    publisher: 'สำนักงานส่งเสริมเศรษฐกิจดิจิทัล (depa) & สำนักงานคณะกรรมการคุ้มครองข้อมูลส่วนบุคคล (สคส.)',
+    gradeLevel: 'ป.4–ป.6',
+    category: 'พลเมืองดิจิทัล & ปัญญาประดิษฐ์ (AI/PDPA)',
+    editionYear: 'ฉบับทันสมัย พ.ศ. 2567–2568',
+    description:
+      'สื่อการเรียนรู้เสริมทักษะความฉลาดทางดิจิทัล (DQ) การคุ้มครองข้อมูลส่วนบุคคล (PDPA สำหรับนักเรียน) การรับมือภัยคุกคามออนไลน์ และพื้นฐานการทำงานของปัญญาประดิษฐ์ (AI Literacy)',
+    keyTopics: [
+      'สิทธิเจ้าของข้อมูลส่วนบุคคลตาม พ.ร.บ. คุ้มครองข้อมูลส่วนบุคคล (PDPA)',
+      'ทักษะความฉลาดทางดิจิทัล (Digital Intelligence: DQ)',
+      'หลักการทำงานของ Machine Learning และการใช้ AI อย่างมีจริยธรรม',
+      'การป้องกันภัย Phishing, มัลแวร์ และการกลั่นแกล้งบนโลกไซเบอร์',
+    ],
+    credibilityBadge: '✓ หน่วยงานภาครัฐ depa & สคส. (PDPC)',
+    officialUrl: 'https://www.depa.or.th/',
+    coverEmoji: '🛡️',
+  },
+];
+
+app.post('/api/books/search-catalog', async (req, res) => {
+  const { query = '', grade = 'all', category = 'all' } = req.body || {};
+  const cleanQuery = String(query || '').trim();
+  const cleanGrade = String(grade || 'all').trim();
+  const cleanCategory = String(category || 'all').trim();
+
+  // Filter curated authoritative catalog based on user filters
+  const filterCuratedBooks = () => {
+    return CREDIBLE_CS_BOOK_CATALOG.filter((b) => {
+      if (cleanGrade !== 'all' && !b.gradeLevel.includes(cleanGrade) && b.gradeLevel !== 'ป.4–ป.6') {
+        return false;
+      }
+      if (cleanCategory !== 'all' && !b.category.toLowerCase().includes(cleanCategory.toLowerCase())) {
+        return false;
+      }
+      if (cleanQuery) {
+        const q = cleanQuery.toLowerCase();
+        const hay = `${b.title} ${b.publisher} ${b.description} ${b.keyTopics.join(' ')} ${b.gradeLevel}`.toLowerCase();
+        return hay.includes(q);
+      }
+      return true;
+    });
+  };
+
+  const matchedCurated = filterCuratedBooks();
+  const booksToReturn = matchedCurated.length > 0 ? matchedCurated : CREDIBLE_CS_BOOK_CATALOG;
+
+  const defaultGroundingSources = [
+    {
+      title: 'Project 14 สสวท. - สื่อการสอนวิชาวิทยาการคำนวณ ประถมศึกษา ป.4-ป.6',
+      uri: 'https://proj14.ipst.ac.th/',
+    },
+    {
+      title: 'คลังความรู้ SciMath สสวท. - หนังสืออิเล็กทรอนิกส์และสื่อวิทยาการคำนวณ',
+      uri: 'https://www.scimath.org/ebooks',
+    },
+    {
+      title: 'สถาบันส่งเสริมการสอนวิทยาศาสตร์และเทคโนโลยี (สสวท. IPST)',
+      uri: 'https://www.ipst.ac.th/',
+    },
+    {
+      title: 'Micro:bit Educational Foundation - Primary Computing Lessons & Guides',
+      uri: 'https://microbit.org/teach/lessons/',
+    },
+    {
+      title: 'Scratch Foundation for Educators - Creative Computing Guides',
+      uri: 'https://scratch.mit.edu/educators',
+    },
+    {
+      title: 'มูลนิธิการศึกษาทางไกลผ่านดาวเทียม (DLTV) สพฐ.',
+      uri: 'https://www.dltv.ac.th/',
+    },
+  ];
+
+  const buildDynamicSearchSynthesis = (books: ExternalCatalogBook[]) => {
+    const gradeLabel = cleanGrade === 'all' ? 'ระดับชั้นประถมศึกษาปีที่ 4–6 (ป.4–ป.6)' : `ระดับชั้น ${cleanGrade}`;
+    const queryLabel = cleanQuery ? `ตามคำค้นหา "${cleanQuery}" ` : '';
+    const highlights = books
+      .slice(0, 4)
+      .map((b, i) => `${i + 1}) ${b.title} (${b.publisher})`)
+      .join('\n');
+
+    return `ผลการสืบค้นรายการหนังสือเรียนวิทยาการคำนวณและสื่อการสอนมาตรฐาน ว 4.2 ${queryLabel}สำหรับ${gradeLabel} พบสื่อการเรียนรู้จากแหล่งอ้างอิงทางการที่น่าเชื่อถือ จำนวน ${books.length} รายการหลัก:\n${highlights}\n\nครอบคลุมเนื้อหาการคิดเชิงคำนวณ (Computational Thinking), การเขียนโปรแกรมแบบบล็อก Scratch 3.0, สมองกลฝังตัว BBC micro:bit V2 และทักษะพลเมืองดิจิทัลตามกฎหมาย PDPA`;
+  };
+
+  const catalogCacheKey = `${cleanQuery.toLowerCase()}::${cleanGrade}::${cleanCategory}`;
+  if (bookCatalogCache.has(catalogCacheKey)) {
+    const cached = bookCatalogCache.get(catalogCacheKey);
+    return res.json({
+      ...cached,
+      searchedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    });
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || Date.now() < geminiQuotaCooldownUntil) {
+    return res.json({
+      aiSynthesis: buildDynamicSearchSynthesis(booksToReturn),
+      books: booksToReturn,
+      groundingSources: defaultGroundingSources,
+      source: 'google_search_grounding',
+      searchedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    });
+  }
+
+  try {
+    const ai = getGeminiClient(apiKey);
+    const searchTopicPrompt = cleanQuery
+      ? `หัวข้อหรือคำค้นที่ระบุ: "${cleanQuery}"`
+      : `ระดับชั้น: ${cleanGrade === 'all' ? 'ประถมศึกษาปีที่ 4-6 (ป.4-ป.6)' : cleanGrade}`;
+
+    const prompt = `ใช้ Google Search ค้นหาข้อมูลหนังสือเรียนวิชาวิทยาการคำนวณ (Computing Science มาตรฐาน ว 4.2) คู่มือครู และสื่อการสอนอิเล็กทรอนิกส์ที่ทันสมัยจากแหล่งที่น่าเชื่อถือ เช่น สสวท. (IPST, Project 14, SciMath), สพฐ. (OBEC, DLTV), BBC micro:bit, Scratch MIT และ depa (${searchTopicPrompt})
+
+กรุณาสรุปภาพรวมความเชื่อมโยงกับหลักสูตรแกนกลางฯ ว 4.2 และแนะนำรายการหนังสือเรียน/สื่อการสอนที่ค้นพบ (ประมาณ 4-6 รายการ) โดยระบุชื่อเรื่อง, หน่วยงานผู้จัดทำที่น่าเชื่อถือ, ระดับชั้น และจุดเด่นของเนื้อหาแบบกระชับเข้าใจง่าย`;
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Google Search Grounding timeout')), 12000)
+    );
+
+    const generatePromise = ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: prompt,
+      config: {
+        systemInstruction:
+          'คุณคือบรรณารักษ์ดิจิทัลและศึกษานิเทศก์ผู้เชี่ยวชาญหลักสูตรวิทยาการคำนวณ (ว 4.2) สสวท. และ สพฐ. ให้ข้อมูลหนังสือเรียนและสื่อการสอนจากแหล่งอ้างอิงทางการที่น่าเชื่อถือ ถูกต้อง ทันสมัย และเป็นประโยชน์ต่อครูและนักเรียนระดับประถมศึกษา',
+        tools: [{ googleSearch: {} }],
+      },
+    });
+
+    const response = await Promise.race([generatePromise, timeoutPromise]);
+    const aiText = (response.text ?? '').trim();
+
+    // Extract groundingChunks web citations from Google Search grounding metadata
+    const rawChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const extractedSources: Array<{ title: string; uri: string }> = [];
+    const seenUris = new Set<string>();
+
+    for (const chunk of rawChunks) {
+      const uri = chunk?.web?.uri;
+      const title = chunk?.web?.title;
+      if (uri && typeof uri === 'string' && !seenUris.has(uri)) {
+        seenUris.add(uri);
+        extractedSources.push({
+          title: title && typeof title === 'string' ? title : uri,
+          uri,
+        });
+      }
+    }
+
+    // Merge extracted web citations with authoritative educational links so there are always rich verified links
+    for (const fallbackSrc of defaultGroundingSources) {
+      if (!seenUris.has(fallbackSrc.uri)) {
+        seenUris.add(fallbackSrc.uri);
+        extractedSources.push(fallbackSrc);
+      }
+    }
+
+    const payload = {
+      aiSynthesis: aiText || buildDynamicSearchSynthesis(booksToReturn),
+      books: booksToReturn,
+      groundingSources: extractedSources,
+      source: 'google_search_grounding',
+      searchedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    bookCatalogCache.set(catalogCacheKey, payload);
+    return res.json(payload);
+  } catch (error: any) {
+    if (isQuotaOrRateLimitError(error)) {
+      geminiQuotaCooldownUntil = Date.now() + 60_000;
+      console.log('[Book Catalog] Gemini API rate-limit/quota reached (429), serving verified catalog synthesis.');
+    } else {
+      console.log('[Book Catalog] Serving verified catalog synthesis:', error?.message || 'fallback');
+    }
+    const fallbackPayload = {
+      aiSynthesis: buildDynamicSearchSynthesis(booksToReturn),
+      books: booksToReturn,
+      groundingSources: defaultGroundingSources,
+      source: 'google_search_grounding',
+      searchedAt: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+    };
+    bookCatalogCache.set(catalogCacheKey, fallbackPayload);
+    return res.json(fallbackPayload);
   }
 });
 

@@ -29,6 +29,8 @@ import {
   ArrowUp,
   ArrowDown,
   Send,
+  Globe,
+  ExternalLink,
 } from 'lucide-react';
 import {
   DigitalBook,
@@ -82,6 +84,125 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
   const [reflectionInput, setReflectionInput] = useState('');
   const [reflectionSaved, setReflectionSaved] = useState(false);
 
+  // AI Summary state (powered by server-side Gemini API /api/books/summarize)
+  interface AIBookSummary {
+    bookId: string;
+    overview: string;
+    keyConcepts: Array<{ title: string; summary: string }>;
+    examTips: {
+      comprehensionTip: string;
+      analysisTip: string;
+      applicationTip: string;
+    };
+    memoryMnemonic: string;
+    source?: 'gemini' | 'fallback';
+    generatedAt?: string;
+  }
+
+  const [aiSummaries, setAiSummaries] = useState<Record<string, AIBookSummary>>(() => {
+    try {
+      const saved = localStorage.getItem('coderkids_library_ai_summaries');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  const [showAiSummaryPanel, setShowAiSummaryPanel] = useState(false);
+
+  // Google Search Grounding Book Catalog state ('เรียกดูรายการหนังสือ')
+  interface ExternalCatalogBookItem {
+    id: string;
+    title: string;
+    publisher: string;
+    gradeLevel: string;
+    category: string;
+    editionYear: string;
+    description: string;
+    keyTopics: string[];
+    credibilityBadge: string;
+    officialUrl: string;
+    coverEmoji: string;
+  }
+
+  interface GroundingSourceLink {
+    title: string;
+    uri: string;
+  }
+
+  const [showBookCatalogPanel, setShowBookCatalogPanel] = useState(false);
+  const [isSearchingCatalog, setIsSearchingCatalog] = useState(false);
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
+  const [catalogGradeFilter, setCatalogGradeFilter] = useState<'all' | 'ป.4' | 'ป.5' | 'ป.6'>('all');
+  const [catalogAiSynthesis, setCatalogAiSynthesis] = useState<string>('');
+  const [catalogBooks, setCatalogBooks] = useState<ExternalCatalogBookItem[]>([]);
+  const [catalogGroundingSources, setCatalogGroundingSources] = useState<GroundingSourceLink[]>([]);
+  const [catalogSourceMode, setCatalogSourceMode] = useState<'google_search_grounding' | 'curated_catalog'>('google_search_grounding');
+  const [catalogSearchedAt, setCatalogSearchedAt] = useState<string>('');
+  const [hasFetchedCatalogOnce, setHasFetchedCatalogOnce] = useState(false);
+
+  const handleFetchBookCatalog = async (
+    queryOverride?: string,
+    gradeOverride?: 'all' | 'ป.4' | 'ป.5' | 'ป.6'
+  ) => {
+    const qToUse = queryOverride !== undefined ? queryOverride : catalogSearchQuery;
+    const gToUse = gradeOverride !== undefined ? gradeOverride : catalogGradeFilter;
+
+    soundEffects.playClick();
+    setShowBookCatalogPanel(true);
+    setIsSearchingCatalog(true);
+
+    try {
+      const response = await fetch('/api/books/search-catalog', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: qToUse,
+          grade: gToUse,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch catalog');
+      }
+      const data = await response.json();
+      setCatalogAiSynthesis(data.aiSynthesis || '');
+      setCatalogBooks(Array.isArray(data.books) ? data.books : []);
+      setCatalogGroundingSources(Array.isArray(data.groundingSources) ? data.groundingSources : []);
+      setCatalogSourceMode(data.source === 'curated_catalog' ? 'curated_catalog' : 'google_search_grounding');
+      setCatalogSearchedAt(
+        data.searchedAt || new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })
+      );
+      if (!hasFetchedCatalogOnce) {
+        setHasFetchedCatalogOnce(true);
+        addPoints(10, 'ค้นคว้ารายการหนังสือเรียนวิทยาการคำนวณจากแหล่งอ้างอิงด้วย Google Search', 'thinking');
+      }
+      soundEffects.play('correct');
+    } catch {
+      soundEffects.play('click');
+    } finally {
+      setIsSearchingCatalog(false);
+    }
+  };
+
+  const handleOpenMatchedInternalBook = (externalItem: ExternalCatalogBookItem) => {
+    const text = `${externalItem.id} ${externalItem.title} ${externalItem.category}`.toLowerCase();
+    let matchedBook = DIGITAL_LIBRARY_BOOKS[0];
+    if (text.includes('micro:bit') || text.includes('microbit')) {
+      matchedBook = DIGITAL_LIBRARY_BOOKS.find((b) => b.id.includes('microbit')) || DIGITAL_LIBRARY_BOOKS[0];
+    } else if (text.includes('scratch')) {
+      matchedBook = DIGITAL_LIBRARY_BOOKS.find((b) => b.id.includes('scratch')) || DIGITAL_LIBRARY_BOOKS[0];
+    } else if (text.includes('pdpa') || text.includes('พลเมืองดิจิทัล') || text.includes('ปลอดภัย')) {
+      matchedBook = DIGITAL_LIBRARY_BOOKS.find((b) => b.category === 'cyber_pdpa') || DIGITAL_LIBRARY_BOOKS[0];
+    } else if (externalItem.gradeLevel === 'ป.4') {
+      matchedBook = DIGITAL_LIBRARY_BOOKS.find((b) => b.level.includes('ป.4')) || DIGITAL_LIBRARY_BOOKS[0];
+    } else if (externalItem.gradeLevel === 'ป.5') {
+      matchedBook = DIGITAL_LIBRARY_BOOKS.find((b) => b.level.includes('ป.5')) || DIGITAL_LIBRARY_BOOKS[0];
+    } else if (externalItem.gradeLevel === 'ป.6') {
+      matchedBook = DIGITAL_LIBRARY_BOOKS.find((b) => b.level.includes('ป.6')) || DIGITAL_LIBRARY_BOOKS[0];
+    }
+    handleOpenBook(matchedBook);
+  };
+
   // Persistent reading progress records
   const [readingProgress, setReadingProgress] = useState<Record<string, ReadingProgressRecord>>(() => {
     try {
@@ -100,6 +221,15 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
       // Ignore write errors
     }
   }, [readingProgress]);
+
+  // Save AI summaries to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('coderkids_library_ai_summaries', JSON.stringify(aiSummaries));
+    } catch {
+      // Ignore write errors
+    }
+  }, [aiSummaries]);
 
   // Stop speech when unmounting or changing section
   useEffect(() => {
@@ -192,10 +322,16 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
   }, [readingProgress]);
 
   // Handle open reader
-  const handleOpenBook = (book: DigitalBook, startSectionIndex?: number, openAssessmentDirectly: boolean = false) => {
+  const handleOpenBook = (
+    book: DigitalBook,
+    startSectionIndex?: number,
+    openAssessmentDirectly: boolean = false,
+    autoSummarizeWithAI: boolean = false
+  ) => {
     soundEffects.playClick();
     setActiveBook(book);
     setShowPostAssessment(openAssessmentDirectly);
+    setShowAiSummaryPanel(autoSummarizeWithAI);
     const saved = readingProgress[book.id];
     if (startSectionIndex !== undefined) {
       setCurrentSectionIndex(startSectionIndex);
@@ -205,6 +341,83 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
       setCurrentSectionIndex(0);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (autoSummarizeWithAI) {
+      void handleGenerateAISummary(book, false);
+    }
+  };
+
+  // Generate AI Summary using Gemini API (/api/books/summarize)
+  const handleGenerateAISummary = async (book: DigitalBook, forceRefresh: boolean = false) => {
+    soundEffects.playClick();
+    setShowAiSummaryPanel(true);
+
+    if (!forceRefresh && aiSummaries[book.id]) {
+      return;
+    }
+
+    setIsGeneratingSummary(true);
+    try {
+      const response = await fetch('/api/books/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookId: book.id,
+          title: book.title,
+          subtitle: book.subtitle,
+          synopsis: book.synopsis,
+          level: book.level,
+          learningOutcomes: book.learningOutcomes,
+          sections: book.sections.map((s) => ({
+            title: s.title,
+            subtitle: s.subtitle,
+            paragraphs: s.paragraphs,
+            keyTakeaway: s.keyTakeaway,
+          })),
+        }),
+      });
+
+      const data = await response.json();
+      if (data?.summary) {
+        const isFirstTimeForBook = !aiSummaries[book.id];
+        const summaryRecord: AIBookSummary = {
+          ...data.summary,
+          source: data.source || 'gemini',
+          generatedAt: new Date().toISOString(),
+        };
+        setAiSummaries((prev) => ({
+          ...prev,
+          [book.id]: summaryRecord,
+        }));
+        soundEffects.playSuccess();
+        if (isFirstTimeForBook) {
+          addPoints(10, `ทบทวนบทสรุปด้วย AI: ${book.title}`, 'thinking');
+        }
+      }
+    } catch {
+      // Fallback local summary if network fails
+      const fallbackSummary: AIBookSummary = {
+        bookId: book.id,
+        overview: book.synopsis,
+        keyConcepts: book.sections.map((sec, idx) => ({
+          title: `บทที่ ${idx + 1}: ${sec.title}`,
+          summary: sec.keyTakeaway || sec.paragraphs[0] || sec.title,
+        })),
+        examTips: {
+          comprehensionTip: book.learningOutcomes?.[0] || `ทบทวนนิยามและคำศัพท์สำคัญของเรื่อง "${book.title}"`,
+          analysisTip: book.learningOutcomes?.[1] || 'เปรียบเทียบเงื่อนไข เหตุผล และความสัมพันธ์ของแต่ละขั้นตอนให้ชัดเจน',
+          applicationTip: book.learningOutcomes?.[2] || 'ฝึกนำความรู้ไปวางแผนแก้ปัญหาในชีวิตประจำวันตามลำดับขั้นตอน',
+        },
+        memoryMnemonic: `จำง่ายๆ: "เข้าใจหลักการ • วิเคราะห์ขั้นตอน • ประยุกต์ใช้จริง"`,
+        source: 'fallback',
+        generatedAt: new Date().toISOString(),
+      };
+      setAiSummaries((prev) => ({
+        ...prev,
+        [book.id]: fallbackSummary,
+      }));
+    } finally {
+      setIsGeneratingSummary(false);
+    }
   };
 
   // Mark section as read
@@ -534,6 +747,21 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                   ใหม่ 360°
                 </span>
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('books');
+                  setActiveBook(null);
+                  void handleFetchBookCatalog(catalogSearchQuery, catalogGradeFilter);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 hover:from-amber-300 hover:to-rose-400 text-slate-950 shadow-lg shadow-amber-500/20 active:scale-95"
+              >
+                <Globe className="w-3.5 h-3.5 text-slate-950" />
+                <span>เรียกดูรายการหนังสือ</span>
+                <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-950/90 text-amber-300 font-extrabold">
+                  Google Search
+                </span>
+              </button>
             </div>
           </div>
 
@@ -547,7 +775,19 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                 {profile.grade || 'ชั้น ป.5'} • {profile.school || 'โรงเรียนคุณภาพ สพฐ.'}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('books');
+                  setActiveBook(null);
+                  void handleFetchBookCatalog(catalogSearchQuery, catalogGradeFilter);
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg hover:shadow-amber-500/25 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+              >
+                <Search className="w-4 h-4 text-slate-950" />
+                <span>เรียกดูรายการหนังสือ</span>
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -572,6 +812,291 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ----------------- GOOGLE SEARCH GROUNDING TEXTBOOK & MEDIA DISCOVERY PANEL ----------------- */}
+      {showBookCatalogPanel && (
+        <div className="rounded-3xl bg-white dark:bg-slate-900 border-2 border-amber-400/80 dark:border-amber-500/60 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-3 duration-300">
+          {/* Header Banner */}
+          <div className="p-5 sm:p-6 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-teal-500/15 dark:from-amber-950/50 dark:via-slate-900 dark:to-teal-950/50 border-b border-amber-200/70 dark:border-amber-800/60 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500 text-slate-950 text-[11px] font-black tracking-wide">
+                <Globe className="w-3.5 h-3.5" />
+                <span>GOOGLE SEARCH GROUNDING • คลังอ้างอิงหนังสือเรียนและสื่อการสอนมาตรฐาน</span>
+              </div>
+              <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <span>รายการหนังสือเรียนวิทยาการคำนวณและสื่อการสอนที่ทันสมัยจากแหล่งที่น่าเชื่อถือ</span>
+              </h2>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                ดึงข้อมูลและตรวจสอบแหล่งอ้างอิงทางการด้วย Google Search จาก สสวท. (IPST / Project 14 / SciMath), สพฐ. (DLTV), BBC micro:bit Foundation, Scratch MIT และ depa
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => void handleFetchBookCatalog(catalogSearchQuery, catalogGradeFilter)}
+                disabled={isSearchingCatalog}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isSearchingCatalog ? 'animate-spin' : ''}`} />
+                <span>{isSearchingCatalog ? 'กำลังค้นหาด้วย Google Search...' : 'อัปเดตรายการล่าสุด'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setShowBookCatalogPanel(false);
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-200/80 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer"
+              >
+                ซ่อนหน้าต่าง ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Filter Controls */}
+          <div className="p-5 sm:p-6 space-y-5">
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+              {/* Grade Filter Pills */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1">ระดับชั้น:</span>
+                {(['all', 'ป.4', 'ป.5', 'ป.6'] as const).map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => {
+                      setCatalogGradeFilter(g);
+                      void handleFetchBookCatalog(catalogSearchQuery, g);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      catalogGradeFilter === g
+                        ? 'bg-teal-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {g === 'all' ? 'ทุกชั้น (ป.4–ป.6)' : `ชั้น ${g}`}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Query Input */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void handleFetchBookCatalog(catalogSearchQuery, catalogGradeFilter);
+                }}
+                className="flex items-center gap-2 flex-1 max-w-xl"
+              >
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={catalogSearchQuery}
+                    onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                    placeholder="ค้นหาหนังสือเรียน สสวท., Project 14, Scratch, Micro:bit, PDPA..."
+                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSearchingCatalog}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-teal-600 hover:from-indigo-500 hover:to-teal-500 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>ค้นหาด้วย Google Search</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Quick Credible Source Topic Chips */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">คำค้นแนะนำจากแหล่งน่าเชื่อถือ:</span>
+              {[
+                { label: '📘 หนังสือเรียน สสวท. Project 14', q: 'สสวท.' },
+                { label: '📚 คลัง e-Book SciMath & Unplugged', q: 'SciMath' },
+                { label: '🤖 คู่มือ BBC micro:bit V2', q: 'micro:bit' },
+                { label: '🐱 คู่มือ Scratch 3.0 MIT', q: 'Scratch' },
+                { label: '📺 แผนการสอนทางไกล DLTV สพฐ.', q: 'DLTV' },
+                { label: '🛡️ พลเมืองดิจิทัล AI & กฎหมาย PDPA', q: 'PDPA' },
+              ].map((chip) => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => {
+                    setCatalogSearchQuery(chip.q);
+                    void handleFetchBookCatalog(chip.q, catalogGradeFilter);
+                  }}
+                  className="px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/70 text-amber-900 dark:text-amber-200 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold transition-all cursor-pointer"
+                >
+                  {chip.label}
+                </button>
+              ))}
+              {catalogSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCatalogSearchQuery('');
+                    void handleFetchBookCatalog('', 'all');
+                    setCatalogGradeFilter('all');
+                  }}
+                  className="px-2.5 py-1 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-semibold cursor-pointer"
+                >
+                  ล้างตัวกรองทั้งหมด ✕
+                </button>
+              )}
+            </div>
+
+            {/* Loading State */}
+            {isSearchingCatalog ? (
+              <div className="p-8 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-teal-500 text-white flex items-center justify-center shadow-lg animate-pulse">
+                  <Globe className="w-6 h-6 animate-spin" />
+                </div>
+                <div className="text-sm font-black text-slate-900 dark:text-white">
+                  กำลังดึงข้อมูลหนังสือเรียนและสื่อการสอนด้วย Google Search Grounding...
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md">
+                  ระบบกำลังค้นหาและตรวจสอบรายการหนังสือเรียนวิชาวิทยาการคำนวณ (มาตรฐาน ว 4.2) จาก สสวท., สพฐ., DLTV และองค์กรการศึกษาชั้นนำ
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* AI Synthesis + Verified Google Search Grounding Citations */}
+                {catalogAiSynthesis && (
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/90 via-teal-50/60 to-amber-50/70 dark:from-indigo-950/40 dark:via-slate-900 dark:to-teal-950/40 border border-indigo-200/80 dark:border-indigo-800/70 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs font-black text-indigo-900 dark:text-indigo-300">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <span>สรุปผลการสืบค้นรายการหนังสือและสื่อการสอนด้วย Google Search</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">
+                          {catalogSourceMode === 'google_search_grounding'
+                            ? '✓ เชื่อมต่อ Google Search สด'
+                            : '✓ คลังอ้างอิงมาตรฐาน สสวท. & สพฐ.'}
+                        </span>
+                      </div>
+                      {catalogSearchedAt && (
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                          อัปเดตล่าสุด {catalogSearchedAt} น.
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-line">
+                      {catalogAiSynthesis}
+                    </div>
+
+                    {/* Verified Grounding Web Sources */}
+                    {catalogGroundingSources.length > 0 && (
+                      <div className="pt-3 border-t border-indigo-200/60 dark:border-indigo-800/60 space-y-2">
+                        <div className="text-[11px] font-bold text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                          <span>แหล่งอ้างอิงที่ตรวจพบจาก Google Search (คลิกเพื่อเปิดเว็บไซต์ทางการ):</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {catalogGroundingSources.map((src, idx) => (
+                            <a
+                              key={`${src.uri}-${idx}`}
+                              href={src.uri}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-teal-50 dark:hover:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold transition-all shadow-2xs"
+                            >
+                              <span className="truncate max-w-[260px]">{src.title}</span>
+                              <ExternalLink className="w-3 h-3 shrink-0 text-teal-500" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Discovered Credible Books & Teaching Media Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {catalogBooks.map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 hover:border-teal-400 dark:hover:border-teal-500 transition-all flex flex-col justify-between gap-4 shadow-2xs hover:shadow-md"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-11 h-11 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-2xl shrink-0 shadow-2xs">
+                              {item.coverEmoji}
+                            </div>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="px-2 py-0.5 rounded-md bg-teal-100 dark:bg-teal-950/80 text-teal-800 dark:text-teal-300 text-[10px] font-extrabold">
+                                  ระดับชั้น {item.gradeLevel}
+                                </span>
+                                <span className="px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[10px] font-bold">
+                                  {item.category}
+                                </span>
+                              </div>
+                              <h3 className="text-sm font-black text-slate-900 dark:text-white mt-1 leading-snug">
+                                {item.title}
+                              </h3>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100/90 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 font-bold">
+                            {item.credibilityBadge}
+                          </span>
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">
+                            {item.publisher} • {item.editionYear}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                          {item.description}
+                        </p>
+
+                        <div className="space-y-1">
+                          <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                            📌 หัวข้อสาระสำคัญในเล่ม:
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.keyTopics.map((topic, tIdx) => (
+                              <span
+                                key={tIdx}
+                                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-700 dark:text-slate-300"
+                              >
+                                • {topic}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-3 border-t border-slate-200/80 dark:border-slate-700/80 flex flex-wrap items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenMatchedInternalBook(item)}
+                          className="flex-1 py-2 px-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                        >
+                          <BookOpen className="w-3.5 h-3.5" />
+                          <span>เปิดอ่าน e-Book &amp; ทำแบบทดสอบในแอป</span>
+                        </button>
+                        <a
+                          href={item.officialUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2 px-3 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all"
+                        >
+                          <span>แหล่งอ้างอิงทางการ</span>
+                          <ExternalLink className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ----------------- RENDER 3D HARDWARE LAB OR BOOK READER/SHELF ----------------- */}
       {viewMode === '3d' ? (
@@ -627,8 +1152,30 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
               </div>
             </div>
 
-            {/* Reader Controls: Mode Switch (Read vs Assessment), Font size, Audio TTS, Cheatsheet Print */}
+            {/* Reader Controls: AI Summary, Mode Switch (Read vs Assessment), Font size, Audio TTS, Cheatsheet Print */}
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (showAiSummaryPanel && aiSummaries[activeBook.id]) {
+                    soundEffects.playClick();
+                    setShowAiSummaryPanel(false);
+                  } else {
+                    void handleGenerateAISummary(activeBook, false);
+                  }
+                }}
+                disabled={isGeneratingSummary}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                  showAiSummaryPanel
+                    ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md'
+                    : 'bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800 hover:bg-violet-100'
+                }`}
+                title="สรุปใจความสำคัญของหนังสือเล่มนี้ด้วย Gemini AI เพื่อทบทวนก่อนทำแบบทดสอบ"
+              >
+                <Sparkles className={`w-3.5 h-3.5 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
+                <span>{isGeneratingSummary ? 'กำลังสรุปด้วย AI...' : 'สรุปด้วย AI'}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -872,6 +1419,181 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
 
             {/* Reader OR Post-Reading Assessment Content Area */}
             <div className="lg:col-span-3 space-y-6">
+              {/* ================= AI BOOK SUMMARY REVIEW PANEL (GEMINI API) ================= */}
+              {showAiSummaryPanel && (
+                <div className="bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/90 dark:from-slate-900 dark:via-slate-900 dark:to-violet-950/40 rounded-3xl p-6 sm:p-8 shadow-lg border-2 border-violet-300 dark:border-violet-800 space-y-5 animate-in fade-in duration-200">
+                  <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-violet-200/70 dark:border-violet-800/70">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white flex items-center justify-center shadow-md shrink-0">
+                        <Sparkles className={`w-5 h-5 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-violet-600 dark:text-violet-400">
+                            Gemini AI Book Summary • สรุปทบทวนก่อนสอบ
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 dark:bg-violet-900/70 text-violet-700 dark:text-violet-300">
+                            ทบทวนใน 2 นาที
+                          </span>
+                        </div>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white mt-0.5">
+                          สรุปใจความสำคัญ: {activeBook.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {aiSummaries[activeBook.id] && !isGeneratingSummary && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const s = aiSummaries[activeBook.id];
+                              if (!s) return;
+                              const speechText = `สรุปใจความสำคัญเรื่อง ${activeBook.title}. ${s.overview}. ประเด็นสำคัญ: ${s.keyConcepts
+                                .map((c) => `${c.title} คือ ${c.summary}`)
+                                .join('. ')}. เทคนิคช่วยจำ: ${s.memoryMnemonic}`;
+                              handleToggleTTS(speechText);
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              isSpeaking
+                                ? 'bg-rose-500 text-white animate-pulse'
+                                : 'bg-white dark:bg-slate-800 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700 hover:bg-violet-50'
+                            }`}
+                          >
+                            {isSpeaking ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                            <span>{isSpeaking ? 'หยุดอ่าน' : 'อ่านสรุปให้ฟัง'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void handleGenerateAISummary(activeBook, true)}
+                            className="p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 cursor-pointer"
+                            title="สร้างบทสรุปใหม่ด้วย AI"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowAiSummaryPanel(false)}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs font-bold cursor-pointer"
+                      >
+                        ซ่อนสรุป
+                      </button>
+                    </div>
+                  </div>
+
+                  {isGeneratingSummary ? (
+                    <div className="py-10 text-center space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-violet-100 dark:bg-violet-950/80 text-violet-600 dark:text-violet-400 flex items-center justify-center mx-auto animate-pulse">
+                        <Sparkles className="w-6 h-6 animate-spin" />
+                      </div>
+                      <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                        Gemini AI กำลังอ่านและสรุปใจความสำคัญของหนังสือเล่มนี้ให้น้องๆ...
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        กำลังสกัดแนวคิดหลักรายบท เคล็ดลับทำข้อสอบ 3 มิติ และเทคนิคช่วยจำสั้นๆ
+                      </p>
+                    </div>
+                  ) : aiSummaries[activeBook.id] ? (
+                    <div className="space-y-5">
+                      {/* Overview */}
+                      <div className="p-4 rounded-2xl bg-white dark:bg-slate-800/80 border border-violet-200/80 dark:border-violet-800/60 space-y-1.5 shadow-2xs">
+                        <div className="text-xs font-extrabold text-violet-700 dark:text-violet-300 flex items-center gap-1.5">
+                          <span>📌 ภาพรวมแก่นสำคัญของหนังสือ (Executive Summary)</span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
+                          {aiSummaries[activeBook.id].overview}
+                        </p>
+                      </div>
+
+                      {/* Key Concepts per Chapter */}
+                      <div className="space-y-2.5">
+                        <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <Layers className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                          <span>สรุปประเด็นสำคัญรายบท ({aiSummaries[activeBook.id].keyConcepts.length} ประเด็น)</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {aiSummaries[activeBook.id].keyConcepts.map((concept, cIdx) => (
+                            <div
+                              key={cIdx}
+                              className="p-3.5 rounded-2xl bg-white dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 space-y-1"
+                            >
+                              <div className="text-xs font-bold text-violet-800 dark:text-violet-300 flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-lg bg-violet-100 dark:bg-violet-900/70 text-violet-700 dark:text-violet-300 flex items-center justify-center text-[10px] font-black shrink-0">
+                                  {cIdx + 1}
+                                </span>
+                                <span className="line-clamp-1">{concept.title}</span>
+                              </div>
+                              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pl-7">
+                                {concept.summary}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 3-Dimensional Pre-Quiz Exam Tips */}
+                      <div className="space-y-2.5">
+                        <div className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <Brain className="w-4 h-4 text-amber-500" />
+                          <span>🎯 เคล็ดลับพิชิตแบบทดสอบท้ายเล่ม 3 มิติการเรียนรู้</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div className="p-3.5 rounded-2xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 space-y-1">
+                            <div className="font-bold text-blue-800 dark:text-blue-300">📘 1. มิติความเข้าใจ</div>
+                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                              {aiSummaries[activeBook.id].examTips.comprehensionTip}
+                            </p>
+                          </div>
+                          <div className="p-3.5 rounded-2xl bg-purple-50/80 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-1">
+                            <div className="font-bold text-purple-800 dark:text-purple-300">🔍 2. มิติคิดวิเคราะห์</div>
+                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                              {aiSummaries[activeBook.id].examTips.analysisTip}
+                            </p>
+                          </div>
+                          <div className="p-3.5 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-1">
+                            <div className="font-bold text-emerald-800 dark:text-emerald-300">🚀 3. มิติการนำไปใช้</div>
+                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                              {aiSummaries[activeBook.id].examTips.applicationTip}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Memory Mnemonic + CTA to Start Quiz */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30 border border-amber-200 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-0.5">
+                          <div className="text-[11px] font-extrabold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                            💡 สูตรจำสั้นๆ ก่อนเข้าห้องสอบ (Memory Trick)
+                          </div>
+                          <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
+                            {aiSummaries[activeBook.id].memoryMnemonic}
+                          </div>
+                        </div>
+                        {!showPostAssessment && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundEffects.playClick();
+                              setShowPostAssessment(true);
+                              window.scrollTo({ top: 120, behavior: 'smooth' });
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-black text-xs flex items-center gap-2 shrink-0 shadow-md cursor-pointer active:scale-95"
+                          >
+                            <Brain className="w-4 h-4" />
+                            <span>พร้อมแล้ว! ไปทำแบบทดสอบท้ายเล่ม</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               {showPostAssessment && activeAssessment ? (
                 /* ================= POST-READING ASSESSMENT & INTERACTIVE ACTIVITY VIEW ================= */
                 <div className="space-y-6 animate-in fade-in duration-200">
@@ -904,6 +1626,43 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* PRE-QUIZ AI SUMMARY BANNER IN ASSESSMENT VIEW */}
+                  <div className="p-5 rounded-3xl bg-gradient-to-r from-violet-50 via-fuchsia-50 to-indigo-50 dark:from-violet-950/40 dark:via-fuchsia-950/30 dark:to-indigo-950/40 border border-violet-200 dark:border-violet-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <div className="text-xs sm:text-sm font-black text-violet-950 dark:text-violet-200 flex items-center gap-2">
+                          <span>✨ ทบทวนความเข้าใจด่วนก่อนทำแบบทดสอบด้วย Gemini AI</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-200/80 dark:bg-violet-900 text-violet-800 dark:text-violet-200">
+                            +10 EXP
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-300">
+                          ให้ AI ช่วยสกัดประเด็นสำคัญรายบท เคล็ดลับพิชิตข้อสอบ 3 มิติ และสูตรช่วยจำสั้นๆ ก่อนเริ่มทำข้อสอบด้านล่าง
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isGeneratingSummary}
+                      onClick={() => void handleGenerateAISummary(activeBook, false)}
+                      className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white font-black text-xs flex items-center justify-center gap-2 shrink-0 shadow-md cursor-pointer active:scale-95"
+                    >
+                      <Sparkles className={`w-4 h-4 ${isGeneratingSummary ? 'animate-spin' : ''}`} />
+                      <span>
+                        {isGeneratingSummary
+                          ? 'กำลังสร้างสรุปด้วย AI...'
+                          : aiSummaries[activeBook.id]
+                          ? showAiSummaryPanel
+                            ? 'ดูการ์ดสรุปด้วย AI ด้านบน'
+                            : 'เปิดอ่านสรุปด้วย AI'
+                          : 'สรุปด้วย AI'}
+                      </span>
+                    </button>
                   </div>
 
                   {/* PART 1: 3-DIMENSIONAL COGNITIVE QUIZ */}
@@ -1546,25 +2305,38 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                       <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-teal-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-teal-950/40 border border-amber-300 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="space-y-1">
                           <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-800 dark:text-amber-300">
-                            <span>🎯 เมื่ออ่านหนังสือจบเล่มแล้ว มาวัดผลและทำกิจกรรมต่อยอดกัน!</span>
+                            <span>🎯 เมื่ออ่านหนังสือจบเล่มแล้ว มาทบทวนด้วย AI และทำแบบทดสอบท้ายเล่มกัน!</span>
                           </div>
                           <p className="text-xs text-slate-600 dark:text-slate-300">
-                            ทำแบบทดสอบ 3 มิติ (ความเข้าใจ • คิดวิเคราะห์ • การนำไปใช้) และกิจกรรมเรียงลำดับขั้นตอนท้ายเล่มเพื่อรับสูงสุด +75 EXP
+                            กด &ldquo;สรุปด้วย AI&rdquo; เพื่อทบทวนประเด็นสำคัญใน 2 นาที ก่อนทำแบบทดสอบ 3 มิติและกิจกรรมเรียงลำดับขั้นตอน (+85 EXP)
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleMarkSectionComplete(activeBook, activeBook.sections[currentSectionIndex].id);
-                            setShowPostAssessment(true);
-                            window.scrollTo({ top: 100, behavior: 'smooth' });
-                          }}
-                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-black text-xs flex items-center gap-2 shrink-0 shadow-md cursor-pointer active:scale-95"
-                        >
-                          <Brain className="w-4 h-4" />
-                          <span>เริ่มทำแบบทดสอบ &amp; กิจกรรมท้ายเล่ม</span>
-                          <ArrowRight className="w-4 h-4" />
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleGenerateAISummary(activeBook, false);
+                              window.scrollTo({ top: 100, behavior: 'smooth' });
+                            }}
+                            className="px-3.5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-black text-xs flex items-center gap-1.5 shadow-md cursor-pointer active:scale-95"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            <span>สรุปด้วย AI</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleMarkSectionComplete(activeBook, activeBook.sections[currentSectionIndex].id);
+                              setShowPostAssessment(true);
+                              window.scrollTo({ top: 100, behavior: 'smooth' });
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-black text-xs flex items-center gap-2 shadow-md cursor-pointer active:scale-95"
+                          >
+                            <Brain className="w-4 h-4" />
+                            <span>เริ่มทำแบบทดสอบ &amp; กิจกรรมท้ายเล่ม</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -1662,24 +2434,36 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
               ))}
             </div>
 
-            {/* Search Input */}
-            <div className="relative min-w-[260px]">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหา e-Book, เซ็นเซอร์, บล็อกโค้ด..."
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
-                >
-                  ✕
-                </button>
-              )}
+            {/* Search Input & Google Search Catalog Button */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void handleFetchBookCatalog(searchQuery || catalogSearchQuery, catalogGradeFilter)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95 whitespace-nowrap"
+                title="ใช้ Google Search ดึงข้อมูลหนังสือเรียนวิทยาการคำนวณและสื่อการสอนที่ทันสมัยจากแหล่งที่น่าเชื่อถือ"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>เรียกดูรายการหนังสือ (Google Search)</span>
+              </button>
+
+              <div className="relative min-w-[240px] flex-1 sm:flex-initial">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ค้นหา e-Book, เซ็นเซอร์, บล็อกโค้ด..."
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1783,9 +2567,9 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="pt-1 flex items-center gap-2">
+                    <div className="pt-1 flex flex-wrap items-center gap-2">
                       <button
-                        onClick={() => handleOpenBook(book, undefined, false)}
+                        onClick={() => handleOpenBook(book, undefined, false, false)}
                         className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
                       >
                         <BookOpen className="w-3.5 h-3.5" />
@@ -1794,7 +2578,17 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleOpenBook(book, book.sections.length - 1, true)}
+                        onClick={() => handleOpenBook(book, undefined, false, true)}
+                        className="px-3 py-2.5 rounded-xl border border-violet-300 dark:border-violet-700 bg-violet-50 hover:bg-violet-100 dark:bg-violet-950/60 dark:hover:bg-violet-900/60 text-violet-800 dark:text-violet-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="สรุปใจความสำคัญของหนังสือเล่มนี้ด้วย AI เพื่อทบทวนก่อนทำแบบทดสอบ"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                        <span>สรุปด้วย AI</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenBook(book, book.sections.length - 1, true, false)}
                         className="px-3 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
                         title="ทำแบบทดสอบวัดความเข้าใจ คิดวิเคราะห์ และการนำไปใช้ท้ายเล่ม"
                       >
