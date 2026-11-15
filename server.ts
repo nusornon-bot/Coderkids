@@ -931,6 +931,43 @@ app.get('/api/students/list', (_req, res) => {
   return res.json({ success: true, students: registeredStudentsList });
 });
 
+// ------------------ SHARED POR-POR-5 (ปพ.5) GRADEBOOK SYNC API ------------------
+const porPor5ServerRecords = new Map<string, any>();
+
+app.get('/api/porpor5/list', (_req, res) => {
+  return res.json({
+    success: true,
+    records: Array.from(porPor5ServerRecords.values()),
+    registeredStudents: registeredStudentsList,
+    logs: classroomAccessLogs,
+  });
+});
+
+app.post('/api/porpor5/save', (req, res) => {
+  try {
+    const { records } = req.body || {};
+    if (Array.isArray(records)) {
+      for (const r of records) {
+        if (r && (r.studentId || r.name)) {
+          const key = String(r.studentId || r.name).trim().toLowerCase();
+          porPor5ServerRecords.set(key, {
+            ...porPor5ServerRecords.get(key),
+            ...r,
+            lastUpdated: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+          });
+        }
+      }
+    }
+    return res.json({
+      success: true,
+      count: porPor5ServerRecords.size,
+      records: Array.from(porPor5ServerRecords.values()),
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Save failed' });
+  }
+});
+
 // ------------------ STATIC / VITE MIDDLEWARE ------------------
 async function startServer() {
   if (isProduction) {

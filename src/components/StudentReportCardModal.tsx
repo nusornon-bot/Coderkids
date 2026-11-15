@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types/index.ts';
 import { soundEffects } from '../utils/soundEffects.ts';
+import { getImmediatePorPor5Roster } from '../utils/porPor5SyncStore.ts';
 
 interface StudentReportCardModalProps {
   isOpen: boolean;
@@ -34,10 +35,23 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
     'ผู้เรียนมีความกระตือรือร้นในการเรียนรู้วิทยาการคำนวณอย่างโดดเด่น สามารถแก้ปัญหาเชิงตรรกะผ่านการเขียนบล็อกโค้ด Scratch และการต่อวงจร Micro:bit ได้อย่างสร้างสรรค์ มีคุณธรรมจริยธรรมในการใช้อินเทอร์เน็ตและเข้าใจสิทธิส่วนบุคคลตามกฎหมาย PDPA เป็นอย่างดี ควรส่งเสริมเข้าแข่งขันในระดับเขตพื้นที่การศึกษาต่อไป'
   );
 
-  const [academicYear, setAcademicYear] = useState<string>('2568-2569');
-  const [semester, setSemester] = useState<string>('ภาคเรียนที่ 2');
+  const [academicYear] = useState<string>('2568-2569');
+  const [semester] = useState<string>('ภาคเรียนที่ 2');
 
   if (!isOpen) return null;
+
+  const roster = getImmediatePorPor5Roster({
+    currentProfile: profile,
+    currentPoints: points,
+  });
+  const activeRecord = roster.find((r) => r.isCurrentActiveUser) || roster[0];
+
+  const pdpaScore = activeRecord?.pdpaScore ?? 24;
+  const logicScore = activeRecord?.logicScore ?? 24;
+  const codingScore = activeRecord?.codingScore ?? 28;
+  const showcaseScore = activeRecord?.showcaseScore ?? 19;
+  const totalScore = activeRecord?.totalScore ?? pdpaScore + logicScore + codingScore + showcaseScore;
+  const gradeTag = activeRecord?.gradeLevelTag ?? 'ป.5';
 
   const handlePrint = () => {
     soundEffects.play('click');
@@ -58,8 +72,8 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
                 <h2 className="text-base sm:text-lg font-black tracking-tight">
                   แบบรายงานผลการพัฒนาคุณภาพผู้เรียนรายบุคคล (ปพ.5 / ว PA)
                 </h2>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
-                  มาตรฐาน ว 4.2 สพฐ.
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+                  ✓ ซิงก์คะแนนตรงกับศูนย์คุณครู ว 4.2 &amp; ปพ.5
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -96,7 +110,7 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
               แบบรายงานผลการประเมินสมรรถนะและคุณลักษณะอันพึงประสงค์
             </h1>
             <h2 className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 print:text-gray-700">
-              กลุ่มสาระการเรียนรู้วิทยาศาสตร์และเทคโนโลยี (วิทยาการคำนวณ ว 4.2)
+              กลุ่มสาระการเรียนรู้วิทยาศาสตร์และเทคโนโลยี (วิทยาการคำนวณ ว 4.2) • {profile.school || 'โรงเรียนอนุบาลนราธิวาส'}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 print:text-gray-600">
               หลักสูตรแกนกลางการศึกษาขั้นพื้นฐาน พุทธศักราช 2551 (ฉบับปรับปรุง 2560) | ประจำ{semester} ปีการศึกษา {academicYear}
@@ -109,24 +123,25 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
               <span className="text-slate-500 dark:text-slate-400 block">ชื่อ-นามสกุล:</span>
               <span className="font-bold text-sm text-slate-900 dark:text-white print:text-black">
                 {profile.name || 'ด.ช. นักเรียน โค้ดเดอร์'}
+                {profile.nickname ? ` (${profile.nickname})` : ''}
               </span>
             </div>
             <div>
               <span className="text-slate-500 dark:text-slate-400 block">รหัสนักเรียน:</span>
               <span className="font-mono font-bold text-slate-900 dark:text-white print:text-black">
-                {profile.studentId || 'CK-2568-1001'}
+                {profile.studentId || activeRecord?.studentId || '10894'}
               </span>
             </div>
             <div>
               <span className="text-slate-500 dark:text-slate-400 block">ระดับชั้น:</span>
               <span className="font-bold text-slate-900 dark:text-white print:text-black">
-                {profile.grade || 'ประถมศึกษาปีที่ 5'}
+                {profile.grade || activeRecord?.fullGradeText || 'ประถมศึกษาปีที่ 5'}
               </span>
             </div>
             <div>
               <span className="text-slate-500 dark:text-slate-400 block">คะแนนสะสม / สมรรถนะ:</span>
               <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 print:text-indigo-800">
-                {points.toLocaleString()} XP (ระดับยอดเยี่ยม)
+                {points.toLocaleString()} XP ({activeRecord?.gradeLevel || 'ดีเยี่ยม (4)'})
               </span>
             </div>
           </div>
@@ -135,7 +150,7 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
           <div className="space-y-2">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
               <BookOpen className="w-4 h-4 text-indigo-600" />
-              <span>ผลการเรียนรู้รายโมดูลหลัก (4 Core Modules)</span>
+              <span>ผลการเรียนรู้รายโมดูลหลัก (4 Core Modules — ซิงก์จากระบบ ปพ.5)</span>
             </h3>
 
             <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700 print:border-gray-400">
@@ -146,7 +161,7 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
                     <th className="p-3 font-bold">มาตรฐานตัวชี้วัด</th>
                     <th className="p-3 font-bold text-center">คะแนนเต็ม</th>
                     <th className="p-3 font-bold text-center">คะแนนที่ได้</th>
-                    <th className="p-3 font-bold text-center">ระดับผลการเรียน</th>
+                    <th className="p-3 font-bold text-center">ระดับคุณภาพตัวชี้วัด</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800 print:divide-gray-300">
@@ -155,13 +170,13 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
                       โมดูล 1: ความปลอดภัยดิจิทัล &amp; กฎหมาย PDPA
                     </td>
                     <td className="p-3 text-slate-500 dark:text-slate-400 print:text-gray-600">
-                      ว 4.2 ป.5/4 ใช้เทคโนโลยีอย่างปลอดภัยและมีมารยาท
+                      ว 4.2 {gradeTag}/4 ใช้เทคโนโลยีอย่างปลอดภัยและมีมารยาท
                     </td>
                     <td className="p-3 text-center font-mono">25</td>
-                    <td className="p-3 text-center font-mono font-bold text-emerald-600">24</td>
+                    <td className="p-3 text-center font-mono font-bold text-emerald-600">{pdpaScore}</td>
                     <td className="p-3 text-center">
                       <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-[11px]">
-                        ดีเยี่ยม (4.0)
+                        ระดับ {activeRecord?.indicator4 ?? 4} / 4
                       </span>
                     </td>
                   </tr>
@@ -171,13 +186,13 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
                       โมดูล 2: แนวคิดเชิงคำนวณ &amp; อัลกอริทึม
                     </td>
                     <td className="p-3 text-slate-500 dark:text-slate-400 print:text-gray-600">
-                      ว 4.2 ป.5/1 ใช้เหตุผลเชิงตรรกะในการแก้ปัญหา
+                      ว 4.2 {gradeTag}/1 ใช้เหตุผลเชิงตรรกะในการแก้ปัญหา
                     </td>
                     <td className="p-3 text-center font-mono">25</td>
-                    <td className="p-3 text-center font-mono font-bold text-emerald-600">25</td>
+                    <td className="p-3 text-center font-mono font-bold text-emerald-600">{logicScore}</td>
                     <td className="p-3 text-center">
                       <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-[11px]">
-                        ดีเยี่ยม (4.0)
+                        ระดับ {activeRecord?.indicator1 ?? 4} / 4
                       </span>
                     </td>
                   </tr>
@@ -187,13 +202,13 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
                       โมดูล 3: บล็อกโค้ดดิ้ง Scratch &amp; ฮาร์ดแวร์ Micro:bit V2
                     </td>
                     <td className="p-3 text-slate-500 dark:text-slate-400 print:text-gray-600">
-                      ว 4.2 ป.5/2 ออกแบบและเขียนโปรแกรมอย่างง่าย
+                      ว 4.2 {gradeTag}/2 ออกแบบและเขียนโปรแกรมอย่างง่าย
                     </td>
                     <td className="p-3 text-center font-mono">30</td>
-                    <td className="p-3 text-center font-mono font-bold text-emerald-600">28</td>
+                    <td className="p-3 text-center font-mono font-bold text-emerald-600">{codingScore}</td>
                     <td className="p-3 text-center">
                       <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-[11px]">
-                        ดีเยี่ยม (4.0)
+                        ระดับ {activeRecord?.indicator2 ?? 4} / 4
                       </span>
                     </td>
                   </tr>
@@ -203,13 +218,13 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
                       โมดูล 4: โครงงานนวัตกรรม STEM &amp; การสะท้อนคิด
                     </td>
                     <td className="p-3 text-slate-500 dark:text-slate-400 print:text-gray-600">
-                      ว 4.2 ป.5/3 ประยุกต์ใช้ซอฟต์แวร์ในการนำเสนอผลงาน
+                      ว 4.2 {gradeTag}/3 ประยุกต์ใช้ซอฟต์แวร์ในการนำเสนอผลงาน
                     </td>
                     <td className="p-3 text-center font-mono">20</td>
-                    <td className="p-3 text-center font-mono font-bold text-emerald-600">19</td>
+                    <td className="p-3 text-center font-mono font-bold text-emerald-600">{showcaseScore}</td>
                     <td className="p-3 text-center">
                       <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-[11px]">
-                        ดีเยี่ยม (4.0)
+                        ระดับ {activeRecord?.indicator3 ?? 4} / 4
                       </span>
                     </td>
                   </tr>
@@ -218,8 +233,8 @@ export const StudentReportCardModal: React.FC<StudentReportCardModalProps> = ({
                   <tr>
                     <td colSpan={2} className="p-3 text-right">คะแนนรวมตลอดภาคเรียน:</td>
                     <td className="p-3 text-center font-mono">100</td>
-                    <td className="p-3 text-center font-mono text-indigo-600 dark:text-indigo-400 text-sm">96</td>
-                    <td className="p-3 text-center text-emerald-600 font-black">เกรด 4.00 (ยอดเยี่ยม)</td>
+                    <td className="p-3 text-center font-mono text-indigo-600 dark:text-indigo-400 text-sm">{totalScore}</td>
+                    <td className="p-3 text-center text-emerald-600 font-black">{activeRecord?.gradeLevel || 'ดีเยี่ยม (4)'}</td>
                   </tr>
                 </tfoot>
               </table>

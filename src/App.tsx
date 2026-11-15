@@ -2199,6 +2199,10 @@ export default function App() {
         isOpen={isAssessmentReportOpen}
         onClose={() => setIsAssessmentReportOpen(false)}
         currentProfile={profile}
+        profiles={profiles}
+        currentPoints={points}
+        moduleProgress={moduleProgress}
+        onOpenTeacherMastery={() => setIsTeacherMasteryOpen(true)}
       />
 
       {/* Printable Unplugged Worksheets Modal (A4) */}
@@ -2338,6 +2342,11 @@ export default function App() {
       <TeacherMasteryPortal
         isOpen={isTeacherMasteryOpen}
         onClose={() => setIsTeacherMasteryOpen(false)}
+        currentProfile={profile}
+        profiles={profiles}
+        currentPoints={points}
+        moduleProgress={moduleProgress}
+        onOpenAssessmentReport={() => setIsAssessmentReportOpen(true)}
       />
 
       {/* Coder Hero Trading Cards Album Modal (3D Hologram & Print A4) */}
