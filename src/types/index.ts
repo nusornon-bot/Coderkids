@@ -476,6 +476,35 @@ export interface DigitalBook {
   };
 }
 
+export type CognitiveSkillDimension = 'comprehension' | 'analysis' | 'application';
+
+export interface BookAssessmentQuestion {
+  id: string;
+  dimension: CognitiveSkillDimension;
+  dimensionLabel: string;
+  question: string;
+  scenarioContext?: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
+export interface BookInteractiveActivity {
+  title: string;
+  instruction: string;
+  correctSteps: string[];
+  applicationPrompt: string;
+  suggestedIdeas: string[];
+  relatedLabModule?: string;
+  relatedLabLabel?: string;
+}
+
+export interface BookPostAssessment {
+  bookId: string;
+  questions: BookAssessmentQuestion[];
+  activity: BookInteractiveActivity;
+}
+
 export interface ReadingProgressRecord {
   bookId: string;
   currentSectionIndex: number;
@@ -483,6 +512,13 @@ export interface ReadingProgressRecord {
   isCompleted: boolean;
   lastReadAt: string;
   bookmarkedSections: string[];
+  quizScore?: number;
+  quizTotal?: number;
+  quizPassed?: boolean;
+  quizAnswers?: Record<string, number>;
+  activityOrderingDone?: boolean;
+  activityReflection?: string;
+  activityCompleted?: boolean;
 }
 
 // ------------------- APP COLOR TONES -------------------

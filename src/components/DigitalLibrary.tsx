@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen,
   BookMarked,
@@ -12,27 +12,35 @@ import {
   Printer,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Award,
   Layers,
   HelpCircle,
   Lightbulb,
   AlertTriangle,
   Cpu,
-  Share2,
   GraduationCap,
   ArrowRight,
   RotateCcw,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
   Check,
   FileText,
+  Brain,
+  Target,
+  ListChecks,
+  ArrowUp,
+  ArrowDown,
+  Send,
 } from 'lucide-react';
-import { DigitalBook, BookSection, DigitalBookCategory, ReadingProgressRecord, UserProfile } from '../types/index.ts';
+import {
+  DigitalBook,
+  DigitalBookCategory,
+  ReadingProgressRecord,
+  UserProfile,
+} from '../types/index.ts';
 import { DIGITAL_LIBRARY_BOOKS } from '../data/digitalLibraryData.ts';
+import { BOOK_POST_ASSESSMENTS } from '../data/bookAssessmentsData.ts';
 import { soundEffects } from '../utils/soundEffects.ts';
 import { DigitalLibrary3DView, HardwareModelType } from './DigitalLibrary3DView.tsx';
+import confetti from 'canvas-confetti';
 
 interface DigitalLibraryProps {
   profile: UserProfile;
@@ -54,15 +62,25 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
   // Category & search state
   const [selectedCategory, setSelectedCategory] = useState<DigitalBookCategory>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Selected book for reader modal/view
   const [activeBook, setActiveBook] = useState<DigitalBook | null>(null);
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [showPostAssessment, setShowPostAssessment] = useState(false);
 
   // Reader customization state
   const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showCheatsheetModal, setShowCheatsheetModal] = useState<DigitalBook | null>(null);
+
+  // Post-reading Quiz & Activity interactive state for activeBook
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [orderedSteps, setOrderedSteps] = useState<string[]>([]);
+  const [orderingChecked, setOrderingChecked] = useState(false);
+  const [orderingCorrect, setOrderingCorrect] = useState(false);
+  const [reflectionInput, setReflectionInput] = useState('');
+  const [reflectionSaved, setReflectionSaved] = useState(false);
 
   // Persistent reading progress records
   const [readingProgress, setReadingProgress] = useState<Record<string, ReadingProgressRecord>>(() => {
@@ -89,16 +107,52 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
       window.speechSynthesis.cancel();
     }
     setIsSpeaking(false);
-  }, [activeBook, currentSectionIndex]);
+  }, [activeBook, currentSectionIndex, showPostAssessment]);
+
+  // Initialize quiz & activity states whenever activeBook changes
+  useEffect(() => {
+    if (!activeBook) return;
+    const saved = readingProgress[activeBook.id];
+    const assessment = BOOK_POST_ASSESSMENTS[activeBook.id];
+
+    if (saved?.quizAnswers) {
+      setSelectedAnswers(saved.quizAnswers);
+      setQuizSubmitted(saved.quizScore !== undefined);
+    } else {
+      setSelectedAnswers({});
+      setQuizSubmitted(false);
+    }
+
+    if (assessment?.activity?.correctSteps) {
+      if (saved?.activityOrderingDone) {
+        setOrderedSteps([...assessment.activity.correctSteps]);
+        setOrderingChecked(true);
+        setOrderingCorrect(true);
+      } else {
+        // Scramble initial order so student can arrange them
+        const steps = [...assessment.activity.correctSteps];
+        if (steps.length >= 4) {
+          setOrderedSteps([steps[2], steps[0], steps[3], steps[1]]);
+        } else {
+          setOrderedSteps(steps.reverse());
+        }
+        setOrderingChecked(false);
+        setOrderingCorrect(false);
+      }
+    }
+
+    setReflectionInput(saved?.activityReflection || '');
+    setReflectionSaved(Boolean(saved?.activityReflection));
+  }, [activeBook?.id]);
 
   // Categories config
   const categories = [
     { id: 'all' as DigitalBookCategory, label: '📚 ทั้งหมด', count: DIGITAL_LIBRARY_BOOKS.length },
-    { id: 'microbit_manual' as DigitalBookCategory, label: '🤖 คู่มือ Micro:bit', count: DIGITAL_LIBRARY_BOOKS.filter(b => b.category === 'microbit_manual').length },
-    { id: 'ebook_cs' as DigitalBookCategory, label: '🧠 วิทยาการคำนวณ ป.4-6', count: DIGITAL_LIBRARY_BOOKS.filter(b => b.category === 'ebook_cs').length },
-    { id: 'scratch_guide' as DigitalBookCategory, label: '🐱 คัมภีร์ Scratch', count: DIGITAL_LIBRARY_BOOKS.filter(b => b.category === 'scratch_guide').length },
-    { id: 'cyber_pdpa' as DigitalBookCategory, label: '🛡️ พลเมืองดิจิทัล & PDPA', count: DIGITAL_LIBRARY_BOOKS.filter(b => b.category === 'cyber_pdpa').length },
-    { id: 'unplugged' as DigitalBookCategory, label: '🧩 Unplugged Coding', count: DIGITAL_LIBRARY_BOOKS.filter(b => b.category === 'unplugged').length },
+    { id: 'microbit_manual' as DigitalBookCategory, label: '🤖 คู่มือ Micro:bit', count: DIGITAL_LIBRARY_BOOKS.filter((b) => b.category === 'microbit_manual').length },
+    { id: 'ebook_cs' as DigitalBookCategory, label: '🧠 วิทยาการคำนวณ ป.4-6', count: DIGITAL_LIBRARY_BOOKS.filter((b) => b.category === 'ebook_cs').length },
+    { id: 'scratch_guide' as DigitalBookCategory, label: '🐱 คัมภีร์ Scratch', count: DIGITAL_LIBRARY_BOOKS.filter((b) => b.category === 'scratch_guide').length },
+    { id: 'cyber_pdpa' as DigitalBookCategory, label: '🛡️ พลเมืองดิจิทัล & PDPA', count: DIGITAL_LIBRARY_BOOKS.filter((b) => b.category === 'cyber_pdpa').length },
+    { id: 'unplugged' as DigitalBookCategory, label: '🧩 Unplugged Coding', count: DIGITAL_LIBRARY_BOOKS.filter((b) => b.category === 'unplugged').length },
   ];
 
   // Filtered books
@@ -112,13 +166,15 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
         book.subtitle.toLowerCase().includes(q) ||
         book.synopsis.toLowerCase().includes(q) ||
         book.author.toLowerCase().includes(q) ||
-        book.sections.some((sec) => sec.title.toLowerCase().includes(q) || sec.paragraphs.some(p => p.toLowerCase().includes(q)));
+        book.sections.some(
+          (sec) => sec.title.toLowerCase().includes(q) || sec.paragraphs.some((p) => p.toLowerCase().includes(q))
+        );
 
       return matchesCategory && matchesSearch;
     });
   }, [selectedCategory, searchQuery]);
 
-  // Overall reading statistics
+  // Overall reading & assessment statistics
   const totalCompletedBooks = useMemo(() => {
     return Object.values(readingProgress).filter((p) => p.isCompleted).length;
   }, [readingProgress]);
@@ -131,10 +187,15 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
     return count;
   }, [readingProgress]);
 
+  const totalAssessmentsPassed = useMemo(() => {
+    return Object.values(readingProgress).filter((p) => p.quizPassed || p.activityCompleted).length;
+  }, [readingProgress]);
+
   // Handle open reader
-  const handleOpenBook = (book: DigitalBook, startSectionIndex?: number) => {
+  const handleOpenBook = (book: DigitalBook, startSectionIndex?: number, openAssessmentDirectly: boolean = false) => {
     soundEffects.playClick();
     setActiveBook(book);
+    setShowPostAssessment(openAssessmentDirectly);
     const saved = readingProgress[book.id];
     if (startSectionIndex !== undefined) {
       setCurrentSectionIndex(startSectionIndex);
@@ -170,7 +231,7 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
         addPoints(35, `อ่าน e-Book จบเล่ม: ${book.title}`, 'thinking');
       } else if (!existing.completedSectionIds.includes(sectionId)) {
         soundEffects.playSuccess();
-        addPoints(10, `อ่านบทเรียน: ${book.sections[currentSectionIndex].title.slice(0, 30)}...`, 'thinking');
+        addPoints(10, `อ่านบทเรียน: ${book.sections[currentSectionIndex]?.title.slice(0, 30) || book.title}...`, 'thinking');
       }
 
       return {
@@ -180,6 +241,152 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
           completedSectionIds: completed,
           isCompleted: isAllDone,
           currentSectionIndex,
+          lastReadAt: new Date().toISOString(),
+        },
+      };
+    });
+  };
+
+  // Submit 3-Dimensional Post-Reading Quiz
+  const handleSubmitBookQuiz = () => {
+    if (!activeBook) return;
+    const assessment = BOOK_POST_ASSESSMENTS[activeBook.id];
+    if (!assessment) return;
+
+    let score = 0;
+    assessment.questions.forEach((q) => {
+      if (selectedAnswers[q.id] === q.correctIndex) {
+        score++;
+      }
+    });
+
+    const total = assessment.questions.length;
+    const passed = score >= 2;
+    setQuizSubmitted(true);
+
+    const prevRecord = readingProgress[activeBook.id];
+    const alreadyPassedBefore = Boolean(prevRecord?.quizPassed);
+
+    if (passed) {
+      soundEffects.playFanfare();
+      confetti({ particleCount: 65, spread: 70, origin: { y: 0.6 } });
+      if (!alreadyPassedBefore) {
+        addPoints(
+          score === total ? 40 : 25,
+          `ผ่านแบบทดสอบ 3 มิติท้ายเล่ม (${score}/${total}): ${activeBook.title}`,
+          'thinking'
+        );
+      }
+    } else {
+      soundEffects.play('error');
+    }
+
+    setReadingProgress((prev) => {
+      const existing = prev[activeBook.id] || {
+        bookId: activeBook.id,
+        currentSectionIndex: activeBook.sections.length - 1,
+        completedSectionIds: activeBook.sections.map((s) => s.id),
+        isCompleted: true,
+        lastReadAt: new Date().toISOString(),
+        bookmarkedSections: [],
+      };
+
+      return {
+        ...prev,
+        [activeBook.id]: {
+          ...existing,
+          quizScore: Math.max(score, existing.quizScore || 0),
+          quizTotal: total,
+          quizPassed: passed || existing.quizPassed,
+          quizAnswers: selectedAnswers,
+          lastReadAt: new Date().toISOString(),
+        },
+      };
+    });
+  };
+
+  // Move step up or down in interactive ordering activity
+  const handleMoveStep = (index: number, direction: 'up' | 'down') => {
+    soundEffects.playClick();
+    setOrderingChecked(false);
+    setOrderedSteps((prev) => {
+      const next = [...prev];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= next.length) return prev;
+      const temp = next[index];
+      next[index] = next[targetIndex];
+      next[targetIndex] = temp;
+      return next;
+    });
+  };
+
+  // Verify step ordering activity
+  const handleCheckStepOrdering = () => {
+    if (!activeBook) return;
+    const assessment = BOOK_POST_ASSESSMENTS[activeBook.id];
+    if (!assessment) return;
+
+    const isAllRight = assessment.activity.correctSteps.every((step, idx) => orderedSteps[idx] === step);
+    setOrderingChecked(true);
+    setOrderingCorrect(isAllRight);
+
+    const prevRecord = readingProgress[activeBook.id];
+    if (isAllRight) {
+      soundEffects.playSuccess();
+      confetti({ particleCount: 45, spread: 60, origin: { y: 0.65 } });
+      if (!prevRecord?.activityOrderingDone) {
+        addPoints(20, `จัดลำดับขั้นตอนกิจกรรมท้ายเล่มสำเร็จ: ${activeBook.title}`, 'thinking');
+      }
+      setReadingProgress((prev) => {
+        const existing = prev[activeBook.id] || {
+          bookId: activeBook.id,
+          currentSectionIndex: activeBook.sections.length - 1,
+          completedSectionIds: activeBook.sections.map((s) => s.id),
+          isCompleted: true,
+          lastReadAt: new Date().toISOString(),
+          bookmarkedSections: [],
+        };
+        return {
+          ...prev,
+          [activeBook.id]: {
+            ...existing,
+            activityOrderingDone: true,
+            activityCompleted: Boolean(existing.activityReflection || reflectionSaved),
+            lastReadAt: new Date().toISOString(),
+          },
+        };
+      });
+    } else {
+      soundEffects.play('error');
+    }
+  };
+
+  // Save student's real-world application plan
+  const handleSaveApplicationPlan = () => {
+    if (!activeBook || !reflectionInput.trim()) return;
+    soundEffects.playSuccess();
+    setReflectionSaved(true);
+
+    const prevRecord = readingProgress[activeBook.id];
+    if (!prevRecord?.activityReflection) {
+      addPoints(15, `บันทึกแนวคิดการนำไปใช้จากหนังสือ: ${activeBook.title}`, 'showcase');
+    }
+
+    setReadingProgress((prev) => {
+      const existing = prev[activeBook.id] || {
+        bookId: activeBook.id,
+        currentSectionIndex: activeBook.sections.length - 1,
+        completedSectionIds: activeBook.sections.map((s) => s.id),
+        isCompleted: true,
+        lastReadAt: new Date().toISOString(),
+        bookmarkedSections: [],
+      };
+      return {
+        ...prev,
+        [activeBook.id]: {
+          ...existing,
+          activityReflection: reflectionInput.trim(),
+          activityCompleted: true,
           lastReadAt: new Date().toISOString(),
         },
       };
@@ -249,6 +456,8 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
     }
   };
 
+  const activeAssessment = activeBook ? BOOK_POST_ASSESSMENTS[activeBook.id] : undefined;
+
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* ----------------- TOP HERO BANNER ----------------- */}
@@ -260,14 +469,14 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 border border-teal-400/30 text-xs font-semibold">
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Digital Library &amp; Micro:bit Handbooks</span>
+              <span>Digital Library &amp; Post-Reading Mastery</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
               <span>คลังสื่อการเรียนรู้อิเล็กทรอนิกส์</span>
               <span className="text-2xl">📖</span>
             </h1>
             <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-              รวบรวม e-Book สาระวิทยาการคำนวณ ป.4-6 ตามหลักสูตร สพฐ. (ว 4.2), คู่มือฉบับสมบูรณ์บอร์ด Micro:bit V2, คัมภีร์ Scratch 3.0, และใบความรู้แบบโต้ตอบพร้อมระบบอ่านออกเสียงภาษาไทย
+              รวบรวม e-Book สาระวิทยาการคำนวณ ป.4-6 ตามหลักสูตร สพฐ. (ว 4.2), คู่มือ Micro:bit V2, คัมภีร์ Scratch 3.0 พร้อม<strong>แบบทดสอบ 3 มิติ (ความเข้าใจ • คิดวิเคราะห์ • การนำไปใช้)</strong> และกิจกรรมฝึกปฏิบัติท้ายเล่มทุกเล่ม
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-3 text-xs text-slate-300">
@@ -277,10 +486,14 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
               </span>
               <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                <span>คุณอ่านจบแล้ว {totalCompletedBooks}/{DIGITAL_LIBRARY_BOOKS.length} เล่ม</span>
+                <span>อ่านจบแล้ว {totalCompletedBooks}/{DIGITAL_LIBRARY_BOOKS.length} เล่ม</span>
               </span>
               <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
-                <Layers className="w-3.5 h-3.5 text-amber-400" />
+                <Brain className="w-3.5 h-3.5 text-amber-400" />
+                <span>ผ่านแบบทดสอบ &amp; กิจกรรมท้ายเล่ม {totalAssessmentsPassed}/{DIGITAL_LIBRARY_BOOKS.length} เล่ม</span>
+              </span>
+              <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10">
+                <Layers className="w-3.5 h-3.5 text-cyan-400" />
                 <span>สะสมบทเรียน {totalSectionsRead} ตอน</span>
               </span>
             </div>
@@ -300,7 +513,7 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                 }`}
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>📚 คลังหนังสือ &amp; คู่มือ e-Book</span>
+                <span>📚 คลังหนังสือ &amp; แบบทดสอบท้ายเล่ม</span>
               </button>
               <button
                 type="button"
@@ -327,8 +540,12 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
           {/* Quick Action & Student Badge */}
           <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 shrink-0">
             <div className="text-right hidden md:block">
-              <div className="text-xs text-slate-400">ผู้อ่าน: <span className="font-semibold text-white">{profile.name}</span></div>
-              <div className="text-xs text-teal-300 font-mono">{profile.grade || 'ชั้น ป.5'} • {profile.school || 'โรงเรียนคุณภาพ สพฐ.'}</div>
+              <div className="text-xs text-slate-400">
+                ผู้อ่าน: <span className="font-semibold text-white">{profile.name}</span>
+              </div>
+              <div className="text-xs text-teal-300 font-mono">
+                {profile.grade || 'ชั้น ป.5'} • {profile.school || 'โรงเรียนคุณภาพ สพฐ.'}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -392,6 +609,7 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                 onClick={() => {
                   soundEffects.playClick();
                   setActiveBook(null);
+                  setShowPostAssessment(false);
                 }}
                 className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
               >
@@ -409,66 +627,87 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
               </div>
             </div>
 
-            {/* Reader Controls: Font size, Audio TTS, Cheatsheet Print */}
-            <div className="flex items-center gap-2">
-              {/* Font size control */}
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1 text-xs">
-                <button
-                  onClick={() => setFontSize('normal')}
-                  className={`px-2 py-1 rounded-lg transition-all font-semibold ${fontSize === 'normal' ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs' : 'text-slate-600 dark:text-slate-400'}`}
-                  title="ตัวอักษรขนาดปกติ"
-                >
-                  ก
-                </button>
-                <button
-                  onClick={() => setFontSize('large')}
-                  className={`px-2 py-1 rounded-lg transition-all font-bold ${fontSize === 'large' ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs' : 'text-slate-600 dark:text-slate-400'}`}
-                  title="ตัวอักษรขนาดใหญ่"
-                >
-                  ก+
-                </button>
-                <button
-                  onClick={() => setFontSize('xlarge')}
-                  className={`px-2 py-1 rounded-lg transition-all font-extrabold ${fontSize === 'xlarge' ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs' : 'text-slate-600 dark:text-slate-400'}`}
-                  title="ตัวอักษรขนาดใหญ่พิเศษ"
-                >
-                  ก++
-                </button>
-              </div>
+            {/* Reader Controls: Mode Switch (Read vs Assessment), Font size, Audio TTS, Cheatsheet Print */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setShowPostAssessment((prev) => !prev);
+                  window.scrollTo({ top: 100, behavior: 'smooth' });
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  showPostAssessment
+                    ? 'bg-amber-500 text-white shadow-md'
+                    : 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 hover:bg-amber-100'
+                }`}
+              >
+                <Brain className="w-3.5 h-3.5" />
+                <span>{showPostAssessment ? '📖 กลับไปอ่านเนื้อหา' : '🎯 แบบทดสอบ & กิจกรรมท้ายเล่ม'}</span>
+              </button>
 
-              {/* TTS Voice Narration Button */}
-              {activeBook.sections[currentSectionIndex] && (
-                <button
-                  onClick={() => {
-                    const currentSec = activeBook.sections[currentSectionIndex];
-                    const fullText = `${currentSec.title}. ${currentSec.paragraphs.join(' ')}. สรุปสำคัญ: ${currentSec.keyTakeaway || ''}`;
-                    handleToggleTTS(fullText);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    isSpeaking
-                      ? 'bg-rose-500 text-white animate-pulse shadow-md'
-                      : 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900 border border-teal-200 dark:border-teal-800'
-                  }`}
-                  title={isSpeaking ? 'คลิกเพื่อหยุดการอ่าน' : 'คลิกเพื่อให้ระบบอ่านออกเสียงภาษาไทย'}
-                >
-                  {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                  <span>{isSpeaking ? 'หยุดอ่าน' : 'อ่านให้ฟัง (AI Voice)'}</span>
-                </button>
-              )}
+              {!showPostAssessment && (
+                <>
+                  {/* Font size control */}
+                  <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1 text-xs">
+                    <button
+                      onClick={() => setFontSize('normal')}
+                      className={`px-2 py-1 rounded-lg transition-all font-semibold ${fontSize === 'normal' ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs' : 'text-slate-600 dark:text-slate-400'}`}
+                      title="ตัวอักษรขนาดปกติ"
+                    >
+                      ก
+                    </button>
+                    <button
+                      onClick={() => setFontSize('large')}
+                      className={`px-2 py-1 rounded-lg transition-all font-bold ${fontSize === 'large' ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs' : 'text-slate-600 dark:text-slate-400'}`}
+                      title="ตัวอักษรขนาดใหญ่"
+                    >
+                      ก+
+                    </button>
+                    <button
+                      onClick={() => setFontSize('xlarge')}
+                      className={`px-2 py-1 rounded-lg transition-all font-extrabold ${fontSize === 'xlarge' ? 'bg-white dark:bg-slate-700 text-teal-600 dark:text-teal-400 shadow-xs' : 'text-slate-600 dark:text-slate-400'}`}
+                      title="ตัวอักษรขนาดใหญ่พิเศษ"
+                    >
+                      ก++
+                    </button>
+                  </div>
 
-              {/* Bookmark Button */}
-              {activeBook.sections[currentSectionIndex] && (
-                <button
-                  onClick={() => handleToggleBookmark(activeBook.id, activeBook.sections[currentSectionIndex].id)}
-                  className={`p-2 rounded-xl transition-all cursor-pointer ${
-                    readingProgress[activeBook.id]?.bookmarkedSections?.includes(activeBook.sections[currentSectionIndex].id)
-                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-400 border border-amber-300'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
-                  }`}
-                  title="คั่นหน้านี้ไว้"
-                >
-                  <Bookmark className="w-4 h-4" />
-                </button>
+                  {/* TTS Voice Narration Button */}
+                  {activeBook.sections[currentSectionIndex] && (
+                    <button
+                      onClick={() => {
+                        const currentSec = activeBook.sections[currentSectionIndex];
+                        const fullText = `${currentSec.title}. ${currentSec.paragraphs.join(' ')}. สรุปสำคัญ: ${currentSec.keyTakeaway || ''}`;
+                        handleToggleTTS(fullText);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        isSpeaking
+                          ? 'bg-rose-500 text-white animate-pulse shadow-md'
+                          : 'bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900 border border-teal-200 dark:border-teal-800'
+                      }`}
+                      title={isSpeaking ? 'คลิกเพื่อหยุดการอ่าน' : 'คลิกเพื่อให้ระบบอ่านออกเสียงภาษาไทย'}
+                    >
+                      {isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      <span>{isSpeaking ? 'หยุดอ่าน' : 'อ่านให้ฟัง (AI Voice)'}</span>
+                    </button>
+                  )}
+
+                  {/* Bookmark Button */}
+                  {activeBook.sections[currentSectionIndex] && (
+                    <button
+                      onClick={() => handleToggleBookmark(activeBook.id, activeBook.sections[currentSectionIndex].id)}
+                      className={`p-2 rounded-xl transition-all cursor-pointer ${
+                        readingProgress[activeBook.id]?.bookmarkedSections?.includes(activeBook.sections[currentSectionIndex].id)
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-400 border border-amber-300'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+                      }`}
+                      title="คั่นหน้านี้ไว้"
+                    >
+                      <Bookmark className="w-4 h-4" />
+                    </button>
+                  )}
+                </>
               )}
 
               {/* Print / Cheatsheet button */}
@@ -488,9 +727,9 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
             </div>
           </div>
 
-          {/* Reader Main Layout: Table of Contents Sidebar + Reader Content */}
+          {/* Reader Main Layout: Table of Contents Sidebar + Reader/Assessment Content */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-            {/* Sidebar: Table of Contents */}
+            {/* Sidebar: Table of Contents + Assessment Entry */}
             <div className="lg:col-span-1 bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-800 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2 font-bold text-xs text-slate-700 dark:text-slate-200">
@@ -513,9 +752,9 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
               </div>
 
               {/* Section list */}
-              <nav className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
+              <nav className="space-y-1.5 max-h-[55vh] overflow-y-auto pr-1">
                 {activeBook.sections.map((sec, idx) => {
-                  const isCurrent = currentSectionIndex === idx;
+                  const isCurrent = !showPostAssessment && currentSectionIndex === idx;
                   const isRead = readingProgress[activeBook.id]?.completedSectionIds?.includes(sec.id);
                   const isBookmarked = readingProgress[activeBook.id]?.bookmarkedSections?.includes(sec.id);
 
@@ -524,6 +763,7 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                       key={sec.id}
                       onClick={() => {
                         soundEffects.playClick();
+                        setShowPostAssessment(false);
                         setCurrentSectionIndex(idx);
                         window.scrollTo({ top: 120, behavior: 'smooth' });
                       }}
@@ -535,13 +775,15 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                           : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                       }`}
                     >
-                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold ${
-                        isCurrent
-                          ? 'bg-white text-teal-700'
-                          : isRead
-                          ? 'bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200'
-                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                      }`}>
+                      <span
+                        className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold ${
+                          isCurrent
+                            ? 'bg-white text-teal-700'
+                            : isRead
+                            ? 'bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200'
+                            : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
                         {idx + 1}
                       </span>
                       <div className="flex-1 min-w-0">
@@ -558,12 +800,61 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                     </button>
                   );
                 })}
+
+                {/* Post-Reading Assessment & Activity Item in TOC */}
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEffects.playClick();
+                      setShowPostAssessment(true);
+                      window.scrollTo({ top: 100, behavior: 'smooth' });
+                    }}
+                    className={`w-full text-left p-3 rounded-2xl text-xs transition-all flex items-start gap-2.5 cursor-pointer border ${
+                      showPostAssessment
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold border-amber-400 shadow-md'
+                        : readingProgress[activeBook.id]?.quizPassed
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100/70'
+                        : 'bg-amber-50/80 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800/70 hover:bg-amber-100/70'
+                    }`}
+                  >
+                    <span
+                      className={`w-6 h-6 rounded-xl flex items-center justify-center text-xs shrink-0 font-bold ${
+                        showPostAssessment
+                          ? 'bg-white text-amber-600'
+                          : readingProgress[activeBook.id]?.quizPassed
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-amber-500 text-white'
+                      }`}
+                    >
+                      🎯
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold leading-tight">แบบทดสอบ &amp; กิจกรรมท้ายเล่ม</div>
+                      <div
+                        className={`text-[10px] mt-0.5 ${
+                          showPostAssessment
+                            ? 'text-amber-100'
+                            : readingProgress[activeBook.id]?.quizPassed
+                            ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                            : 'text-amber-700 dark:text-amber-400'
+                        }`}
+                      >
+                        {readingProgress[activeBook.id]?.quizScore !== undefined
+                          ? `คะแนนสอบ ${readingProgress[activeBook.id]?.quizScore}/${readingProgress[activeBook.id]?.quizTotal || 3} • ${
+                              readingProgress[activeBook.id]?.activityOrderingDone ? 'ทำกิจกรรมแล้ว' : 'รอทำกิจกรรม'
+                            }`
+                          : 'วัดความเข้าใจ • คิดวิเคราะห์ • การนำไปใช้'}
+                      </div>
+                    </div>
+                  </button>
+                </div>
               </nav>
 
               {/* Progress Bar in Sidebar */}
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
                 <div className="flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                  <span>ความก้าวหน้า</span>
+                  <span>ความก้าวหน้าการอ่าน</span>
                   <span className="font-bold text-teal-600 dark:text-teal-400">
                     {Math.round(((readingProgress[activeBook.id]?.completedSectionIds?.length || 0) / activeBook.sections.length) * 100)}%
                   </span>
@@ -579,313 +870,760 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
               </div>
             </div>
 
-            {/* Reader Content Area */}
+            {/* Reader OR Post-Reading Assessment Content Area */}
             <div className="lg:col-span-3 space-y-6">
-              {activeBook.sections[currentSectionIndex] && (
-                <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
-                  {/* Header of Section */}
-                  <div className="space-y-2 pb-5 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center justify-between text-xs text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider">
-                      <span>ตอนที่ {currentSectionIndex + 1} จาก {activeBook.sections.length}</span>
-                      <span className="flex items-center gap-1 text-slate-400 font-normal">
-                        <Clock className="w-3.5 h-3.5" /> เวลาอ่าน ~{Math.ceil(activeBook.readTimeMinutes / activeBook.sections.length)} นาที
-                      </span>
+              {showPostAssessment && activeAssessment ? (
+                /* ================= POST-READING ASSESSMENT & INTERACTIVE ACTIVITY VIEW ================= */
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  {/* Assessment Header Card */}
+                  <div className={`p-6 sm:p-8 rounded-3xl bg-gradient-to-r ${activeBook.coverGradient} text-white shadow-lg relative overflow-hidden`}>
+                    <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/25 backdrop-blur-xs text-xs font-bold border border-white/20">
+                          <GraduationCap className="w-4 h-4 text-amber-300" />
+                          <span>แบบวัดผลและกิจกรรมปฏิบัติการท้ายเล่ม (Post-Reading Mastery)</span>
+                        </div>
+                        <h2 className="text-xl sm:text-2xl font-black leading-snug">
+                          {activeBook.title}
+                        </h2>
+                        <p className="text-xs sm:text-sm text-white/90">
+                          วัดผล 3 มิติการเรียนรู้: <strong>1. ความรู้ความเข้าใจ</strong> • <strong>2. การคิดวิเคราะห์</strong> • <strong>3. การนำไปใช้แก้ปัญหาจริง</strong> พร้อมภารกิจจัดลำดับขั้นตอนและต่อยอดโครงงาน
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 bg-black/25 backdrop-blur-xs border border-white/20 rounded-2xl p-4 text-center min-w-[140px]">
+                        <div className="text-[11px] text-white/80 font-medium">คะแนนแบบทดสอบ</div>
+                        <div className="text-2xl font-black text-amber-300 mt-0.5">
+                          {readingProgress[activeBook.id]?.quizScore !== undefined
+                            ? `${readingProgress[activeBook.id]?.quizScore} / ${activeAssessment.questions.length}`
+                            : 'ยังไม่ส่ง'}
+                        </div>
+                        <div className="text-[10px] text-emerald-300 font-bold mt-1">
+                          {readingProgress[activeBook.id]?.quizPassed ? '🏆 ผ่านเกณฑ์แล้ว' : 'เกณฑ์ผ่าน 2/3 ข้อ'}
+                        </div>
+                      </div>
                     </div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                      {activeBook.sections[currentSectionIndex].title}
-                    </h2>
-                    {activeBook.sections[currentSectionIndex].subtitle && (
-                      <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                        {activeBook.sections[currentSectionIndex].subtitle}
-                      </p>
+                  </div>
+
+                  {/* PART 1: 3-DIMENSIONAL COGNITIVE QUIZ */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-950/70 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black">
+                          <Brain className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                            ส่วนที่ 1: แบบทดสอบวัดผล 3 มิติการเรียนรู้ (3 ข้อ)
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            เลือกคำตอบที่ถูกต้องที่สุดในแต่ละมิติเพื่อวัดความเข้าใจ การคิดวิเคราะห์ และการนำไปใช้ (+40 EXP)
+                          </p>
+                        </div>
+                      </div>
+
+                      {quizSubmitted && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            soundEffects.playClick();
+                            setQuizSubmitted(false);
+                            setSelectedAnswers({});
+                          }}
+                          className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>ทำแบบทดสอบใหม่อีกครั้ง</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      {activeAssessment.questions.map((q, qIdx) => {
+                        const chosenIdx = selectedAnswers[q.id];
+                        const isAnswered = chosenIdx !== undefined;
+                        const isCorrect = quizSubmitted && chosenIdx === q.correctIndex;
+
+                        const badgeStyle =
+                          q.dimension === 'comprehension'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                            : q.dimension === 'analysis'
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                            : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+
+                        const badgeIcon =
+                          q.dimension === 'comprehension' ? '📘' : q.dimension === 'analysis' ? '🔍' : '🚀';
+
+                        return (
+                          <div
+                            key={q.id}
+                            className={`p-5 rounded-2xl border transition-all space-y-4 ${
+                              quizSubmitted
+                                ? isCorrect
+                                  ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800'
+                                  : 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-300 dark:border-rose-800'
+                                : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold border ${badgeStyle}`}>
+                                <span>{badgeIcon}</span>
+                                <span>ข้อที่ {qIdx + 1} • มิติ{q.dimensionLabel}</span>
+                              </span>
+                              {quizSubmitted && (
+                                <span
+                                  className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
+                                    isCorrect
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200'
+                                      : 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200'
+                                  }`}
+                                >
+                                  {isCorrect ? '✓ ตอบถูกต้อง (+1 คะแนน)' : '✕ ยังไม่ถูกต้อง'}
+                                </span>
+                              )}
+                            </div>
+
+                            {q.scenarioContext && (
+                              <div className="p-3.5 rounded-xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/70 text-xs text-amber-950 dark:text-amber-200 leading-relaxed">
+                                <strong className="font-bold block mb-0.5">📌 สถานการณ์ตัวอย่าง (Case Scenario):</strong>
+                                {q.scenarioContext}
+                              </div>
+                            )}
+
+                            <div className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug">
+                              {q.question}
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-2.5">
+                              {q.options.map((opt, optIdx) => {
+                                const isSelected = chosenIdx === optIdx;
+                                const isRightOption = q.correctIndex === optIdx;
+
+                                let optionClasses =
+                                  'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-teal-400';
+                                if (quizSubmitted) {
+                                  if (isRightOption) {
+                                    optionClasses =
+                                      'bg-emerald-100/90 dark:bg-emerald-950/70 border-emerald-500 text-emerald-950 dark:text-emerald-200 font-bold';
+                                  } else if (isSelected && !isRightOption) {
+                                    optionClasses =
+                                      'bg-rose-100/80 dark:bg-rose-950/60 border-rose-400 text-rose-900 dark:text-rose-200';
+                                  } else {
+                                    optionClasses =
+                                      'bg-white/60 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400';
+                                  }
+                                } else if (isSelected) {
+                                  optionClasses =
+                                    'bg-teal-50 dark:bg-teal-950/60 border-teal-500 text-teal-900 dark:text-teal-200 font-bold ring-2 ring-teal-500/20';
+                                }
+
+                                return (
+                                  <button
+                                    key={optIdx}
+                                    type="button"
+                                    disabled={quizSubmitted}
+                                    onClick={() => {
+                                      soundEffects.playClick();
+                                      setSelectedAnswers((prev) => ({ ...prev, [q.id]: optIdx }));
+                                    }}
+                                    className={`w-full text-left p-3.5 rounded-xl border text-xs sm:text-sm transition-all flex items-start gap-3 cursor-pointer ${optionClasses}`}
+                                  >
+                                    <span
+                                      className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 ${
+                                        quizSubmitted && isRightOption
+                                          ? 'bg-emerald-600 text-white'
+                                          : quizSubmitted && isSelected && !isRightOption
+                                          ? 'bg-rose-600 text-white'
+                                          : isSelected
+                                          ? 'bg-teal-600 text-white'
+                                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                      }`}
+                                    >
+                                      {['ก', 'ข', 'ค', 'ง'][optIdx]}
+                                    </span>
+                                    <span className="flex-1 leading-relaxed">{opt}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {quizSubmitted && (
+                              <div className="p-4 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-950 dark:text-indigo-200 space-y-1">
+                                <div className="font-bold flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300">
+                                  <Lightbulb className="w-4 h-4 shrink-0" />
+                                  <span>คำอธิบายวิเคราะห์คำตอบ:</span>
+                                </div>
+                                <p className="leading-relaxed">{q.explanation}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {!quizSubmitted ? (
+                      <div className="flex items-center justify-between pt-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          เลือกคำตอบแล้ว {Object.keys(selectedAnswers).length} / {activeAssessment.questions.length} ข้อ
+                        </span>
+                        <button
+                          type="button"
+                          disabled={Object.keys(selectedAnswers).length < activeAssessment.questions.length}
+                          onClick={handleSubmitBookQuiz}
+                          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 disabled:opacity-40 disabled:pointer-events-none text-white font-black text-xs sm:text-sm shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>ตรวจคำตอบแบบทดสอบ 3 มิติ (+40 EXP)</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-white flex items-center justify-center text-lg font-black">
+                            🏆
+                          </div>
+                          <div>
+                            <div className="text-sm font-black text-emerald-900 dark:text-emerald-200">
+                              สรุปผลคะแนน: {readingProgress[activeBook.id]?.quizScore || 0} / {activeAssessment.questions.length} คะแนน
+                            </div>
+                            <div className="text-xs text-emerald-700 dark:text-emerald-300">
+                              ทำกิจกรรมจัดลำดับขั้นตอนและบันทึกการนำไปใช้ด้านล่างต่อเพื่อรับแต้มพิเศษครบชุด!
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  {/* Body Paragraphs */}
-                  <div className={`space-y-4 text-slate-700 dark:text-slate-300 ${getTextSizeClass()}`}>
-                    {activeBook.sections[currentSectionIndex].paragraphs.map((p, pIdx) => (
-                      <p key={pIdx} className="indent-6 sm:indent-8 leading-relaxed">
-                        {p}
-                      </p>
-                    ))}
-                  </div>
+                  {/* PART 2: INTERACTIVE STEP-ORDERING & REAL-WORLD APPLICATION ACTIVITY */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
+                    <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100 dark:border-slate-800">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 flex items-center justify-center font-black">
+                        <ListChecks className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                          ส่วนที่ 2: {activeAssessment.activity.title}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {activeAssessment.activity.instruction} (+20 EXP)
+                        </p>
+                      </div>
+                    </div>
 
-                  {/* Visual Diagrams for specific types */}
-                  {activeBook.sections[currentSectionIndex].diagramType === 'microbit_pinout' && (
-                    <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-4 shadow-inner border border-slate-700">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold text-teal-400 uppercase tracking-wider">
-                          <Cpu className="w-4 h-4" />
-                          <span>แผนผังฮาร์ดแวร์ Micro:bit V2 Pinout Diagram</span>
+                    {/* Step Ordering List */}
+                    <div className="space-y-2.5">
+                      {orderedSteps.map((stepText, idx) => {
+                        const isStepInRightSpot =
+                          orderingChecked && activeAssessment.activity.correctSteps[idx] === stepText;
+
+                        return (
+                          <div
+                            key={stepText}
+                            className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${
+                              orderingChecked
+                                ? isStepInRightSpot
+                                  ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-400 text-emerald-900 dark:text-emerald-200'
+                                  : 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-400 text-rose-900 dark:text-rose-200'
+                                : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <span
+                                className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                                  orderingChecked
+                                    ? isStepInRightSpot
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-rose-600 text-white'
+                                    : 'bg-amber-500 text-white'
+                                }`}
+                              >
+                                ลำดับ {idx + 1}
+                              </span>
+                              <span className="text-xs sm:text-sm font-medium leading-relaxed">
+                                {stepText.replace(/^\d+\.\s*/, '')}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => handleMoveStep(idx, 'up')}
+                                className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                                title="เลื่อนขึ้น"
+                              >
+                                <ArrowUp className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === orderedSteps.length - 1}
+                                onClick={() => handleMoveStep(idx, 'down')}
+                                className="p-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                                title="เลื่อนลง"
+                              >
+                                <ArrowDown className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        {orderingChecked && (
+                          <span
+                            className={`text-xs font-bold ${
+                              orderingCorrect ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                            }`}
+                          >
+                            {orderingCorrect
+                              ? '🎉 ยอดเยี่ยม! คุณเรียงลำดับขั้นตอนการทำงานได้ถูกต้องครบทุกขั้นแล้ว!'
+                              : '⚠️ ยังมีบางขั้นตอนสลับลำดับกันอยู่ ลองกดลูกศรเลื่อนปรับลำดับแล้วตรวจใหม่นะครับ'}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCheckStepOrdering}
+                        className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-2 shadow-sm cursor-pointer active:scale-95"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>ตรวจลำดับขั้นตอน (+20 EXP)</span>
+                      </button>
+                    </div>
+
+                    {/* Real-world Application & Action Plan */}
+                    <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Target className="w-5 h-5 text-teal-500" />
+                        <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+                          ส่วนที่ 3: บันทึกแนวคิดการนำไปใช้แก้ปัญหาจริง (Application in Real Life)
+                        </h4>
+                      </div>
+                      <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium">
+                        💡 คำถามชวนคิดต่อยอด: {activeAssessment.activity.applicationPrompt}
+                      </p>
+
+                      {/* Suggested quick chips */}
+                      <div className="space-y-1.5">
+                        <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                          คลิกเลือกไอเดียตั้งต้น หรือพิมพ์แนวคิดของคุณเองด้านล่าง:
                         </div>
-                        <span className="text-[10px] bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded border border-teal-500/30">
-                          BBC micro:bit V2 Spec
+                        <div className="flex flex-wrap gap-2">
+                          {activeAssessment.activity.suggestedIdeas.map((idea, iIdx) => (
+                            <button
+                              key={iIdx}
+                              type="button"
+                              onClick={() => {
+                                soundEffects.playClick();
+                                setReflectionInput(idea);
+                                setReflectionSaved(false);
+                              }}
+                              className="text-left px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-xs transition-all cursor-pointer"
+                            >
+                              + {idea}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <textarea
+                        rows={3}
+                        value={reflectionInput}
+                        onChange={(e) => {
+                          setReflectionInput(e.target.value);
+                          setReflectionSaved(false);
+                        }}
+                        placeholder="เขียนสรุปแนวคิดการนำความรู้จากหนังสือเล่มนี้ไปประยุกต์ใช้..."
+                        className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs sm:text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                      />
+
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={!reflectionInput.trim()}
+                            onClick={handleSaveApplicationPlan}
+                            className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-2 shadow-sm cursor-pointer active:scale-95"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            <span>{reflectionSaved ? '✓ บันทึกแนวคิดเรียบร้อยแล้ว' : 'บันทึกแนวคิดการนำไปใช้ (+15 EXP)'}</span>
+                          </button>
+                          {reflectionSaved && (
+                            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                              ✨ บันทึกลงพอร์ตการอ่านของคุณแล้ว!
+                            </span>
+                          )}
+                        </div>
+
+                        {activeAssessment.activity.relatedLabModule && onNavigateModule && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundEffects.playClick();
+                              onNavigateModule(activeAssessment.activity.relatedLabModule!);
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-95"
+                          >
+                            <span>🚀 {activeAssessment.activity.relatedLabLabel || 'ไปที่ห้องแล็บฝึกปฏิบัติจริง'}</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ================= STANDARD CHAPTER READING VIEW ================= */
+                activeBook.sections[currentSectionIndex] && (
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 dark:border-slate-800 space-y-6">
+                    {/* Header of Section */}
+                    <div className="space-y-2 pb-5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between text-xs text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider">
+                        <span>
+                          ตอนที่ {currentSectionIndex + 1} จาก {activeBook.sections.length}
+                        </span>
+                        <span className="flex items-center gap-1 text-slate-400 font-normal">
+                          <Clock className="w-3.5 h-3.5" /> เวลาอ่าน ~{Math.ceil(activeBook.readTimeMinutes / activeBook.sections.length)} นาที
                         </span>
                       </div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                        {activeBook.sections[currentSectionIndex].title}
+                      </h2>
+                      {activeBook.sections[currentSectionIndex].subtitle && (
+                        <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                          {activeBook.sections[currentSectionIndex].subtitle}
+                        </p>
+                      )}
+                    </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-2">
-                        <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">
-                          <div className="font-bold text-cyan-300 flex items-center gap-1.5">
-                            <span>🔘</span> ด้านหน้า: 5x5 LED Matrix
+                    {/* Body Paragraphs */}
+                    <div className={`space-y-4 text-slate-700 dark:text-slate-300 ${getTextSizeClass()}`}>
+                      {activeBook.sections[currentSectionIndex].paragraphs.map((p, pIdx) => (
+                        <p key={pIdx} className="indent-6 sm:indent-8 leading-relaxed">
+                          {p}
+                        </p>
+                      ))}
+                    </div>
+
+                    {/* Visual Diagrams for specific types */}
+                    {activeBook.sections[currentSectionIndex].diagramType === 'microbit_pinout' && (
+                      <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-4 shadow-inner border border-slate-700">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-bold text-teal-400 uppercase tracking-wider">
+                            <Cpu className="w-4 h-4" />
+                            <span>แผนผังฮาร์ดแวร์ Micro:bit V2 Pinout Diagram</span>
                           </div>
-                          <p className="text-slate-400 text-[11px]">
-                            ไฟ LED สีแดง 25 ดวง แสดงผลภาพ ตัวอักษร และทำหน้าที่เป็นตัววัดความเข้มแสง (Light Sensor)
-                          </p>
+                          <span className="text-[10px] bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded border border-teal-500/30">
+                            BBC micro:bit V2 Spec
+                          </span>
                         </div>
-                        <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">
-                          <div className="font-bold text-amber-300 flex items-center gap-1.5">
-                            <span>⚡</span> ขาต่อ Edge Connector Pins
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-2">
+                          <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">
+                            <div className="font-bold text-cyan-300 flex items-center gap-1.5">
+                              <span>🔘</span> ด้านหน้า: 5x5 LED Matrix
+                            </div>
+                            <p className="text-slate-400 text-[11px]">
+                              ไฟ LED สีแดง 25 ดวง แสดงผลภาพ ตัวอักษร และทำหน้าที่เป็นตัววัดความเข้มแสง (Light Sensor)
+                            </p>
                           </div>
-                          <p className="text-slate-400 text-[11px]">
-                            Pin 0, 1, 2 (I/O อนาล็อก &amp; ดิจิทัล), 3V (จ่ายไฟบวก 3.3V) และ GND (สายดิน/ขั้วลบ)
-                          </p>
+                          <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">
+                            <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                              <span>⚡</span> ขาต่อ Edge Connector Pins
+                            </div>
+                            <p className="text-slate-400 text-[11px]">
+                              Pin 0, 1, 2 (I/O อนาล็อก &amp; ดิจิทัล), 3V (จ่ายไฟบวก 3.3V) และ GND (สายดิน/ขั้วลบ)
+                            </p>
+                          </div>
+                          <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">
+                            <div className="font-bold text-emerald-300 flex items-center gap-1.5">
+                              <span>🔊</span> เซ็นเซอร์ V2 ใหม่ล่าสุด
+                            </div>
+                            <p className="text-slate-400 text-[11px]">
+                              ลำโพงในตัว (Speaker), ไมโครโฟน MEMS พร้อมไฟแสดงผล และเซ็นเซอร์สัมผัสรูปโลโก้สีทอง
+                            </p>
+                          </div>
                         </div>
-                        <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700 space-y-1">
-                          <div className="font-bold text-emerald-300 flex items-center gap-1.5">
-                            <span>🔊</span> เซ็นเซอร์ V2 ใหม่ล่าสุด
-                          </div>
-                          <p className="text-slate-400 text-[11px]">
-                            ลำโพงในตัว (Speaker), ไมโครโฟน MEMS พร้อมไฟแสดงผล และเซ็นเซอร์สัมผัสรูปโลโก้สีทอง
-                          </p>
+
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundEffects.play('click');
+                              setSelected3DModel('microbit');
+                              setViewMode('3d');
+                            }}
+                            className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-teal-500 via-indigo-600 to-purple-600 hover:from-teal-400 hover:to-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 cursor-pointer"
+                          >
+                            <Cpu className="w-4 h-4 text-amber-300" />
+                            <span>🔬 ส่องดูโมเดล 3D แบบหมุนได้ 360° (พร้อมจำลองกดปุ่ม A และแสดงผลไฟ LED)</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
+                    )}
 
-                      <div className="pt-2">
+                    {activeBook.sections[currentSectionIndex].diagramType === 'computational_thinking' && (
+                      <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 border border-indigo-200 dark:border-indigo-800 space-y-3">
+                        <div className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+                          <Layers className="w-4 h-4" />
+                          <span>แผนภาพ 4 เสาหลักการคิดเชิงคำนวณ (Computational Thinking)</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900 text-center">
+                            <div className="text-xl mb-1">🔍</div>
+                            <div className="font-bold text-slate-800 dark:text-slate-100">1. การแบ่งย่อย</div>
+                            <div className="text-[10px] text-slate-500">Decomposition</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900 text-center">
+                            <div className="text-xl mb-1">🧬</div>
+                            <div className="font-bold text-slate-800 dark:text-slate-100">2. การหารูปแบบ</div>
+                            <div className="text-[10px] text-slate-500">Pattern</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900 text-center">
+                            <div className="text-xl mb-1">🎯</div>
+                            <div className="font-bold text-slate-800 dark:text-slate-100">3. การคิดเชิงนามธรรม</div>
+                            <div className="text-[10px] text-slate-500">Abstraction</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900 text-center">
+                            <div className="text-xl mb-1">📋</div>
+                            <div className="font-bold text-slate-800 dark:text-slate-100">4. ออกแบบขั้นตอน</div>
+                            <div className="text-[10px] text-slate-500">Algorithm</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeBook.sections[currentSectionIndex].diagramType === 'flowchart' && (
+                      <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-3">
+                        <div className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                          <FileText className="w-4 h-4" />
+                          <span>สัญลักษณ์ผังงานมาตรฐาน (Flowchart Symbols)</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-100 dark:border-amber-900">
+                            <div className="font-bold text-amber-900 dark:text-amber-200">⭕ วงรี (Terminator)</div>
+                            <div className="text-[11px] text-slate-600 dark:text-slate-400">จุดเริ่มต้น (Start) หรือ จุดสิ้นสุด (Stop)</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-100 dark:border-amber-900">
+                            <div className="font-bold text-amber-900 dark:text-amber-200">▭ สี่เหลี่ยมผืนผ้า (Process)</div>
+                            <div className="text-[11px] text-slate-600 dark:text-slate-400">การคำนวณ หรือการกระทำทั่วไป</div>
+                          </div>
+                          <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-100 dark:border-amber-900">
+                            <div className="font-bold text-amber-900 dark:text-amber-200">◇ สี่เหลี่ยมข้าวหลามตัด (Decision)</div>
+                            <div className="text-[11px] text-slate-600 dark:text-slate-400">การตัดสินใจ เงื่อนไข จริง/เท็จ</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeBook.sections[currentSectionIndex].diagramType === 'circuit_wiring' && (
+                      <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-3 border border-slate-700">
+                        <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                          <Cpu className="w-4 h-4" />
+                          <span>แผนภาพการต่อสายวงจรฮาร์ดแวร์ (Hardware Wiring)</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div className="p-3 rounded-xl bg-slate-800 border border-red-500/30">
+                            <span className="font-bold text-red-400">🔴 สายสีแดง (VCC / 3.3V)</span>
+                            <p className="text-[11px] text-slate-400">จ่ายไฟเลี้ยงบวกจากขั้ว 3V ของ Micro:bit ไปยังเซ็นเซอร์</p>
+                          </div>
+                          <div className="p-3 rounded-xl bg-slate-800 border border-slate-600">
+                            <span className="font-bold text-slate-300">⚫ สายสีดำ (GND / Ground)</span>
+                            <p className="text-[11px] text-slate-400">สายกราวด์ต่อกลับขั้ว GND ให้ครบวงจรเสมอ</p>
+                          </div>
+                          <div className="p-3 rounded-xl bg-slate-800 border border-blue-500/30">
+                            <span className="font-bold text-blue-400">🔵 สายสีน้ำเงิน/เหลือง (Signal)</span>
+                            <p className="text-[11px] text-slate-400">ส่งค่าข้อมูลเข้า Pin 0 (อนาล็อก) หรือสั่งเปิด Relay ที่ Pin 1</p>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundEffects.play('click');
+                              setSelected3DModel('ultrasonic');
+                              setViewMode('3d');
+                            }}
+                            className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
+                          >
+                            <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>3D Ultrasonic (HC-SR04)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundEffects.play('click');
+                              setSelected3DModel('servo');
+                              setViewMode('3d');
+                            }}
+                            className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
+                          >
+                            <Cpu className="w-3.5 h-3.5 text-amber-400" />
+                            <span>3D SG90 เซอร์โว (หมุน 0-180°)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              soundEffects.play('click');
+                              setSelected3DModel('soil');
+                              setViewMode('3d');
+                            }}
+                            className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
+                          >
+                            <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>3D เซนเซอร์วัดความชื้นดิน</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Code snippet block if any */}
+                    {activeBook.sections[currentSectionIndex].codeSnippet && (
+                      <div className="rounded-2xl bg-slate-900 text-slate-100 overflow-hidden shadow-lg border border-slate-800">
+                        <div className="px-4 py-2 bg-slate-800/90 text-xs font-mono text-slate-400 flex items-center justify-between">
+                          <span>{activeBook.sections[currentSectionIndex].codeSnippet?.language}</span>
+                          <span className="text-[11px] text-teal-400">ตัวอย่างโค้ดพร้อมใช้งาน</span>
+                        </div>
+                        <pre className="p-4 text-xs font-mono overflow-x-auto leading-relaxed text-teal-300">
+                          <code>{activeBook.sections[currentSectionIndex].codeSnippet?.code}</code>
+                        </pre>
+                        {activeBook.sections[currentSectionIndex].codeSnippet?.caption && (
+                          <div className="px-4 py-2 bg-slate-950 text-[11px] text-slate-400 border-t border-slate-800">
+                            💡 {activeBook.sections[currentSectionIndex].codeSnippet?.caption}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Key Takeaway Box */}
+                    {activeBook.sections[currentSectionIndex].keyTakeaway && (
+                      <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 flex items-start gap-3">
+                        <Sparkles className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                        <div>
+                          <div className="text-xs font-bold text-teal-900 dark:text-teal-200 uppercase tracking-wider mb-0.5">
+                            สรุปสาระสำคัญ (Key Takeaway)
+                          </div>
+                          <div className="text-xs text-teal-800 dark:text-teal-300 font-medium">
+                            {activeBook.sections[currentSectionIndex].keyTakeaway}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Callout box */}
+                    {activeBook.sections[currentSectionIndex].callout && (
+                      <div
+                        className={`p-4 rounded-2xl border flex items-start gap-3 ${
+                          activeBook.sections[currentSectionIndex].callout?.type === 'warning'
+                            ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 text-amber-900 dark:text-amber-200'
+                            : activeBook.sections[currentSectionIndex].callout?.type === 'pro_tip'
+                            ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 text-purple-900 dark:text-purple-200'
+                            : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 text-blue-900 dark:text-blue-200'
+                        }`}
+                      >
+                        <Lightbulb className="w-5 h-5 shrink-0 mt-0.5" />
+                        <div className="text-xs leading-relaxed">
+                          <strong className="block mb-0.5">
+                            {activeBook.sections[currentSectionIndex].callout?.type === 'pro_tip'
+                              ? 'เคล็ดลับระดับโปร (Pro Tip):'
+                              : activeBook.sections[currentSectionIndex].callout?.type === 'warning'
+                              ? 'ข้อควรระวังสำคัญ:'
+                              : 'รู้หรือไม่? (Did you know?):'}
+                          </strong>
+                          {activeBook.sections[currentSectionIndex].callout?.text}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Post-Book Assessment Prompt Banner when on the last chapter or book completed */}
+                    {(currentSectionIndex === activeBook.sections.length - 1 || readingProgress[activeBook.id]?.isCompleted) && (
+                      <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-teal-50 dark:from-amber-950/40 dark:via-orange-950/30 dark:to-teal-950/40 border border-amber-300 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-800 dark:text-amber-300">
+                            <span>🎯 เมื่ออ่านหนังสือจบเล่มแล้ว มาวัดผลและทำกิจกรรมต่อยอดกัน!</span>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-300">
+                            ทำแบบทดสอบ 3 มิติ (ความเข้าใจ • คิดวิเคราะห์ • การนำไปใช้) และกิจกรรมเรียงลำดับขั้นตอนท้ายเล่มเพื่อรับสูงสุด +75 EXP
+                          </p>
+                        </div>
                         <button
                           type="button"
                           onClick={() => {
-                            soundEffects.play('click');
-                            setSelected3DModel('microbit');
-                            setViewMode('3d');
+                            handleMarkSectionComplete(activeBook, activeBook.sections[currentSectionIndex].id);
+                            setShowPostAssessment(true);
+                            window.scrollTo({ top: 100, behavior: 'smooth' });
                           }}
-                          className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-teal-500 via-indigo-600 to-purple-600 hover:from-teal-400 hover:to-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 cursor-pointer"
+                          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-black text-xs flex items-center gap-2 shrink-0 shadow-md cursor-pointer active:scale-95"
                         >
-                          <Cpu className="w-4 h-4 text-amber-300" />
-                          <span>🔬 ส่องดูโมเดล 3D แบบหมุนได้ 360° (พร้อมจำลองกดปุ่ม A และแสดงผลไฟ LED)</span>
+                          <Brain className="w-4 h-4" />
+                          <span>เริ่มทำแบบทดสอบ &amp; กิจกรรมท้ายเล่ม</span>
                           <ArrowRight className="w-4 h-4" />
                         </button>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {activeBook.sections[currentSectionIndex].diagramType === 'computational_thinking' && (
-                    <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-950/40 dark:to-violet-950/40 border border-indigo-200 dark:border-indigo-800 space-y-3">
-                      <div className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
-                        <Layers className="w-4 h-4" />
-                        <span>แผนภาพ 4 เสาหลักการคิดเชิงคำนวณ (Computational Thinking)</span>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900 text-center">
-                          <div className="text-xl mb-1">🔍</div>
-                          <div className="font-bold text-slate-800 dark:text-slate-100">1. การแบ่งย่อย</div>
-                          <div className="text-[10px] text-slate-500">Decomposition</div>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900 text-center">
-                          <div className="text-xl mb-1">🧬</div>
-                          <div className="font-bold text-slate-800 dark:text-slate-100">2. การหารูปแบบ</div>
-                          <div className="text-[10px] text-slate-500">Pattern</div>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900 text-center">
-                          <div className="text-xl mb-1">🎯</div>
-                          <div className="font-bold text-slate-800 dark:text-slate-100">3. การคิดเชิงนามธรรม</div>
-                          <div className="text-[10px] text-slate-500">Abstraction</div>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-900 text-center">
-                          <div className="text-xl mb-1">📋</div>
-                          <div className="font-bold text-slate-800 dark:text-slate-100">4. ออกแบบขั้นตอน</div>
-                          <div className="text-[10px] text-slate-500">Algorithm</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeBook.sections[currentSectionIndex].diagramType === 'flowchart' && (
-                    <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 space-y-3">
-                      <div className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        <span>สัญลักษณ์ผังงานมาตรฐาน (Flowchart Symbols)</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-100 dark:border-amber-900">
-                          <div className="font-bold text-amber-900 dark:text-amber-200">⭕ วงรี (Terminator)</div>
-                          <div className="text-[11px] text-slate-600 dark:text-slate-400">จุดเริ่มต้น (Start) หรือ จุดสิ้นสุด (Stop)</div>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-100 dark:border-amber-900">
-                          <div className="font-bold text-amber-900 dark:text-amber-200">▭ สี่เหลี่ยมผืนผ้า (Process)</div>
-                          <div className="text-[11px] text-slate-600 dark:text-slate-400">การคำนวณ หรือการกระทำทั่วไป</div>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-100 dark:border-amber-900">
-                          <div className="font-bold text-amber-900 dark:text-amber-200">◇ สี่เหลี่ยมข้าวหลามตัด (Decision)</div>
-                          <div className="text-[11px] text-slate-600 dark:text-slate-400">การตัดสินใจ เงื่อนไข จริง/เท็จ</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {activeBook.sections[currentSectionIndex].diagramType === 'circuit_wiring' && (
-                    <div className="p-5 rounded-2xl bg-slate-900 text-white space-y-3 border border-slate-700">
-                      <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                        <Cpu className="w-4 h-4" />
-                        <span>แผนภาพการต่อสายวงจรฮาร์ดแวร์ (Hardware Wiring)</span>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        <div className="p-3 rounded-xl bg-slate-800 border border-red-500/30">
-                          <span className="font-bold text-red-400">🔴 สายสีแดง (VCC / 3.3V)</span>
-                          <p className="text-[11px] text-slate-400">จ่ายไฟเลี้ยงบวกจากขั้ว 3V ของ Micro:bit ไปยังเซ็นเซอร์</p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-slate-800 border border-slate-600">
-                          <span className="font-bold text-slate-300">⚫ สายสีดำ (GND / Ground)</span>
-                          <p className="text-[11px] text-slate-400">สายกราวด์ต่อกลับขั้ว GND ให้ครบวงจรเสมอ</p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-slate-800 border border-blue-500/30">
-                          <span className="font-bold text-blue-400">🔵 สายสีน้ำเงิน/เหลือง (Signal)</span>
-                          <p className="text-[11px] text-slate-400">ส่งค่าข้อมูลเข้า Pin 0 (อนาล็อก) หรือสั่งเปิด Relay ที่ Pin 1</p>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            soundEffects.play('click');
-                            setSelected3DModel('ultrasonic');
-                            setViewMode('3d');
-                          }}
-                          className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
-                        >
-                          <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>3D Ultrasonic (HC-SR04)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            soundEffects.play('click');
-                            setSelected3DModel('servo');
-                            setViewMode('3d');
-                          }}
-                          className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
-                        >
-                          <Cpu className="w-3.5 h-3.5 text-amber-400" />
-                          <span>3D SG90 เซอร์โว (หมุน 0-180°)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            soundEffects.play('click');
-                            setSelected3DModel('soil');
-                            setViewMode('3d');
-                          }}
-                          className="flex-1 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer"
-                        >
-                          <Cpu className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>3D เซนเซอร์วัดความชื้นดิน</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Code snippet block if any */}
-                  {activeBook.sections[currentSectionIndex].codeSnippet && (
-                    <div className="rounded-2xl bg-slate-900 text-slate-100 overflow-hidden shadow-lg border border-slate-800">
-                      <div className="px-4 py-2 bg-slate-800/90 text-xs font-mono text-slate-400 flex items-center justify-between">
-                        <span>{activeBook.sections[currentSectionIndex].codeSnippet?.language}</span>
-                        <span className="text-[11px] text-teal-400">ตัวอย่างโค้ดพร้อมใช้งาน</span>
-                      </div>
-                      <pre className="p-4 text-xs font-mono overflow-x-auto leading-relaxed text-teal-300">
-                        <code>{activeBook.sections[currentSectionIndex].codeSnippet?.code}</code>
-                      </pre>
-                      {activeBook.sections[currentSectionIndex].codeSnippet?.caption && (
-                        <div className="px-4 py-2 bg-slate-950 text-[11px] text-slate-400 border-t border-slate-800">
-                          💡 {activeBook.sections[currentSectionIndex].codeSnippet?.caption}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Key Takeaway Box */}
-                  {activeBook.sections[currentSectionIndex].keyTakeaway && (
-                    <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 flex items-start gap-3">
-                      <Sparkles className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="text-xs font-bold text-teal-900 dark:text-teal-200 uppercase tracking-wider mb-0.5">
-                          สรุปสาระสำคัญ (Key Takeaway)
-                        </div>
-                        <div className="text-xs text-teal-800 dark:text-teal-300 font-medium">
-                          {activeBook.sections[currentSectionIndex].keyTakeaway}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Callout box */}
-                  {activeBook.sections[currentSectionIndex].callout && (
-                    <div className={`p-4 rounded-2xl border flex items-start gap-3 ${
-                      activeBook.sections[currentSectionIndex].callout?.type === 'warning'
-                        ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 text-amber-900 dark:text-amber-200'
-                        : activeBook.sections[currentSectionIndex].callout?.type === 'pro_tip'
-                        ? 'bg-purple-50 dark:bg-purple-950/40 border-purple-200 text-purple-900 dark:text-purple-200'
-                        : 'bg-blue-50 dark:bg-blue-950/40 border-blue-200 text-blue-900 dark:text-blue-200'
-                    }`}>
-                      <Lightbulb className="w-5 h-5 shrink-0 mt-0.5" />
-                      <div className="text-xs leading-relaxed">
-                        <strong className="block mb-0.5">
-                          {activeBook.sections[currentSectionIndex].callout?.type === 'pro_tip' ? 'เคล็ดลับระดับโปร (Pro Tip):' :
-                           activeBook.sections[currentSectionIndex].callout?.type === 'warning' ? 'ข้อควรระวังสำคัญ:' : 'รู้หรือไม่? (Did you know?):'}
-                        </strong>
-                        {activeBook.sections[currentSectionIndex].callout?.text}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bottom Navigation Buttons */}
-                  <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-                    <button
-                      onClick={() => {
-                        soundEffects.playClick();
-                        setCurrentSectionIndex((prev) => Math.max(0, prev - 1));
-                        window.scrollTo({ top: 120, behavior: 'smooth' });
-                      }}
-                      disabled={currentSectionIndex === 0}
-                      className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      <span>ตอนก่อนหน้า</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleMarkSectionComplete(activeBook, activeBook.sections[currentSectionIndex].id)}
-                      className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 ${
-                        readingProgress[activeBook.id]?.completedSectionIds?.includes(activeBook.sections[currentSectionIndex].id)
-                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300'
-                          : 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>
-                        {readingProgress[activeBook.id]?.completedSectionIds?.includes(activeBook.sections[currentSectionIndex].id)
-                          ? 'อ่านตอนนี้สำเร็จแล้ว (+10 EXP)'
-                          : 'ทำเครื่องหมายว่าอ่านจบตอนนี้ (+10 EXP)'}
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        soundEffects.playClick();
-                        if (currentSectionIndex < activeBook.sections.length - 1) {
-                          setCurrentSectionIndex((prev) => prev + 1);
+                    {/* Bottom Navigation Buttons */}
+                    <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                      <button
+                        onClick={() => {
+                          soundEffects.playClick();
+                          setCurrentSectionIndex((prev) => Math.max(0, prev - 1));
                           window.scrollTo({ top: 120, behavior: 'smooth' });
-                        } else {
-                          // Already at last section
-                          handleMarkSectionComplete(activeBook, activeBook.sections[currentSectionIndex].id);
-                        }
-                      }}
-                      className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <span>{currentSectionIndex < activeBook.sections.length - 1 ? 'ตอนถัดไป' : 'อ่านจบเล่มนี้'}</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                        }}
+                        disabled={currentSectionIndex === 0}
+                        className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>ตอนก่อนหน้า</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleMarkSectionComplete(activeBook, activeBook.sections[currentSectionIndex].id)}
+                        className={`px-5 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95 ${
+                          readingProgress[activeBook.id]?.completedSectionIds?.includes(activeBook.sections[currentSectionIndex].id)
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-300'
+                            : 'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700 text-white'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>
+                          {readingProgress[activeBook.id]?.completedSectionIds?.includes(activeBook.sections[currentSectionIndex].id)
+                            ? 'อ่านตอนนี้สำเร็จแล้ว (+10 EXP)'
+                            : 'ทำเครื่องหมายว่าอ่านจบตอนนี้ (+10 EXP)'}
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          soundEffects.playClick();
+                          if (currentSectionIndex < activeBook.sections.length - 1) {
+                            setCurrentSectionIndex((prev) => prev + 1);
+                            window.scrollTo({ top: 120, behavior: 'smooth' });
+                          } else {
+                            // At last section -> mark complete and open post-reading assessment & activity
+                            handleMarkSectionComplete(activeBook, activeBook.sections[currentSectionIndex].id);
+                            setShowPostAssessment(true);
+                            window.scrollTo({ top: 100, behavior: 'smooth' });
+                          }
+                        }}
+                        className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <span>
+                          {currentSectionIndex < activeBook.sections.length - 1
+                            ? 'ตอนถัดไป'
+                            : 'อ่านจบเล่ม & ทำแบบทดสอบ 🎯'}
+                        </span>
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )
               )}
             </div>
           </div>
@@ -911,9 +1649,13 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                   }`}
                 >
                   <span>{cat.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                    selectedCategory === cat.id ? 'bg-white/25 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
-                  }`}>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                      selectedCategory === cat.id
+                        ? 'bg-white/25 text-white'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
                     {cat.count}
                   </span>
                 </button>
@@ -948,6 +1690,7 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
               const isCompleted = progress?.isCompleted;
               const readCount = progress?.completedSectionIds?.length || 0;
               const percent = Math.round((readCount / book.sections.length) * 100);
+              const hasQuizScore = progress?.quizScore !== undefined;
 
               return (
                 <div
@@ -955,9 +1698,11 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                   className="group relative bg-white dark:bg-slate-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between"
                 >
                   {/* Book Spine / Cover Header */}
-                  <div className={`p-6 bg-gradient-to-br ${book.coverGradient} text-white relative overflow-hidden min-h-[160px] flex flex-col justify-between`}>
+                  <div
+                    className={`p-6 bg-gradient-to-br ${book.coverGradient} text-white relative overflow-hidden min-h-[160px] flex flex-col justify-between`}
+                  >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl transform translate-x-8 -translate-y-8" />
-                    
+
                     <div className="flex items-start justify-between relative z-10">
                       <span className="px-2.5 py-1 rounded-lg bg-black/25 backdrop-blur-xs text-[11px] font-bold tracking-wide border border-white/20">
                         {book.categoryLabel}
@@ -992,15 +1737,24 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                           <Clock className="w-3.5 h-3.5 text-amber-500" />
                           <span>~{book.readTimeMinutes} นาที</span>
                         </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-semibold">
+                          <Brain className="w-3.5 h-3.5" />
+                          <span>แบบทดสอบ 3 มิติ &amp; กิจกรรม</span>
+                        </span>
                       </div>
                     </div>
 
-                    {/* Reading Progress Indicator */}
-                    <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    {/* Reading Progress & Assessment Status Indicator */}
+                    <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-500 dark:text-slate-400 font-medium">ความก้าวหน้า</span>
-                        <span className={`font-bold ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                          {isCompleted ? '🎉 สำเร็จแล้ว' : `${percent}% (${readCount}/${book.sections.length})`}
+                        <span className="text-slate-500 dark:text-slate-400 font-medium">ความก้าวหน้าการอ่าน</span>
+                        <span
+                          className={`font-bold ${
+                            isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          {isCompleted ? '🎉 อ่านจบแล้ว' : `${percent}% (${readCount}/${book.sections.length})`}
                         </span>
                       </div>
                       <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -1011,33 +1765,42 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
                           style={{ width: `${percent}%` }}
                         />
                       </div>
+
+                      {/* Assessment & Activity Mastery Badge */}
+                      <div className="flex items-center justify-between pt-1 text-[11px]">
+                        <span className="text-slate-500 dark:text-slate-400">ผลวัดความรู้ &amp; กิจกรรม:</span>
+                        {hasQuizScore ? (
+                          <span className="px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold">
+                            📝 สอบได้ {progress?.quizScore}/{progress?.quizTotal || 3}{' '}
+                            {progress?.activityOrderingDone ? '• 🎯 กิจกรรมผ่าน' : ''}
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                            🎯 มีแบบทดสอบท้ายเล่ม (3 มิติ)
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="pt-1 flex items-center gap-2">
                       <button
-                        onClick={() => handleOpenBook(book)}
-                        className="flex-1 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                        onClick={() => handleOpenBook(book, undefined, false)}
+                        className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
                       >
                         <BookOpen className="w-3.5 h-3.5" />
-                        <span>{readCount > 0 ? 'อ่านต่อจากเดิม' : 'เริ่มอ่านเล่มนี้'}</span>
+                        <span>{readCount > 0 ? 'อ่านต่อ' : 'เริ่มอ่าน'}</span>
                       </button>
 
-                      {book.category === 'microbit_manual' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            soundEffects.play('click');
-                            setSelected3DModel('microbit');
-                            setViewMode('3d');
-                          }}
-                          className="px-3 py-2.5 rounded-xl border border-indigo-300 dark:border-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
-                          title="ส่องดูโมเดล 3D แบบหมุนได้ 360°"
-                        >
-                          <Cpu className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                          <span>โมเดล 3D</span>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenBook(book, book.sections.length - 1, true)}
+                        className="px-3 py-2.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95"
+                        title="ทำแบบทดสอบวัดความเข้าใจ คิดวิเคราะห์ และการนำไปใช้ท้ายเล่ม"
+                      >
+                        <Brain className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                        <span>แบบทดสอบ</span>
+                      </button>
 
                       {book.downloadableCheatsheet && (
                         <button
