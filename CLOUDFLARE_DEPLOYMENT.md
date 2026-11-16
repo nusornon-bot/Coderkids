@@ -1,84 +1,108 @@
-# 🚀 คู่มือการ Deploy แอปพลิเคชัน Coder Kids บน Cloudflare Workers (100% ฟรี ไม่ต้องผูกบัตร/ไม่ต้องเปิด Google Cloud Billing)
+# 🚀 คู่มือการเผยแพร่ระบบ Coder Kids บน Cloudflare Workers (Free Tier - ไม่ต้องผูกบัตร Google Cloud Billing)
 
-แอปพลิเคชัน **Coder Kids โปรแกรมเมอร์รุ่นจิ๋ว** ได้รับการออกแบบสถาปัตยกรรมแบบ **Dual-Runtime (Express + Cloudflare Workers Edge Runtime)** ที่พร้อมสำหรับการนำไปเผยแพร่บน **Cloudflare Workers** หรือ **Cloudflare Pages** ทันที โดยครบถ้วนตามข้อกำหนดทั้งหมด:
-
-1. **รักษาฟีเจอร์และ UI เดิมครบ 100%**: บทเรียนทั้ง 4 โมดูล, ห้องปฏิบัติการ Scratch & Micro:bit, มินิเกมเขาวงกต 20 ด่าน, คลังโครงงาน STEM 10 โครงงาน, กราฟสรุปแต้ม 4 หมวดหมู่ (Points Summary Card), ระบบธีมอัตโนมัติ Day/Night Cycle และระบบเข้าสู่ระบบโรงเรียนอนุบาลนราธิวาส (`@anubalnara.ac.th`)
-2. **ประมวลผล Gemini API ฝั่งเซิร์ฟเวอร์เท่านั้น (Server-Side Only)**: เรียกใช้ผ่าน `@google/genai` SDK ใน `worker/index.ts` และ `functions/api/[[catchall]].ts` ที่ Endpoint `/api/tutor`
-3. **ใช้ `GEMINI_API_KEY` เป็น Server-Side Secret**: อ่านค่าจาก `env.GEMINI_API_KEY` บน Cloudflare Worker เท่านั้น
-4. **ไม่เปิดเผย API Key ในโค้ด Frontend เด็ดขาด**: ไม่มีคีย์หรือการเรียก Gemini SDK ในโค้ดฝั่งเบราว์เซอร์ (`src/`)
-5. **ไม่ต้องเปิดใช้งาน Google Cloud Billing**: รองรับการใช้งานร่วมกับ Cloudflare Workers Free Tier (ฟรี 100,000 requests/วัน) และใช้ Gemini Free Tier API Key ได้ทันที
-6. **รองรับการใช้งานบนมือถือและแท็บเล็ต (Mobile-First & Responsive PWA)**: รองรับ Touch Controls, หน้าจอสมาร์ตโฟน/แท็บเล็ต และการติดตั้งเป็น Web App
+แอปพลิเคชัน **Coder Kids โปรแกรมเมอร์รุ่นจิ๋ว (ว 4.2 สพฐ. & สสวท.)** ได้รับการปรับแต่งโครงสร้างให้รองรับการรันบน **Cloudflare Workers (Static Assets + Serverless API)** และ **Cloudflare Pages** อย่างสมบูรณ์ โดยรักษาฟีเจอร์เดิมทั้งหมด 100%
 
 ---
 
-## 📂 ไฟล์กำหนดค่าสำหรับ Cloudflare Workers ที่เตรียมไว้ให้แล้ว
+## ✅ คุณสมบัติความพร้อมของระบบ (Deployment Checklist)
 
-| ไฟล์ | หน้าที่ |
+1. **รักษาฟีเจอร์และ UI เดิมครบ 100% (Preserve All Features & UI)**
+   - บทเรียนหลัก 4 ก้าว (PDPA, การคิดเชิงคำนวณ & Flowchart, Scratch & Micro:bit V2, โครงงาน & เกียรติบัตร)
+   - ห้องแล็บ & มินิเกม 21 ระบบ, คลังข้อสอบ O-NET 10 ชุด, โครงงาน STEM Project Hub & โมเดล 3D Micro:bit V2
+   - คลังสื่อการเรียนรู้อิเล็กทรอนิกส์ (Digital Library) พร้อมปุ่ม **"เรียกดูรายการหนังสือ"** (Google Search Grounding) และแบบทดสอบท้ายเล่ม 3 มิติ
+   - ศูนย์คุณครู ว 4.2 & บันทึก ปพ.5 และ ระบบรายงานผลสัมฤทธิ์ ปพ.5 ที่ซิงค์รายชื่อนักเรียนที่กำลังใช้งานจริงแบบเรียลไทม์
+2. **เรียกใช้งาน Gemini API ฝั่ง Server เท่านั้น (Server-Side Only)**
+   - ใช้ `@google/genai` SDK ใน `worker/index.ts` (และ `server.ts` สำหรับโหมดพัฒนา)
+   - รองรับ `/api/tutor`, `/api/books/summarize`, และ `/api/books/search-catalog`
+3. **ใช้ `GEMINI_API_KEY` เป็น Server-Side Secret (`env.GEMINI_API_KEY`)**
+   - ไม่มีการฝังหรือส่งคีย์ API ออกไปที่โค้ดฝั่ง Frontend (`src/`) เด็ดขาด
+4. **ไม่จำเป็นต้องเปิดใช้งาน Google Cloud Billing (Zero Billing Requirement)**
+   - ทำงานบน **Cloudflare Workers Free Plan** (100,000 requests/day ฟรี)
+   - ใช้คีย์ฟรีจาก [Google AI Studio](https://aistudio.google.com/apikey) ได้ทันที พร้อมระบบ **Smart Quota Cooldown & In-Memory Cache** ที่สลับไปใช้คลังความรู้มาตรฐาน สสวท./สพฐ. อัตโนมัติหากเกินโควตาฟรี (429 Rate Limit)
+5. **รองรับการใช้งานบนมือถือและแท็บเล็ต (Mobile-Ready & PWA)**
+   - รองรับ Responsive Breakpoints, Touch Controls, Mobile Drawer Menu และติดตั้งเป็นแอป PWA บน iOS/Android ได้ทันที
+
+---
+
+## 📁 ไฟล์ตั้งค่าสำหรับ Cloudflare Workers ที่เตรียมไว้ให้แล้ว
+
+| ไฟล์ | หน้าที่การทำงาน |
 | :--- | :--- |
-| `wrangler.jsonc` | ไฟล์ตั้งค่าหลักของ Cloudflare Workers กำหนด `main: "worker/index.ts"` และ Static Assets (`./dist`) พร้อมโหมด `single-page-application` |
-| `wrangler.toml` | ไฟล์ตั้งค่า Wrangler รูปแบบ TOML สำหรับผู้ที่ใช้งานผ่าน CLI มาตรฐาน |
-| `worker/index.ts` | โค้ด Backend สำหรับ Cloudflare Workers จัดการ `/api/health`, `/api/tutor` (Gemini AI), `/api/logs/record`, `/api/logs/list`, `/api/students/register`, `/api/students/list` และเสิร์ฟไฟล์หน้าเว็บ SPA |
-| `functions/api/[[catchall]].ts` | โค้ด Edge Functions สำหรับกรณีเลือก Deploy ผ่าน Cloudflare Pages |
-| `.dev.vars.example` | ไฟล์ตัวอย่างสำหรับการตั้งค่า `GEMINI_API_KEY` เมื่อรันทดสอบ `npx wrangler dev` ในเครื่อง |
-| `server.ts` | เซิร์ฟเวอร์ Express สำหรับรันในสภาพแวดล้อมพัฒนา (AI Studio Preview / Local Node.js) |
+| `wrangler.jsonc` / `wrangler.toml` | ไฟล์กำหนดค่าหลักของ Cloudflare Workers (`name: "coderkids"`, `main: "worker/index.ts"`, `assets: "./dist"`) |
+| `worker/index.ts` | โค้ด Serverless Backend สำหรับ Cloudflare Workers รองรับทุก API Endpoints และ SPA Fallback |
+| `functions/api/[[catchall]].ts` | ตัวเชื่อม API อัตโนมัติกรณีเลือก Deploy ผ่าน Cloudflare Pages |
+| `.dev.vars.example` | ตัวอย่างไฟล์ตัวแปรความลับสำหรับการรันทดสอบ `wrangler dev` ในเครื่อง |
+| `.env.example` | ตัวอย่างไฟล์ Environment Variables สำหรับการพัฒนาในเครื่อง |
 
 ---
 
-## 🛠️ ขั้นตอนการ Deploy ขึ้น Cloudflare Workers (ผ่าน Wrangler CLI)
+## 🛠️ ขั้นตอนการ Deploy ขึ้น Cloudflare Workers (ทีละขั้นตอน)
 
-### ขั้นตอนที่ 1: ติดตั้ง Dependencies และ Build โปรเจกต์
-เปิด Terminal ในโฟลเดอร์โปรเจกต์ แล้วรันคำสั่ง:
+### ขั้นตอนที่ 1: ติดตั้ง Dependencies และเข้าสู่ระบบ Cloudflare
+เปิด Terminal ในโฟลเดอร์โปรเจกต์แล้วรันคำสั่ง:
 ```bash
 npm install
-npm run build
-```
-*(คำสั่งนี้จะสร้างไฟล์ Static Assets ของระบบทั้งหมดไว้ในโฟลเดอร์ `dist/`)*
-
-### ขั้นตอนที่ 2: เข้าสู่ระบบบัญชี Cloudflare
-รันคำสั่งด้านล่างเพื่อเชื่อมต่อกับบัญชี Cloudflare ของคุณ (สมัครใช้งานฟรี ไม่ต้องใช้บัตรเครดิต):
-```bash
 npx wrangler login
 ```
+*(ระบบจะเปิดเบราว์เซอร์ให้ล็อกอินด้วยบัญชี Cloudflare ฟรีของคุณ)*
 
-### ขั้นตอนที่ 3: ตั้งค่า `GEMINI_API_KEY` เป็น Server-Side Secret
-ตั้งค่าคีย์ Gemini API เก็บไว้ในระบบความลับของ Cloudflare Worker:
+---
+
+### ขั้นตอนที่ 2: ตั้งค่า `GEMINI_API_KEY` เป็นความลับฝั่ง Server (Server-Side Secret)
+ตั้งค่าคีย์ Gemini API ที่ได้จาก Google AI Studio (Free Tier) เก็บไว้ใน Cloudflare Secret Vault:
 ```bash
 npx wrangler secret put GEMINI_API_KEY
 ```
-*(เมื่อระบบแสดงข้อความ `Enter a secret value:` ให้วางค่า `GEMINI_API_KEY` ของคุณแล้วกด Enter)*
+เมื่อระบบถาม `Enter a secret value:` ให้วางคีย์ Gemini API ของคุณลงไปแล้วกด **Enter**
+*(คีย์จะถูกเข้ารหัสบนเซิร์ฟเวอร์ของ Cloudflare และเข้าถึงได้เฉพาะใน `worker/index.ts` ผ่าน `env.GEMINI_API_KEY` เท่านั้น)*
 
-### ขั้นตอนที่ 4: สั่ง Deploy ขึ้น Cloudflare Workers
-รันคำสั่ง:
+---
+
+### ขั้นตอนที่ 3: Build และ Deploy ขึ้น Cloudflare Workers
+รันคำสั่งเดียวเพื่อสร้างไฟล์ Production (`dist/`) และอัปโหลดขึ้น Cloudflare Workers:
 ```bash
 npm run deploy:cloudflare
 ```
-*(หรือรัน `npx wrangler deploy` โดยตรง)*
-
-เมื่อเสร็จสิ้น Terminal จะแสดง URL ของเว็บไซต์ เช่น:
-- `https://coderkids.<ชื่อบัญชีของคุณ>.workers.dev`
-- สามารถตรวจสอบสถานะ API ได้ที่ `https://coderkids.<ชื่อบัญชีของคุณ>.workers.dev/api/health`
-
----
-
-## 🌐 ทางเลือกเสริม: การ Deploy ผ่าน Cloudflare Dashboard (GitHub Integration)
-
-1. นำโค้ดขึ้น GitHub Repository ของคุณ
-2. เข้าไปที่ **[Cloudflare Dashboard](https://dash.cloudflare.com/) ➔ Workers & Pages ➔ Create**
-3. เชื่อมต่อกับ GitHub Repository ของโปรเจกต์นี้
-4. ตั้งค่า Build Configuration:
-   - **Build command:** `npm run build`
-   - **Deploy command:** `npx wrangler deploy` (สำหรับ Workers) หรือกำหนด **Build output directory:** `dist` (สำหรับ Pages)
-5. ไปที่แท็บ **Settings ➔ Variables and Secrets** ของ Worker:
-   - กด **Add** ➔ เลือกประเภท **Secret**
-   - ตั้งชื่อตัวแปรเป็น `GEMINI_API_KEY` แล้วใส่ค่า API Key ของคุณ
-
----
-
-## 💾 การเปิดใช้งานฐานข้อมูลถาวร Cloudflare KV (ตัวเลือกเสริม ไม่บังคับ)
-
-โดยค่าเริ่มต้น `worker/index.ts` จะเก็บข้อมูลรายชื่อนักเรียนและประวัติการเข้าเรียนไว้ในหน่วยความจำของ Edge Worker พร้อมเชื่อมโยงกับ Google Sheets อัตโนมัติ หากต้องการผูก Cloudflare KV เพิ่มเติม สามารถรันคำสั่ง:
+หรือรันแยกทีละคำสั่ง:
 ```bash
-npx wrangler kv namespace create STUDENTS_KV
-npx wrangler kv namespace create LOGS_KV
+npm run build
+npx wrangler deploy
 ```
-แล้วนำ `id` ที่ได้ไปใส่ใน `wrangler.jsonc` เพื่อเก็บข้อมูลลง KV แบบถาวรได้ทันที
+
+เมื่อเสร็จสิ้น คุณจะได้รับ URL สำหรับใช้งานจริง เช่น:
+`https://coderkids.<your-subdomain>.workers.dev`
+
+---
+
+### ขั้นตอนที่ 4: (สำคัญสำหรับปุ่มล็อกอิน Google) เพิ่มโดเมนใน Firebase Authorized Domains
+เพื่อให้ปุ่ม **"ล็อกอินด้วยบัญชี Google"** ทำงานได้บนโดเมน Cloudflare Workers ของคุณ:
+1. ไปที่ [Firebase Console](https://console.firebase.google.com/) > เลือกโปรเจกต์ `gen-lang-client-0756366544`
+2. ไปที่เมนู **Authentication** > แท็บ **Settings** > **Authorised domains**
+3. กดปุ่ม **Add domain** แล้วเพิ่มโดเมน `coderkids.<your-subdomain>.workers.dev`
+*(หมายเหตุ: นักเรียนและครูยังสามารถล็อกอินด้วย **รหัสประจำตัวนักเรียน** หรือ **รหัสคุณครู** ได้ทันทีโดยไม่ต้องตั้งค่าเพิ่ม)*
+
+---
+
+## 🔌 รายการ API Endpoints ที่รองรับบน Cloudflare Worker (`worker/index.ts`)
+
+- `GET /api/health` — ตรวจสอบสถานะการทำงานของ Cloudflare Worker และการตั้งค่า `GEMINI_API_KEY`
+- `POST /api/tutor` — ระบบครูพี่โค้ดดิ้ง AI Tutor ตอบคำถามวิชาวิทยาการคำนวณ (Server-side Gemini)
+- `POST /api/books/summarize` — สรุปเนื้อหาสำคัญของ e-Book 3 มิติก่อนทำแบบทดสอบท้ายเล่ม
+- `POST /api/books/search-catalog` — ค้นหาและเรียกดูรายการหนังสือเรียนวิทยาการคำนวณจากแหล่งอ้างอิงทางการด้วย Google Search Grounding
+- `GET & POST /api/sheets/bridge` — สะพานเชื่อม Token/Google Apps Script สำหรับบันทึกข้อมูลลง Google Sheet (`1tWcZ4OaGZKOcX1PEvVNadyf9mM_igaKcF3ZV_b3L7Ng`)
+- `POST /api/logs/record` & `GET /api/logs/list` — บันทึกและดึงประวัติการเข้าเรียน/การส่งงานแบบเรียลไทม์
+- `POST /api/students/register` & `GET /api/students/list` — ลงทะเบียนและซิงค์รายชื่อนักเรียนที่เข้าใช้งานจริง
+- `GET /api/porpor5/list` & `POST /api/porpor5/save` — ซิงค์คะแนนระหว่าง **ศูนย์คุณครู ว 4.2 & บันทึก ปพ.5** และ **ระบบรายงานผลสัมฤทธิ์ ปพ.5**
+
+---
+
+## 💻 การทดสอบโหมด Cloudflare Worker ในเครื่อง (Local Preview)
+
+1. คัดลอกไฟล์ `.dev.vars.example` เป็น `.dev.vars` แล้วใส่ค่า `GEMINI_API_KEY`:
+   ```bash
+   cp .dev.vars.example .dev.vars
+   ```
+2. รันคำสั่งจำลอง Cloudflare Worker ในเครื่อง:
+   ```bash
+   npm run preview:cloudflare
+   ```
