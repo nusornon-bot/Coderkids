@@ -15,6 +15,8 @@ import {
   Layers,
   ArrowRight,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -61,46 +63,75 @@ const PRESET_COLORS = [
 export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoints }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const penTrailsRef = useRef<PenTrail[]>([]);
-  const spritePosRef = useRef({ x: -40, y: -40, dir: 90, costume: 0 });
+  const spritePosRef = useRef({ x: -40, y: 40, dir: 90, costume: 0 });
   const isPenDownRef = useRef(false);
+  const isSpriteHiddenRef = useRef(false);
 
   // Stage state
-  const [spritePos, setSpritePos] = useState({ x: -40, y: -40, dir: 90, costume: 0 });
+  const [spritePos, setSpritePos] = useState({ x: -40, y: 40, dir: 90, costume: 0 });
   const [speechBubble, setSpeechBubble] = useState<string | null>('คลิกธงเขียวเพื่อเริ่มวาดสี่เหลี่ยมจัตุรัส!');
   const [penTrails, setPenTrails] = useState<PenTrail[]>([]);
   const [isPenDown, setIsPenDown] = useState(false);
+  const [isSpriteHidden, setIsSpriteHidden] = useState(false);
+  const [autoHideAfterDraw, setAutoHideAfterDraw] = useState(true);
   const [penColor, setPenColor] = useState('#2563eb'); // Default vibrant royal blue
   const [penSize, setPenSize] = useState(5);
   const [score, setScore] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<BlockCategory>('all');
-  const [activePreset, setActivePreset] = useState<'square' | 'star' | 'circle' | 'pinwheel' | 'intro'>('square');
+  const [activePreset, setActivePreset] = useState<
+    'square' | 'triangle' | 'hexagon' | 'star' | 'circle' | 'pinwheel' | 'house' | 'spiral' | 'intro'
+  >('square');
 
   const SCRATCH_PRESET_EXPLANATIONS: Record<string, { title: string; concept: string; explanation: string; tip: string }> = {
     square: {
       title: 'สี่เหลี่ยมจัตุรัส (Loop 4)',
-      concept: 'การทำซ้ำ 4 รอบ + หมุน 90° (4 × 90° = 360°)',
-      explanation: 'จรดปากกาสีน้ำเงิน และใช้บล็อกทำซ้ำ 4 รอบ โดยแต่ละรอบเดินหน้าและเลี้ยวขวา 90 องศา จนบรรจบเป็นรูปสี่เหลี่ยมจัตุรัสครบ 4 ด้าน',
-      tip: 'ลองปรับองศาเป็น 120° หรือ 60° เพื่อดูรูปหลายเหลี่ยมมุมอื่นๆ',
+      concept: 'การทำซ้ำ 4 รอบ + เดิน 80 ก้าว + หมุน 90° (4 × 90° = 360°)',
+      explanation: 'เริ่มที่มุมซ้ายบน (-40, 40) หันขวา 90° จรดปากกาสีน้ำเงิน ใช้บล็อกทำซ้ำ 4 รอบวาดสี่เหลี่ยมจัตุรัส 80×80 จากนั้นยกปากกาและซ่อนแมวเพื่อเห็นภาพชัดเจน',
+      tip: 'ลองเปลี่ยนจำนวนรอบและองศา (เช่น 3 รอบ 120° หรือ 6 รอบ 60°) เพื่อสร้างรูปหลายเหลี่ยมอื่นได้ทันที',
+    },
+    triangle: {
+      title: 'สามเหลี่ยมด้านเท่า (Loop 3)',
+      concept: 'การทำซ้ำ 3 รอบ + หมุน 120° (3 × 120° = 360°)',
+      explanation: 'เริ่มที่ (-45, -26) หันเฉียงขึ้น 30° จรดปากกาสีเขียว แล้วทำซ้ำ 3 รอบ (เดิน 90 ก้าว + หมุน 120°) เกิดเป็นสามเหลี่ยมด้านเท่าตั้งตรงสวยงาม',
+      tip: 'มุมภายนอกของสามเหลี่ยมด้านเท่าคือ 360° ÷ 3 = 120°',
+    },
+    hexagon: {
+      title: 'หกเหลี่ยมรังผึ้ง (Loop 6)',
+      concept: 'การทำซ้ำ 6 รอบ + เดิน 50 ก้าว + หมุน 60° (6 × 60° = 360°)',
+      explanation: 'ใช้บล็อกทำซ้ำ (6) รอบ ครอบคำสั่งก้าว 50 ก้าว และหมุนตามเข็ม 60° วาดเป็นรูปหกเหลี่ยมด้านเท่าสีส้มกลางเวที',
+      tip: 'สังเกตว่าบล็อก "ทำซ้ำ" จะดึงคำสั่งเคลื่อนที่/หมุนที่อยู่ถัดไปมาทำงานซ้ำให้โดยอัตโนมัติ',
     },
     star: {
       title: 'ดาว 5 แฉก (Star Loop 5)',
       concept: 'การทำซ้ำ 5 รอบ + หมุน 144° (5 × 144° = 720°)',
-      explanation: 'จรดปากกาสีเหลืองทอง และใช้บล็อกทำซ้ำ 5 รอบ วาดเส้นทะแยงมุมไขว้ 5 ด้าน โดยแต่ละรอบเลี้ยว 144 องศา แล้วเล่นเสียงดนตรีเวทมนตร์ Chime',
+      explanation: 'จรดปากกาสีเหลืองทอง และใช้บล็อกทำซ้ำ 5 รอบ วาดเส้นทะแยงมุมไขว้ 5 ด้าน โดยแต่ละรอบเลี้ยว 144 องศา แล้วซ่อนตัวละครและเล่นเสียงดนตรี Chime',
       tip: 'มุม 144° เกิดจาก (180° - 36°) เป็นมุมเลี้ยววาดดาว 5 แฉกที่สมบูรณ์แบบ',
     },
     circle: {
       title: 'วงกลมเรขาคณิต (Loop 36)',
       concept: 'การทำซ้ำ 36 รอบ + หมุน 10° (36 × 10° = 360°)',
-      explanation: 'จรดปากกาสีม่วง และใช้บล็อกทำซ้ำ 36 รอบ โดยแต่ละรอบเดินหน้าก้าวสั้นๆ 6 ก้าวและหมุน 10 องศา เกิดเป็นเส้นโค้งวงกลมเรขาคณิต 360 องศา',
+      explanation: 'จรดปากกาสีม่วง และใช้บล็อกทำซ้ำ 36 รอบ โดยแต่ละรอบเดินหน้าก้าวสั้นๆ 7 ก้าวและหมุน 10 องศา เกิดเป็นเส้นโค้งวงกลมเรขาคณิต 360 องศา',
       tip: 'วงกลมในคอมพิวเตอร์สร้างจากรูปหลายเหลี่ยมด้านเท่าที่มีจำนวนด้านมากๆ',
     },
     pinwheel: {
       title: 'กังหัน 8 ทิศ (Pinwheel 8)',
-      concept: 'การกระจายรัศมี 8 แฉก + หมุน 45° (8 × 45° = 360°)',
-      explanation: 'จรดปากกาสีแดง วาดกิ่งกังหัน 8 ทิศทางกระจายออกจากจุดศูนย์กลาง x:0, y:0 โดยแต่ละแฉกหมุน 45 องศาอย่างสมมาตร',
-      tip: '8 แฉก x 45 องศา = 360 องศา ครบหนึ่งรอบวงกลมพอดี',
+      concept: 'การกระจายรัศมี 8 แฉก + หมุน 135°',
+      explanation: 'จรดปากกาสีแดง วาดลวดลายกังหัน 8 ทิศทางสมมาตรรอบจุดศูนย์กลาง (0, 0) จากนั้นซ่อนแมวไม่ให้บังจุดศูนย์กลาง',
+      tip: 'การซ่อนตัวละครแมวหลังวาดเสร็จช่วยให้มองเห็นจุดตัดตรงกลางของกังหันได้ชัดเจน',
+    },
+    house: {
+      title: 'บ้านในฝัน (พิกัด x, y + หลายสี)',
+      concept: 'ลำดับ (Sequence) + ระบบพิกัด (x, y) + Pen Up/Down',
+      explanation: 'วาดตัวบ้านสี่เหลี่ยมสีน้ำเงิน ยกปากกาย้ายพิกัดไปหลังคาเพื่อวาดสามเหลี่ยมสีแดง และวาดประตูสีส้มตรงกลาง เห็นการใช้พิกัดจริงบนระนาบ x, y',
+      tip: 'ต้อง "ยกปากกา (Pen Up)" ก่อนย้ายไปวาดส่วนใหม่เสมอ เพื่อไม่ให้เกิดเส้นลากเชื่อมเกินมา',
+    },
+    spiral: {
+      title: 'ก้นหอยสายรุ้ง (Rainbow Spiral)',
+      concept: 'ลูปเพิ่มระยะทาง + สลับสีสายรุ้งอัตโนมัติ',
+      explanation: 'วาดเส้นวนเป็นเกลียวก้นหอย 18 ช่วง โดยเพิ่มความยาวเส้นทีละ +4 ก้าวและหมุน 60° พร้อมเปลี่ยนสีสายรุ้งทุกเส้น',
+      tip: 'การเปลี่ยนความยาวก้าวในแต่ละรอบของ Loop ทำให้เกิดลวดลายเกลียว 3 มิติได้ง่ายมาก',
     },
     intro: {
       title: 'ทักทายและเล่นเสียง (Interactive Intro)',
@@ -127,14 +158,15 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
   const [scriptBlocks, setScriptBlocks] = useState<ProgramBlock[]>([
     { id: '1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
     { id: '2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
-    { id: '3', category: 'motion', name: 'ไปที่ x: -40 y: -40', code: 'goto:-40,-40', color: 'bg-blue-600', customType: 'goto', val1: -40, val2: -40 },
+    { id: '3', category: 'motion', name: 'ไปที่ x: -40 y: 40', code: 'goto:-40,40', color: 'bg-blue-600', customType: 'goto', val1: -40, val2: 40 },
     { id: '4', category: 'motion', name: 'หันไปในทิศทาง (90)° [ขวา]', code: 'point:90', color: 'bg-blue-600' },
     { id: '5', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีน้ำเงิน]', code: 'set_color:#2563eb', color: 'bg-emerald-600' },
     { id: '6', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (5)', code: 'set_size:5', color: 'bg-emerald-600' },
     { id: '7', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
     { id: '8', category: 'control', name: 'ทำซ้ำ (4) รอบ', code: 'repeat:4', color: 'bg-amber-600', customType: 'repeat', val1: 4 },
     { id: '9', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
-    { id: '10', category: 'looks', name: 'พูดว่า [วาดสี่เหลี่ยมจัตุรัส 4 ด้านสำเร็จแล้ว! 🎉]', code: 'say:วาดสี่เหลี่ยมจัตุรัส 4 ด้านสำเร็จแล้ว! 🎉', color: 'bg-purple-600' },
+    { id: '10', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+    { id: '11', category: 'looks', name: 'พูดว่า [วาดสี่เหลี่ยมจัตุรัส 4 ด้านสำเร็จแล้ว! 🎉]', code: 'say:วาดสี่เหลี่ยมจัตุรัส 4 ด้านสำเร็จแล้ว! 🎉', color: 'bg-purple-600' },
   ]);
 
   // Comprehensive available blocks library
@@ -243,11 +275,12 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
       val1: 4,
       desc: 'ระบุตัวเลขจำนวนรอบทำซ้ำ (วาดรูปหลายเหลี่ยม หรือทำซ้ำคำสั่งที่อยู่ถัดไป)',
     },
-    { id: 'c_rep_square', category: 'control', name: 'ทำซ้ำ (4) รอบ [วาดสี่เหลี่ยมจัตุรัส]', code: 'repeat_square:4', color: 'bg-amber-600', desc: 'เดิน 60 ก้าว + เลี้ยว 90°' },
-    { id: 'c_rep_triangle', category: 'control', name: 'ทำซ้ำ (3) รอบ [วาดสามเหลี่ยม]', code: 'repeat_triangle:3', color: 'bg-amber-600', desc: 'เดิน 70 ก้าว + เลี้ยว 120°' },
-    { id: 'c_rep_circle', category: 'control', name: 'ทำซ้ำ (36) รอบ [วาดวงกลมเรขาคณิต]', code: 'repeat_circle:36', color: 'bg-amber-600', desc: 'เดิน 6 ก้าว + เลี้ยว 10°' },
+    { id: 'c_rep_square', category: 'control', name: 'ทำซ้ำ (4) รอบ [วาดสี่เหลี่ยมจัตุรัส]', code: 'repeat_square:4', color: 'bg-amber-600', desc: 'เดิน 80 ก้าว + เลี้ยว 90°' },
+    { id: 'c_rep_triangle', category: 'control', name: 'ทำซ้ำ (3) รอบ [วาดสามเหลี่ยม]', code: 'repeat_triangle:3', color: 'bg-amber-600', desc: 'เดิน 90 ก้าว + เลี้ยว 120°' },
+    { id: 'c_rep_circle', category: 'control', name: 'ทำซ้ำ (36) รอบ [วาดวงกลมเรขาคณิต]', code: 'repeat_circle:36', color: 'bg-amber-600', desc: 'เดิน 7 ก้าว + เลี้ยว 10°' },
     { id: 'c_rep_star', category: 'control', name: 'ทำซ้ำ (5) รอบ [วาดดาว 5 แฉก]', code: 'repeat_star:5', color: 'bg-amber-600', desc: 'วาดดาวเส้นไขว้ 144°' },
     { id: 'c_rep_pinwheel', category: 'control', name: 'ทำซ้ำ (8) รอบ [วาดกังหัน 8 ทิศ]', code: 'repeat_pinwheel:8', color: 'bg-amber-600', desc: 'ลวดลายแฉกดอกไม้' },
+    { id: 'c_rep_spiral', category: 'control', name: 'ทำซ้ำ (18) รอบ [วาดก้นหอยสายรุ้ง]', code: 'repeat_spiral:18', color: 'bg-amber-600', desc: 'เกลียวก้นหอยสลับสีสายรุ้ง' },
     {
       id: 'c_wait_custom',
       category: 'control',
@@ -262,6 +295,8 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
     { id: 'c_score', category: 'control', name: 'เปลี่ยน คะแนน เพิ่มขึ้น (10)', code: 'score:10', color: 'bg-amber-600', desc: 'สะสมแต้มคะแนน' },
 
     // 🟣 Looks & Sound
+    { id: 'l_hide', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600', desc: 'ซ่อนตัวละครแมวเพื่อไม่ให้บังภาพที่วาด' },
+    { id: 'l_show', category: 'looks', name: 'แสดงตัวละครแมว (Show Sprite)', code: 'show', color: 'bg-purple-600', desc: 'แสดงตัวละครแมวกลับมาบนเวที' },
     { id: 'l_say_hello', category: 'looks', name: 'พูดว่า [สวัสดีครับ! มาเรียน Scratch กัน]', code: 'say:สวัสดีครับ! มาเรียน Scratch กัน', color: 'bg-purple-600', desc: 'แสดงกล่องคำพูด' },
     { id: 'l_say_done', category: 'looks', name: 'พูดว่า [เย้! โค้ดดิ้งสำเร็จแล้ว 🎉]', code: 'say:เย้! โค้ดดิ้งสำเร็จแล้ว 🎉', color: 'bg-purple-600', desc: 'แสดงกล่องคำพูด' },
     { id: 'l_costume', category: 'looks', name: 'สลับชุดตัวละครถัดไป (Next Costume)', code: 'next_costume', color: 'bg-purple-600', desc: 'ขยับท่าทางตัวละคร' },
@@ -270,57 +305,141 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
   ];
 
   // Presets with rich, diverse geometry and animations
-  const loadPreset = (presetName: 'square' | 'star' | 'circle' | 'intro' | 'pinwheel') => {
+  const loadPreset = (
+    presetName: 'square' | 'triangle' | 'hexagon' | 'star' | 'circle' | 'pinwheel' | 'house' | 'spiral' | 'intro'
+  ) => {
     setActivePreset(presetName);
     resetStage();
     if (presetName === 'square') {
       setScriptBlocks([
         { id: 'p_sq1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
         { id: 'p_sq2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
-        { id: 'p_sq3', category: 'motion', name: 'ไปที่ x: -40 y: -40', code: 'goto:-40,-40', color: 'bg-blue-600', customType: 'goto', val1: -40, val2: -40 },
+        { id: 'p_sq3', category: 'motion', name: 'ไปที่ x: -40 y: 40', code: 'goto:-40,40', color: 'bg-blue-600', customType: 'goto', val1: -40, val2: 40 },
         { id: 'p_sq4', category: 'motion', name: 'หันไปในทิศทาง (90)° [ขวา]', code: 'point:90', color: 'bg-blue-600' },
         { id: 'p_sq5', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีน้ำเงิน]', code: 'set_color:#2563eb', color: 'bg-emerald-600' },
         { id: 'p_sq6', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (5)', code: 'set_size:5', color: 'bg-emerald-600' },
         { id: 'p_sq7', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
         { id: 'p_sq8', category: 'control', name: 'ทำซ้ำ (4) รอบ', code: 'repeat:4', color: 'bg-amber-600', customType: 'repeat', val1: 4 },
         { id: 'p_sq9', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
-        { id: 'p_sq10', category: 'looks', name: 'พูดว่า [วาดสี่เหลี่ยมจัตุรัส 4 ด้านสำเร็จแล้ว! 🎉]', code: 'say:วาดสี่เหลี่ยมจัตุรัส 4 ด้านสำเร็จแล้ว! 🎉', color: 'bg-purple-600' },
+        { id: 'p_sq10', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+        { id: 'p_sq11', category: 'looks', name: 'พูดว่า [วาดสี่เหลี่ยมจัตุรัส 4 ด้านสำเร็จแล้ว! 🎉]', code: 'say:วาดสี่เหลี่ยมจัตุรัส 4 ด้านสำเร็จแล้ว! 🎉', color: 'bg-purple-600' },
+      ]);
+    } else if (presetName === 'triangle') {
+      setScriptBlocks([
+        { id: 'p_tr1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
+        { id: 'p_tr2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
+        { id: 'p_tr3', category: 'motion', name: 'ไปที่ x: -45 y: -26', code: 'goto:-45,-26', color: 'bg-blue-600', customType: 'goto', val1: -45, val2: -26 },
+        { id: 'p_tr4', category: 'motion', name: 'หันไปในทิศทาง (30)° [เฉียงขึ้นขวา]', code: 'point:30', color: 'bg-blue-600' },
+        { id: 'p_tr5', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีเขียว]', code: 'set_color:#16a34a', color: 'bg-emerald-600' },
+        { id: 'p_tr6', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (5)', code: 'set_size:5', color: 'bg-emerald-600' },
+        { id: 'p_tr7', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_tr8', category: 'control', name: 'ทำซ้ำ (3) รอบ [วาดสามเหลี่ยม]', code: 'repeat_triangle:3', color: 'bg-amber-600' },
+        { id: 'p_tr9', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_tr10', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+        { id: 'p_tr11', category: 'looks', name: 'พูดว่า [วาดสามเหลี่ยมด้านเท่า 3 มุมสำเร็จ! 🔺]', code: 'say:วาดสามเหลี่ยมด้านเท่า 3 มุมสำเร็จ! 🔺', color: 'bg-purple-600' },
+      ]);
+    } else if (presetName === 'hexagon') {
+      setScriptBlocks([
+        { id: 'p_hx1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
+        { id: 'p_hx2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
+        { id: 'p_hx3', category: 'motion', name: 'ไปที่ x: -25 y: 43', code: 'goto:-25,43', color: 'bg-blue-600', customType: 'goto', val1: -25, val2: 43 },
+        { id: 'p_hx4', category: 'motion', name: 'หันไปในทิศทาง (90)° [ขวา]', code: 'point:90', color: 'bg-blue-600' },
+        { id: 'p_hx5', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีส้ม]', code: 'set_color:#ea580c', color: 'bg-emerald-600' },
+        { id: 'p_hx6', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (4)', code: 'set_size:4', color: 'bg-emerald-600' },
+        { id: 'p_hx7', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_hx8', category: 'control', name: 'ทำซ้ำ (6) รอบ', code: 'repeat:6', color: 'bg-amber-600', customType: 'repeat', val1: 6 },
+        { id: 'p_hx9', category: 'motion', name: 'ก้าว (50) ก้าว', code: 'move:50', color: 'bg-blue-600', customType: 'move', val1: 50 },
+        { id: 'p_hx10', category: 'motion', name: 'หมุนตามเข็ม (60) องศา', code: 'turn:60', color: 'bg-blue-600', customType: 'turn_cw', val1: 60 },
+        { id: 'p_hx11', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_hx12', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+        { id: 'p_hx13', category: 'looks', name: 'พูดว่า [วาดหกเหลี่ยมรังผึ้ง 6 ด้านสำเร็จ! ⬡]', code: 'say:วาดหกเหลี่ยมรังผึ้ง 6 ด้านสำเร็จ! ⬡', color: 'bg-purple-600' },
       ]);
     } else if (presetName === 'star') {
       setScriptBlocks([
         { id: 'p_st1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
         { id: 'p_st2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
-        { id: 'p_st3', category: 'motion', name: 'ไปที่ x: -30 y: 20', code: 'goto:-30,20', color: 'bg-blue-600', customType: 'goto', val1: -30, val2: 20 },
-        { id: 'p_st4', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีเหลืองทอง]', code: 'set_color:#eab308', color: 'bg-emerald-600' },
-        { id: 'p_st5', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (4)', code: 'set_size:4', color: 'bg-emerald-600' },
-        { id: 'p_st6', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
-        { id: 'p_st7', category: 'control', name: 'ทำซ้ำ (5) รอบ [วาดดาว 5 แฉก]', code: 'repeat_star:5', color: 'bg-amber-600' },
-        { id: 'p_st8', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
-        { id: 'p_st9', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500' },
-        { id: 'p_st10', category: 'looks', name: 'พูดว่า [วาดดาว 5 แฉกสำเร็จแล้ว! ⭐]', code: 'say:วาดดาว 5 แฉกสำเร็จแล้ว! ⭐', color: 'bg-purple-600' },
+        { id: 'p_st3', category: 'motion', name: 'ไปที่ x: -37 y: 12', code: 'goto:-37,12', color: 'bg-blue-600', customType: 'goto', val1: -37, val2: 12 },
+        { id: 'p_st4', category: 'motion', name: 'หันไปในทิศทาง (90)° [ขวา]', code: 'point:90', color: 'bg-blue-600' },
+        { id: 'p_st5', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีเหลืองทอง]', code: 'set_color:#eab308', color: 'bg-emerald-600' },
+        { id: 'p_st6', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (4)', code: 'set_size:4', color: 'bg-emerald-600' },
+        { id: 'p_st7', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_st8', category: 'control', name: 'ทำซ้ำ (5) รอบ [วาดดาว 5 แฉก]', code: 'repeat_star:5', color: 'bg-amber-600' },
+        { id: 'p_st9', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_st10', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+        { id: 'p_st11', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500' },
+        { id: 'p_st12', category: 'looks', name: 'พูดว่า [วาดดาว 5 แฉกสำเร็จแล้ว! ⭐]', code: 'say:วาดดาว 5 แฉกสำเร็จแล้ว! ⭐', color: 'bg-purple-600' },
       ]);
     } else if (presetName === 'circle') {
       setScriptBlocks([
         { id: 'p_c1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
         { id: 'p_c2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
-        { id: 'p_c3', category: 'motion', name: 'ไปที่ x: 0 y: -40', code: 'goto:0,-40', color: 'bg-blue-600', customType: 'goto', val1: 0, val2: -40 },
-        { id: 'p_c4', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีม่วง]', code: 'set_color:#9333ea', color: 'bg-emerald-600' },
-        { id: 'p_c5', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (4)', code: 'set_size:4', color: 'bg-emerald-600' },
-        { id: 'p_c6', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
-        { id: 'p_c7', category: 'control', name: 'ทำซ้ำ (36) รอบ [วาดวงกลมเรขาคณิต]', code: 'repeat_circle:36', color: 'bg-amber-600' },
-        { id: 'p_c8', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
-        { id: 'p_c9', category: 'looks', name: 'พูดว่า [วาดวงกลม 360 องศาสำเร็จแล้ว! ⭕]', code: 'say:วาดวงกลม 360 องศาสำเร็จแล้ว! ⭕', color: 'bg-purple-600' },
+        { id: 'p_c3', category: 'motion', name: 'ไปที่ x: 0 y: 40', code: 'goto:0,40', color: 'bg-blue-600', customType: 'goto', val1: 0, val2: 40 },
+        { id: 'p_c4', category: 'motion', name: 'หันไปในทิศทาง (90)° [ขวา]', code: 'point:90', color: 'bg-blue-600' },
+        { id: 'p_c5', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีม่วง]', code: 'set_color:#9333ea', color: 'bg-emerald-600' },
+        { id: 'p_c6', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (4)', code: 'set_size:4', color: 'bg-emerald-600' },
+        { id: 'p_c7', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_c8', category: 'control', name: 'ทำซ้ำ (36) รอบ [วาดวงกลมเรขาคณิต]', code: 'repeat_circle:36', color: 'bg-amber-600' },
+        { id: 'p_c9', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_c10', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+        { id: 'p_c11', category: 'looks', name: 'พูดว่า [วาดวงกลม 360 องศาสำเร็จแล้ว! ⭕]', code: 'say:วาดวงกลม 360 องศาสำเร็จแล้ว! ⭕', color: 'bg-purple-600' },
       ]);
     } else if (presetName === 'pinwheel') {
       setScriptBlocks([
         { id: 'p_pw1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
         { id: 'p_pw2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
         { id: 'p_pw3', category: 'motion', name: 'ไปที่ x: 0 y: 0', code: 'goto:0,0', color: 'bg-blue-600', customType: 'goto', val1: 0, val2: 0 },
-        { id: 'p_pw4', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีแดง]', code: 'set_color:#dc2626', color: 'bg-emerald-600' },
-        { id: 'p_pw5', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
-        { id: 'p_pw6', category: 'control', name: 'ทำซ้ำ (8) รอบ [วาดกังหัน 8 ทิศ]', code: 'repeat_pinwheel:8', color: 'bg-amber-600' },
-        { id: 'p_pw7', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
-        { id: 'p_pw8', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500' },
+        { id: 'p_pw4', category: 'motion', name: 'หันไปในทิศทาง (0)° [บน]', code: 'point:0', color: 'bg-blue-600' },
+        { id: 'p_pw5', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีแดง]', code: 'set_color:#dc2626', color: 'bg-emerald-600' },
+        { id: 'p_pw6', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_pw7', category: 'control', name: 'ทำซ้ำ (8) รอบ [วาดกังหัน 8 ทิศ]', code: 'repeat_pinwheel:8', color: 'bg-amber-600' },
+        { id: 'p_pw8', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_pw9', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+        { id: 'p_pw10', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500' },
+      ]);
+    } else if (presetName === 'house') {
+      setScriptBlocks([
+        { id: 'p_hs1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
+        { id: 'p_hs2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
+        { id: 'p_hs3', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (4)', code: 'set_size:4', color: 'bg-emerald-600' },
+        { id: 'p_hs4', category: 'motion', name: 'ไปที่ x: -45 y: 20', code: 'goto:-45,20', color: 'bg-blue-600', customType: 'goto', val1: -45, val2: 20 },
+        { id: 'p_hs5', category: 'motion', name: 'หันไปในทิศทาง (90)° [ขวา]', code: 'point:90', color: 'bg-blue-600' },
+        { id: 'p_hs6', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีน้ำเงิน]', code: 'set_color:#2563eb', color: 'bg-emerald-600' },
+        { id: 'p_hs7', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_hs8', category: 'control', name: 'ทำซ้ำ (4) รอบ', code: 'repeat:4', color: 'bg-amber-600', customType: 'repeat', val1: 4 },
+        { id: 'p_hs9', category: 'motion', name: 'ก้าว (90) ก้าว', code: 'move:90', color: 'bg-blue-600', customType: 'move', val1: 90 },
+        { id: 'p_hs10', category: 'motion', name: 'หมุนตามเข็ม (90) องศา', code: 'turn:90', color: 'bg-blue-600', customType: 'turn_cw', val1: 90 },
+        { id: 'p_hs11', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_hs12', category: 'motion', name: 'ไปที่ x: -55 y: 20', code: 'goto:-55,20', color: 'bg-blue-600', customType: 'goto', val1: -55, val2: 20 },
+        { id: 'p_hs13', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีแดง]', code: 'set_color:#dc2626', color: 'bg-emerald-600' },
+        { id: 'p_hs14', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_hs15', category: 'motion', name: 'ไปที่ x: 0 y: 80', code: 'goto:0,80', color: 'bg-blue-600', customType: 'goto', val1: 0, val2: 80 },
+        { id: 'p_hs16', category: 'motion', name: 'ไปที่ x: 55 y: 20', code: 'goto:55,20', color: 'bg-blue-600', customType: 'goto', val1: 55, val2: 20 },
+        { id: 'p_hs17', category: 'motion', name: 'ไปที่ x: -55 y: 20', code: 'goto:-55,20', color: 'bg-blue-600', customType: 'goto', val1: -55, val2: 20 },
+        { id: 'p_hs18', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_hs19', category: 'motion', name: 'ไปที่ x: -15 y: -70', code: 'goto:-15,-70', color: 'bg-blue-600', customType: 'goto', val1: -15, val2: -70 },
+        { id: 'p_hs20', category: 'pen', name: 'ตั้งค่าสีปากกาเป็น [สีส้ม]', code: 'set_color:#ea580c', color: 'bg-emerald-600' },
+        { id: 'p_hs21', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_hs22', category: 'motion', name: 'ไปที่ x: -15 y: -25', code: 'goto:-15,-25', color: 'bg-blue-600', customType: 'goto', val1: -15, val2: -25 },
+        { id: 'p_hs23', category: 'motion', name: 'ไปที่ x: 15 y: -25', code: 'goto:15,-25', color: 'bg-blue-600', customType: 'goto', val1: 15, val2: -25 },
+        { id: 'p_hs24', category: 'motion', name: 'ไปที่ x: 15 y: -70', code: 'goto:15,-70', color: 'bg-blue-600', customType: 'goto', val1: 15, val2: -70 },
+        { id: 'p_hs25', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_hs26', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+        { id: 'p_hs27', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500' },
+        { id: 'p_hs28', category: 'looks', name: 'พูดว่า [สร้างบ้านในฝันด้วยพิกัด (x, y) สำเร็จ! 🏠]', code: 'say:สร้างบ้านในฝันด้วยพิกัด (x, y) สำเร็จ! 🏠', color: 'bg-purple-600' },
+      ]);
+    } else if (presetName === 'spiral') {
+      setScriptBlocks([
+        { id: 'p_sp1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
+        { id: 'p_sp2', category: 'pen', name: 'ลบทั้งหมด (Erase All)', code: 'erase_all', color: 'bg-emerald-600' },
+        { id: 'p_sp3', category: 'motion', name: 'ไปที่ x: 0 y: 0', code: 'goto:0,0', color: 'bg-blue-600', customType: 'goto', val1: 0, val2: 0 },
+        { id: 'p_sp4', category: 'motion', name: 'หันไปในทิศทาง (0)° [บน]', code: 'point:0', color: 'bg-blue-600' },
+        { id: 'p_sp5', category: 'pen', name: 'กำหนดขนาดปากกาเป็น (4)', code: 'set_size:4', color: 'bg-emerald-600' },
+        { id: 'p_sp6', category: 'pen', name: 'จรดปากกา (Pen Down)', code: 'pen_down', color: 'bg-emerald-600' },
+        { id: 'p_sp7', category: 'control', name: 'ทำซ้ำ (18) รอบ [วาดก้นหอยสายรุ้ง]', code: 'repeat_spiral:18', color: 'bg-amber-600' },
+        { id: 'p_sp8', category: 'pen', name: 'ยกปากกา (Pen Up)', code: 'pen_up', color: 'bg-emerald-600' },
+        { id: 'p_sp9', category: 'looks', name: 'ซ่อนตัวละครแมว (Hide Sprite)', code: 'hide', color: 'bg-purple-600' },
+        { id: 'p_sp10', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500' },
+        { id: 'p_sp11', category: 'looks', name: 'พูดว่า [วาดก้นหอยสายรุ้งสำเร็จแล้ว! 🌀]', code: 'say:วาดก้นหอยสายรุ้งสำเร็จแล้ว! 🌀', color: 'bg-purple-600' },
       ]);
     } else if (presetName === 'intro') {
       setScriptBlocks([
@@ -385,7 +504,8 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
       pos: { x: number; y: number; dir: number; costume: number },
       penDown: boolean,
       color: string,
-      size: number
+      size: number,
+      spriteHidden: boolean = false
     ) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -436,21 +556,23 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
       ctx.fillText('y: 120', centerX + 4, 18);
       ctx.fillText('y: -120', centerX + 4, h - 8);
 
-      // 4. Draw Pen Trails (High contrast, rounded joins)
+      // 4. Draw Pen Trails (Scratch Y-up: canvasY = centerY - y)
       trails.forEach((trail) => {
         ctx.strokeStyle = trail.color || '#2563eb';
         ctx.lineWidth = trail.size || 5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
-        ctx.moveTo(centerX + trail.x1, centerY + trail.y1);
-        ctx.lineTo(centerX + trail.x2, centerY + trail.y2);
+        ctx.moveTo(centerX + trail.x1, centerY - trail.y1);
+        ctx.lineTo(centerX + trail.x2, centerY - trail.y2);
         ctx.stroke();
       });
 
-      // 5. Draw Sprite
+      // 5. Draw Sprite (skip if hidden so drawing is 100% unobstructed)
+      if (spriteHidden) return;
+
       const spriteCanvasX = centerX + pos.x;
-      const spriteCanvasY = centerY + pos.y;
+      const spriteCanvasY = centerY - pos.y;
 
       ctx.save();
       ctx.translate(spriteCanvasX, spriteCanvasY);
@@ -530,22 +652,29 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
 
   const resetStage = () => {
     penTrailsRef.current = [];
-    spritePosRef.current = { x: -40, y: -40, dir: 90, costume: 0 };
+    spritePosRef.current = { x: -40, y: 40, dir: 90, costume: 0 };
     isPenDownRef.current = false;
-    setSpritePos({ x: -40, y: -40, dir: 90, costume: 0 });
+    isSpriteHiddenRef.current = false;
+    setSpritePos({ x: -40, y: 40, dir: 90, costume: 0 });
     setSpeechBubble('พร้อมรันสคริปต์ใหม่แล้ว!');
     setPenTrails([]);
     setIsPenDown(false);
+    setIsSpriteHidden(false);
     setScore(0);
     setIsRunning(false);
     setActiveBlockId(null);
-    drawStage([], { x: -40, y: -40, dir: 90, costume: 0 }, false, penColor, penSize);
+    drawStage([], { x: -40, y: 40, dir: 90, costume: 0 }, false, penColor, penSize, false);
   };
 
   // Run script with interactive animation and live pen trails
   const runScript = async () => {
     if (isRunning || scriptBlocks.length === 0) return;
     setIsRunning(true);
+
+    // Show sprite at start of execution unless first block hides it
+    isSpriteHiddenRef.current = false;
+    setIsSpriteHidden(false);
+    let lastExplicitVisibility: 'show' | 'hide' | null = null;
 
     let curX = spritePos.x;
     let curY = spritePos.y;
@@ -559,16 +688,26 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
       setActiveBlockId(block.id);
 
       // Brief pause between blocks for student to trace
-      await new Promise((r) => setTimeout(r, 260));
+      await new Promise((r) => setTimeout(r, 220));
 
       if (block.code === 'start') {
         setSpeechBubble('🚩 เริ่มรันโปรแกรมตามลำดับสคริปต์!');
-        await new Promise((r) => setTimeout(r, 220));
+        await new Promise((r) => setTimeout(r, 200));
+      } else if (block.code === 'hide') {
+        isSpriteHiddenRef.current = true;
+        setIsSpriteHidden(true);
+        lastExplicitVisibility = 'hide';
+        drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize, true);
+      } else if (block.code === 'show') {
+        isSpriteHiddenRef.current = false;
+        setIsSpriteHidden(false);
+        lastExplicitVisibility = 'show';
+        drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize, false);
       } else if (block.code.startsWith('move:')) {
         const steps = parseInt(block.code.split(':')[1], 10) || 40;
         const rad = (curDir * Math.PI) / 180;
         const nextX = Math.round(curX + steps * Math.sin(rad));
-        const nextY = Math.round(curY - steps * Math.cos(rad));
+        const nextY = Math.round(curY + steps * Math.cos(rad));
 
         const clampedX = Math.max(-210, Math.min(210, nextX));
         const clampedY = Math.max(-140, Math.min(140, nextY));
@@ -591,7 +730,7 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         const newPos = { x: curX, y: curY, dir: curDir, costume: (spritePosRef.current.costume + 1) % 2 };
         spritePosRef.current = newPos;
         setSpritePos(newPos);
-        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
+        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code.startsWith('turn:')) {
         const deg = parseInt(block.code.split(':')[1], 10) || 45;
         curDir = (curDir + deg) % 360;
@@ -599,14 +738,14 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         const newPos = { ...spritePosRef.current, dir: curDir };
         spritePosRef.current = newPos;
         setSpritePos(newPos);
-        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
+        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code.startsWith('point:')) {
         curDir = parseInt(block.code.split(':')[1], 10);
         if (isNaN(curDir)) curDir = 90;
         const newPos = { ...spritePosRef.current, dir: curDir };
         spritePosRef.current = newPos;
         setSpritePos(newPos);
-        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
+        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code.startsWith('goto:')) {
         const target = block.code.split(':')[1];
         let targetX = 0;
@@ -644,7 +783,7 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         const newPos = { x: curX, y: curY, dir: curDir, costume: spritePosRef.current.costume };
         spritePosRef.current = newPos;
         setSpritePos(newPos);
-        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
+        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code.startsWith('say:')) {
         const text = block.code.split(':')[1] || '';
         setSpeechBubble(text);
@@ -652,33 +791,33 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         penActive = true;
         isPenDownRef.current = true;
         setIsPenDown(true);
-        drawStage(penTrailsRef.current, spritePosRef.current, true, curColor, curSize);
+        drawStage(penTrailsRef.current, spritePosRef.current, true, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code === 'pen_up') {
         penActive = false;
         isPenDownRef.current = false;
         setIsPenDown(false);
-        drawStage(penTrailsRef.current, spritePosRef.current, false, curColor, curSize);
+        drawStage(penTrailsRef.current, spritePosRef.current, false, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code === 'erase_all') {
         penTrailsRef.current = [];
         setPenTrails([]);
-        drawStage([], spritePosRef.current, penActive, curColor, curSize);
+        drawStage([], spritePosRef.current, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code.startsWith('set_color:')) {
         const hex = block.code.split(':')[1];
         if (hex) {
           curColor = hex;
           setPenColor(hex);
-          drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize);
+          drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize, isSpriteHiddenRef.current);
         }
       } else if (block.code === 'random_color') {
         const randomHex = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)].hex;
         curColor = randomHex;
         setPenColor(randomHex);
-        drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize);
+        drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code.startsWith('set_size:')) {
         const sz = parseInt(block.code.split(':')[1], 10) || 5;
         curSize = sz;
         setPenSize(sz);
-        drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize);
+        drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code.startsWith('repeat_walk:')) {
         // Repeat walk: walk steps count times (e.g. เดินหน้า 10 ก้าว จำนวน 5 รอบ)
         const parts = block.code.split(':');
@@ -688,7 +827,7 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         for (let s = 0; s < count; s++) {
           const rad = (curDir * Math.PI) / 180;
           const nx = Math.max(-210, Math.min(210, Math.round(curX + steps * Math.sin(rad))));
-          const ny = Math.max(-140, Math.min(140, Math.round(curY - steps * Math.cos(rad))));
+          const ny = Math.max(-140, Math.min(140, Math.round(curY + steps * Math.cos(rad))));
 
           if (penActive) {
             const newTrail: PenTrail = {
@@ -708,30 +847,44 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
           const newPos = { x: curX, y: curY, dir: curDir, costume: s % 2 };
           spritePosRef.current = newPos;
           setSpritePos(newPos);
-          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
-          await new Promise((r) => setTimeout(r, 220));
+          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
+          await new Promise((r) => setTimeout(r, 200));
         }
       } else if (block.code.startsWith('repeat:')) {
-        // Parameterized Repeat: if subsequent blocks exist (e.g. ก้าว 10 ก้าว), repeat them; otherwise draw polygon
+        // Parameterized Repeat: ONLY consume consecutive loopable body blocks (move, turn, point, wait, next_costume, random_color, set_size)
+        // Stops immediately before pen_up, pen_down, erase_all, say, hide, show, sound_, score, goto, repeat, start
         const count = parseInt(block.code.split(':')[1], 10) || 4;
         const remaining = scriptBlocks.slice(i + 1);
         const loopActions: ProgramBlock[] = [];
         for (const sub of remaining) {
-          if (sub.code.startsWith('repeat') || sub.code === 'start') break;
+          const isLoopable =
+            sub.code.startsWith('move:') ||
+            sub.code.startsWith('turn:') ||
+            sub.code.startsWith('point:') ||
+            sub.code.startsWith('wait:') ||
+            sub.code === 'next_costume' ||
+            sub.code === 'random_color' ||
+            sub.code.startsWith('set_size:');
+          if (!isLoopable) break;
           loopActions.push(sub);
+          if (loopActions.length >= 5) break;
         }
 
-        if (loopActions.length > 0 && loopActions.length <= 4) {
+        if (loopActions.length > 0) {
+          let fx = curX;
+          let fy = curY;
           for (let loopIdx = 0; loopIdx < count; loopIdx++) {
             for (const subBlock of loopActions) {
               setActiveBlockId(subBlock.id);
-              await new Promise((r) => setTimeout(r, 180));
-              
+              await new Promise((r) => setTimeout(r, 150));
+
               if (subBlock.code.startsWith('move:')) {
                 const steps = parseInt(subBlock.code.split(':')[1], 10) || 10;
                 const rad = (curDir * Math.PI) / 180;
-                const nx = Math.max(-210, Math.min(210, Math.round(curX + steps * Math.sin(rad))));
-                const ny = Math.max(-140, Math.min(140, Math.round(curY - steps * Math.cos(rad))));
+                fx = Math.max(-210, Math.min(210, fx + steps * Math.sin(rad)));
+                fy = Math.max(-140, Math.min(140, fy + steps * Math.cos(rad)));
+                const nx = Math.round(fx);
+                const ny = Math.round(fy);
                 if (penActive) {
                   penTrailsRef.current.push({ x1: curX, y1: curY, x2: nx, y2: ny, color: curColor, size: curSize });
                   setPenTrails([...penTrailsRef.current]);
@@ -744,23 +897,37 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
                 if (curDir < 0) curDir += 360;
               } else if (subBlock.code.startsWith('point:')) {
                 curDir = parseInt(subBlock.code.split(':')[1], 10) || 90;
+              } else if (subBlock.code === 'random_color') {
+                curColor = PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)].hex;
+                setPenColor(curColor);
+              } else if (subBlock.code.startsWith('set_size:')) {
+                curSize = parseInt(subBlock.code.split(':')[1], 10) || 5;
+                setPenSize(curSize);
+              } else if (subBlock.code.startsWith('wait:')) {
+                const ms = parseInt(subBlock.code.split(':')[1], 10) || 200;
+                await new Promise((r) => setTimeout(r, Math.min(ms, 1000)));
               }
-              
+
               const newPos = { x: curX, y: curY, dir: curDir, costume: loopIdx % 2 };
               spritePosRef.current = newPos;
               setSpritePos(newPos);
-              drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
+              drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
             }
           }
           i += loopActions.length;
         } else {
-          const turnAngle = Math.round(360 / Math.max(1, count));
-          const sideLength = count >= 20 ? 12 : count >= 10 ? 25 : count >= 6 ? 50 : 75;
+          // Standalone repeat N block draws an accurate N-sided regular polygon (e.g. repeat:4 -> 80x80 closed square)
+          const turnAngle = 360 / Math.max(1, count);
+          const sideLength = count === 4 ? 80 : count >= 20 ? 12 : count >= 10 ? 25 : count >= 6 ? 50 : 75;
+          let fx = curX;
+          let fy = curY;
 
           for (let s = 0; s < count; s++) {
             const rad = (curDir * Math.PI) / 180;
-            const nx = Math.max(-210, Math.min(210, Math.round(curX + sideLength * Math.sin(rad))));
-            const ny = Math.max(-140, Math.min(140, Math.round(curY - sideLength * Math.cos(rad))));
+            fx = Math.max(-210, Math.min(210, fx + sideLength * Math.sin(rad)));
+            fy = Math.max(-140, Math.min(140, fy + sideLength * Math.cos(rad)));
+            const nx = Math.round(fx);
+            const ny = Math.round(fy);
 
             if (penActive) {
               const newTrail: PenTrail = {
@@ -779,20 +946,24 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
             curY = ny;
             curDir = (curDir + turnAngle) % 360;
             if (curDir < 0) curDir += 360;
-            const newPos = { x: curX, y: curY, dir: curDir, costume: s % 2 };
+            const newPos = { x: curX, y: curY, dir: Math.round(curDir), costume: s % 2 };
             spritePosRef.current = newPos;
             setSpritePos(newPos);
-            drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
-            await new Promise((r) => setTimeout(r, Math.max(50, Math.min(260, 1000 / count))));
+            drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
+            await new Promise((r) => setTimeout(r, Math.max(40, Math.min(240, 900 / count))));
           }
         }
       } else if (block.code === 'repeat_square:4') {
-        // Repeat 4: Move 80 steps, turn 90° to form a complete square
+        // Repeat 4: Move 80 steps, turn 90° to form a complete closed square
         const sideLength = 80;
+        let fx = curX;
+        let fy = curY;
         for (let s = 0; s < 4; s++) {
           const rad = (curDir * Math.PI) / 180;
-          const nx = Math.round(curX + sideLength * Math.sin(rad));
-          const ny = Math.round(curY - sideLength * Math.cos(rad));
+          fx += sideLength * Math.sin(rad);
+          fy += sideLength * Math.cos(rad);
+          const nx = Math.round(fx);
+          const ny = Math.round(fy);
 
           if (penActive) {
             const newTrail: PenTrail = {
@@ -813,16 +984,20 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
           const newPos = { x: curX, y: curY, dir: curDir, costume: s % 2 };
           spritePosRef.current = newPos;
           setSpritePos(newPos);
-          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
-          await new Promise((r) => setTimeout(r, 260));
+          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
+          await new Promise((r) => setTimeout(r, 240));
         }
       } else if (block.code === 'repeat_triangle:3') {
         // Repeat 3: Move 90, turn 120
         const sideLength = 90;
+        let fx = curX;
+        let fy = curY;
         for (let s = 0; s < 3; s++) {
           const rad = (curDir * Math.PI) / 180;
-          const nx = Math.round(curX + sideLength * Math.sin(rad));
-          const ny = Math.round(curY - sideLength * Math.cos(rad));
+          fx += sideLength * Math.sin(rad);
+          fy += sideLength * Math.cos(rad);
+          const nx = Math.round(fx);
+          const ny = Math.round(fy);
 
           if (penActive) {
             const newTrail: PenTrail = {
@@ -843,16 +1018,20 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
           const newPos = { x: curX, y: curY, dir: curDir, costume: s % 2 };
           spritePosRef.current = newPos;
           setSpritePos(newPos);
-          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
-          await new Promise((r) => setTimeout(r, 260));
+          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
+          await new Promise((r) => setTimeout(r, 240));
         }
       } else if (block.code === 'repeat_star:5') {
         // Repeat 5: 5-pointed star (length 75, turn 144°)
         const length = 75;
+        let fx = curX;
+        let fy = curY;
         for (let s = 0; s < 5; s++) {
           const rad = (curDir * Math.PI) / 180;
-          const nx = Math.round(curX + length * Math.sin(rad));
-          const ny = Math.round(curY - length * Math.cos(rad));
+          fx += length * Math.sin(rad);
+          fy += length * Math.cos(rad);
+          const nx = Math.round(fx);
+          const ny = Math.round(fy);
 
           if (penActive) {
             const newTrail: PenTrail = {
@@ -873,15 +1052,19 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
           const newPos = { x: curX, y: curY, dir: curDir, costume: s % 2 };
           spritePosRef.current = newPos;
           setSpritePos(newPos);
-          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
-          await new Promise((r) => setTimeout(r, 220));
+          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
+          await new Promise((r) => setTimeout(r, 200));
         }
       } else if (block.code === 'repeat_circle:36') {
         // Repeat 36: Circle (step 7, turn 10°)
+        let fx = curX;
+        let fy = curY;
         for (let s = 0; s < 36; s++) {
           const rad = (curDir * Math.PI) / 180;
-          const nx = Math.round(curX + 7 * Math.sin(rad));
-          const ny = Math.round(curY - 7 * Math.cos(rad));
+          fx += 7 * Math.sin(rad);
+          fy += 7 * Math.cos(rad);
+          const nx = Math.round(fx);
+          const ny = Math.round(fy);
 
           if (penActive) {
             const newTrail: PenTrail = {
@@ -902,15 +1085,19 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
           const newPos = { x: curX, y: curY, dir: curDir, costume: s % 2 };
           spritePosRef.current = newPos;
           setSpritePos(newPos);
-          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
-          await new Promise((r) => setTimeout(r, 35));
+          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
+          await new Promise((r) => setTimeout(r, 30));
         }
       } else if (block.code === 'repeat_pinwheel:8') {
         // Repeat 8: Pinwheel (step 55, turn 135°)
+        let fx = curX;
+        let fy = curY;
         for (let s = 0; s < 8; s++) {
           const rad = (curDir * Math.PI) / 180;
-          const nx = Math.round(curX + 55 * Math.sin(rad));
-          const ny = Math.round(curY - 55 * Math.cos(rad));
+          fx += 55 * Math.sin(rad);
+          fy += 55 * Math.cos(rad);
+          const nx = Math.round(fx);
+          const ny = Math.round(fy);
 
           if (penActive) {
             const newTrail: PenTrail = {
@@ -931,8 +1118,43 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
           const newPos = { x: curX, y: curY, dir: curDir, costume: s % 2 };
           spritePosRef.current = newPos;
           setSpritePos(newPos);
-          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
-          await new Promise((r) => setTimeout(r, 160));
+          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
+          await new Promise((r) => setTimeout(r, 150));
+        }
+      } else if (block.code === 'repeat_spiral:18') {
+        // Repeat 18: Rainbow Spiral
+        let fx = curX;
+        let fy = curY;
+        for (let s = 0; s < 18; s++) {
+          const stepLen = 10 + s * 4;
+          const rad = (curDir * Math.PI) / 180;
+          fx = Math.max(-210, Math.min(210, fx + stepLen * Math.sin(rad)));
+          fy = Math.max(-130, Math.min(130, fy + stepLen * Math.cos(rad)));
+          const nx = Math.round(fx);
+          const ny = Math.round(fy);
+          curColor = PRESET_COLORS[s % PRESET_COLORS.length].hex;
+          setPenColor(curColor);
+
+          if (penActive) {
+            penTrailsRef.current.push({
+              x1: curX,
+              y1: curY,
+              x2: nx,
+              y2: ny,
+              color: curColor,
+              size: curSize,
+            });
+            setPenTrails([...penTrailsRef.current]);
+          }
+
+          curX = nx;
+          curY = ny;
+          curDir = (curDir + 60) % 360;
+          const newPos = { x: curX, y: curY, dir: curDir, costume: s % 2 };
+          spritePosRef.current = newPos;
+          setSpritePos(newPos);
+          drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
+          await new Promise((r) => setTimeout(r, 85));
         }
       } else if (block.code.startsWith('score:')) {
         const pts = parseInt(block.code.split(':')[1], 10) || 10;
@@ -946,13 +1168,13 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         const newPos = { ...spritePosRef.current, costume: (spritePosRef.current.costume + 1) % 2 };
         spritePosRef.current = newPos;
         setSpritePos(newPos);
-        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
+        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code === 'bounce') {
         curDir = (curDir + 180) % 360;
         const newPos = { ...spritePosRef.current, dir: curDir };
         spritePosRef.current = newPos;
         setSpritePos(newPos);
-        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize);
+        drawStage(penTrailsRef.current, newPos, penActive, curColor, curSize, isSpriteHiddenRef.current);
       } else if (block.code.startsWith('wait:')) {
         const ms = parseInt(block.code.split(':')[1], 10) || 500;
         setSpeechBubble(`⏳ รอ ${(ms / 1000).toFixed(1)} วินาที...`);
@@ -960,12 +1182,18 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
       }
     }
 
+    // Auto-hide cat after drawing finishes so it never obscures the artwork (unless script explicitly ended with "show")
+    if (autoHideAfterDraw && penTrailsRef.current.length > 0 && lastExplicitVisibility !== 'show') {
+      isSpriteHiddenRef.current = true;
+      setIsSpriteHidden(true);
+    }
+
     setActiveBlockId(null);
     setIsRunning(false);
     addPoints(25);
     onComplete();
     confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
-    drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize);
+    drawStage(penTrailsRef.current, spritePosRef.current, penActive, curColor, curSize, isSpriteHiddenRef.current);
   };
 
   const addBlockToScript = (block: ProgramBlock) => {
@@ -1081,8 +1309,8 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
 
   // Redraw on canvas on any component render or state change
   useEffect(() => {
-    drawStage(penTrailsRef.current, spritePos, isPenDown, penColor, penSize);
-  }, [drawStage, spritePos, penTrails, isPenDown, penColor, penSize]);
+    drawStage(penTrailsRef.current, spritePos, isPenDown, penColor, penSize, isSpriteHidden);
+  }, [drawStage, spritePos, penTrails, isPenDown, penColor, penSize, isSpriteHidden]);
 
   const filteredBlocks = availableBlocks.filter((b) => {
     if (selectedCategory === 'all') return true;
@@ -1111,7 +1339,7 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
 
         {/* Project Presets Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl">
+          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl">
             <span className="text-[11px] font-semibold text-slate-500 px-2">พรีเซ็ตตัวอย่าง:</span>
             <button
               type="button"
@@ -1123,6 +1351,28 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
               }`}
             >
               <span>⏹️ สี่เหลี่ยม (Loop 4)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('triangle')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                activePreset === 'triangle'
+                  ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400 scale-[1.02]'
+                  : 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-300 shadow-sm hover:brightness-105'
+              }`}
+            >
+              <span>🔺 สามเหลี่ยม</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('hexagon')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                activePreset === 'hexagon'
+                  ? 'bg-orange-600 text-white shadow-md ring-2 ring-orange-400 scale-[1.02]'
+                  : 'bg-white dark:bg-slate-700 text-orange-700 dark:text-orange-300 shadow-sm hover:brightness-105'
+              }`}
+            >
+              <span>⬡ หกเหลี่ยม</span>
             </button>
             <button
               type="button"
@@ -1156,6 +1406,28 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
               }`}
             >
               <span>🌸 กังหัน 8 ทิศ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('house')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                activePreset === 'house'
+                  ? 'bg-sky-600 text-white shadow-md ring-2 ring-sky-400 scale-[1.02]'
+                  : 'bg-white dark:bg-slate-700 text-sky-700 dark:text-sky-300 shadow-sm hover:brightness-105'
+              }`}
+            >
+              <span>🏠 บ้านในฝัน</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('spiral')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                activePreset === 'spiral'
+                  ? 'bg-teal-600 text-white shadow-md ring-2 ring-teal-400 scale-[1.02]'
+                  : 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-sm hover:brightness-105'
+              }`}
+            >
+              <span>🌀 ก้นหอยสายรุ้ง</span>
             </button>
             <button
               type="button"
@@ -1207,8 +1479,8 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         {/* Left: Scratch Stage Canvas + Pen Color Selector */}
         <div className="lg:col-span-6 flex flex-col items-center space-y-4">
           {/* Stage Controls Header */}
-          <div className="w-full flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
+          <div className="w-full flex flex-wrap items-center justify-between gap-2 px-1">
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 type="button"
                 onClick={runScript}
@@ -1233,7 +1505,7 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
                 onClick={() => {
                   penTrailsRef.current = [];
                   setPenTrails([]);
-                  drawStage([], spritePos, isPenDown, penColor, penSize);
+                  drawStage([], spritePos, isPenDown, penColor, penSize, isSpriteHidden);
                 }}
                 className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-all cursor-pointer flex items-center gap-1 text-xs font-semibold"
                 title="ลบเฉพาะรอยวาด"
@@ -1241,9 +1513,27 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>ลบรอยวาด</span>
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextHidden = !isSpriteHidden;
+                  isSpriteHiddenRef.current = nextHidden;
+                  setIsSpriteHidden(nextHidden);
+                  drawStage(penTrailsRef.current, spritePos, isPenDown, penColor, penSize, nextHidden);
+                }}
+                className={`p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 text-xs font-semibold border ${
+                  isSpriteHidden
+                    ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                    : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+                title="ซ่อนหรือแสดงตัวละครแมวเพื่อดูภาพที่วาดได้ชัดเจน"
+              >
+                {isSpriteHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                <span>{isSpriteHidden ? 'แสดงแมว' : 'ซ่อนแมว'}</span>
+              </button>
             </div>
 
-            <div className="flex items-center gap-2.5 text-xs text-slate-500 font-mono tabular-nums">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 font-mono tabular-nums">
               <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-sans font-bold text-[11px]">
                 รอยวาด: {penTrails.length} เส้น
               </span>
@@ -1252,6 +1542,22 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
               <span>ทิศ: {spritePos.dir}°</span>
               <span className="font-bold text-indigo-600 dark:text-indigo-400">แต้ม: {score}</span>
             </div>
+          </div>
+
+          {/* Auto-hide toggle indicator */}
+          <div className="w-full max-w-[480px] flex items-center justify-between px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-300">
+            <span>🐱 เมื่อวาดรูปเสร็จ ซ่อนตัวละครแมวอัตโนมัติ (ไม่บังภาพ)</span>
+            <button
+              type="button"
+              onClick={() => setAutoHideAfterDraw((prev) => !prev)}
+              className={`px-2.5 py-0.5 rounded-lg font-bold transition-colors cursor-pointer ${
+                autoHideAfterDraw
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              {autoHideAfterDraw ? 'เปิดอยู่' : 'ปิด'}
+            </button>
           </div>
 
           {/* Interactive Canvas Viewport */}

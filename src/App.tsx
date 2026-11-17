@@ -12,6 +12,7 @@ import { PDPALab } from './components/Module1Safety/PDPALab.tsx';
 import { PDPAPrivacyGenerator } from './components/Module1Safety/PDPAPrivacyGenerator.tsx';
 
 import { PillarsView } from './components/Module2Thinking/PillarsView.tsx';
+import { FlowchartGuideView } from './components/Module2Thinking/FlowchartGuideView.tsx';
 import { ControlStructuresView } from './components/Module2Thinking/ControlStructuresView.tsx';
 import { AlgorithmPuzzleGame } from './components/Module2Thinking/AlgorithmPuzzleGame.tsx';
 
@@ -150,7 +151,7 @@ export default function App() {
 
   // Sub-tab selectors for each module
   const [safetySubTab, setSafetySubTab] = useState<'pdpaLab' | 'pdpa' | 'password' | 'netiquette' | 'quiz' | 'pdpaGenerator'>('pdpaLab');
-  const [thinkingSubTab, setThinkingSubTab] = useState<'pillars' | 'controls' | 'puzzle'>('pillars');
+  const [thinkingSubTab, setThinkingSubTab] = useState<'pillars' | 'flowchart' | 'controls' | 'puzzle'>('pillars');
   const [codingSubTab, setCodingSubTab] = useState<'scratch' | 'microbit' | 'musicLab' | 'examplesGallery'>('scratch');
   const [showcaseSubTab, setShowcaseSubTab] = useState<'gallery' | 'reviews' | 'reflection' | 'dailyJournal'>('gallery');
 
@@ -1846,37 +1847,58 @@ export default function App() {
           </div>
         )}
 
-        {/* ----------------- VIEW 2: COMPUTATIONAL THINKING ----------------- */}
+        {/* ----------------- VIEW 2: COMPUTATIONAL THINKING & FLOWCHART ----------------- */}
         {activeTab === 'thinking' && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl max-w-xl">
+            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl max-w-3xl">
               <button
                 onClick={() => setThinkingSubTab('pillars')}
-                className={`flex-1 min-w-[130px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                  thinkingSubTab === 'pillars' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                className={`flex-1 min-w-[140px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                  thinkingSubTab === 'pillars' ? 'bg-white text-sky-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 1. 4 เสาหลักการคิด
               </button>
               <button
-                onClick={() => setThinkingSubTab('controls')}
-                className={`flex-1 min-w-[130px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                  thinkingSubTab === 'controls' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                onClick={() => setThinkingSubTab('flowchart')}
+                className={`flex-1 min-w-[160px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer flex items-center justify-center gap-1.5 ${
+                  thinkingSubTab === 'flowchart' ? 'bg-white text-indigo-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                2. โครงสร้างควบคุม (3 แบบ)
+                <span>2. ผังงาน Flowchart</span>
+                <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 text-[10px] font-bold">
+                  ป.4–ป.6
+                </span>
+              </button>
+              <button
+                onClick={() => setThinkingSubTab('controls')}
+                className={`flex-1 min-w-[150px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                  thinkingSubTab === 'controls' ? 'bg-white text-sky-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                3. โครงสร้างควบคุม 3 แบบ
               </button>
               <button
                 onClick={() => setThinkingSubTab('puzzle')}
-                className={`flex-1 min-w-[130px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                  thinkingSubTab === 'puzzle' ? 'bg-white text-sky-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                className={`flex-1 min-w-[150px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                  thinkingSubTab === 'puzzle' ? 'bg-white text-sky-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                3. เกมแก้ปัญหาเขาวงกต
+                4. เกมแก้ปัญหาเขาวงกต (5 ด่าน)
               </button>
             </div>
 
-            {thinkingSubTab === 'pillars' && <PillarsView />}
+            {thinkingSubTab === 'pillars' && (
+              <PillarsView
+                onOpenFlowchart={() => setThinkingSubTab('flowchart')}
+                onOpenControlStructures={() => setThinkingSubTab('controls')}
+              />
+            )}
+            {thinkingSubTab === 'flowchart' && (
+              <FlowchartGuideView
+                addPoints={(pts) => addPoints(pts, 'ทำแบบฝึกหัดผังงาน Flowchart ป.4-ป.6 ผ่าน', 'thinking')}
+              />
+            )}
             {thinkingSubTab === 'controls' && <ControlStructuresView />}
             {thinkingSubTab === 'puzzle' && (
               <AlgorithmPuzzleGame
