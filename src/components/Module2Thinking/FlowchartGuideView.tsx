@@ -23,6 +23,7 @@ import {
   ZoomOut,
   ImageDown,
   FileJson,
+  HelpCircle,
 } from 'lucide-react';
 
 interface FlowchartGuideViewProps {
@@ -389,6 +390,8 @@ interface EditorPaletteItem {
   defaultLabel: string;
   badgeText: string;
   cardClass: string;
+  tooltipFunction: string;
+  tooltipBestUse: string;
 }
 
 const EDITOR_PALETTE: EditorPaletteItem[] = [
@@ -400,6 +403,8 @@ const EDITOR_PALETTE: EditorPaletteItem[] = [
     defaultLabel: 'เริ่มต้นการทำงาน (Start)',
     badgeText: 'Terminator',
     cardClass: 'bg-rose-50 border-rose-300 text-rose-900',
+    tooltipFunction: 'ใช้บอกจุดเริ่มต้นการทำงานของโปรแกรมหรือผังงานทุกชิ้น',
+    tooltipBestUse: 'วางเป็นกล่องแรกสุดเสมอ (เช่น "เริ่มต้นทำแซนด์วิช" หรือ "เปิดระบบไฟอัตโนมัติ")',
   },
   {
     kind: 'input',
@@ -409,6 +414,8 @@ const EDITOR_PALETTE: EditorPaletteItem[] = [
     defaultLabel: 'รับค่าข้อมูลจากผู้ใช้',
     badgeText: 'Input',
     cardClass: 'bg-sky-50 border-sky-300 text-sky-900',
+    tooltipFunction: 'ใช้รับข้อมูล คำสั่ง หรือค่าจากเซ็นเซอร์และผู้ใช้เข้าสู่โปรแกรม',
+    tooltipBestUse: 'ใช้เมื่อต้องถามข้อมูลหรือวัดค่าก่อนคิด (เช่น กดปุ่ม A, พิมพ์คะแนน, อ่านค่าความชื้นดิน)',
   },
   {
     kind: 'process',
@@ -418,6 +425,8 @@ const EDITOR_PALETTE: EditorPaletteItem[] = [
     defaultLabel: 'คำนวณหรือทำงานตามคำสั่ง',
     badgeText: 'Process',
     cardClass: 'bg-indigo-50 border-indigo-300 text-indigo-900',
+    tooltipFunction: 'ใช้สั่งงานให้ทำตามขั้นตอนหรือคำนวณเปลี่ยนแปลงค่าต่างๆ',
+    tooltipBestUse: 'ใช้สำหรับทุกการกระทำหรือสูตรคำนวณ (เช่น บวกคะแนน +1, เปิดปั๊มน้ำ, เดินหน้า 10 ก้าว)',
   },
   {
     kind: 'decision',
@@ -427,6 +436,8 @@ const EDITOR_PALETTE: EditorPaletteItem[] = [
     defaultLabel: 'ตรวจสอบเงื่อนไข ใช่หรือไม่?',
     badgeText: 'Decision ◇',
     cardClass: 'bg-amber-50 border-amber-400 text-amber-900',
+    tooltipFunction: 'ใช้ตั้งคำถามเพื่อตัดสินใจแยกเส้นทางเป็น 2 ทาง คือ "ใช่ (True)" หรือ "ไม่ใช่ (False)"',
+    tooltipBestUse: 'ใช้เมื่อต้องเปรียบเทียบหรือทำซ้ำ Loop (เช่น คะแนน >= 50?, ฝนตกไหม?, ตัวนับ <= 5?)',
   },
   {
     kind: 'output',
@@ -436,6 +447,8 @@ const EDITOR_PALETTE: EditorPaletteItem[] = [
     defaultLabel: 'แสดงผลลัพธ์บนหน้าจอ',
     badgeText: 'Output',
     cardClass: 'bg-cyan-50 border-cyan-300 text-cyan-900',
+    tooltipFunction: 'ใช้แสดงคำตอบ ข้อความ เสียง หรือสัญญาณไฟให้ผู้ใช้งานเห็นผลลัพธ์',
+    tooltipBestUse: 'ใช้เมื่อต้องการโชว์ผลหลังประมวลผลเสร็จ (เช่น แสดงคำว่า "สอบผ่าน!", โชว์ไอคอนหัวใจบน LED)',
   },
   {
     kind: 'end',
@@ -445,6 +458,8 @@ const EDITOR_PALETTE: EditorPaletteItem[] = [
     defaultLabel: 'จบการทำงาน (End)',
     badgeText: 'Terminator',
     cardClass: 'bg-rose-50 border-rose-300 text-rose-900',
+    tooltipFunction: 'ใช้บอกจุดจบการทำงานของผังงานเมื่อทำครบทุกขั้นตอนแล้ว',
+    tooltipBestUse: 'วางเป็นกล่องสุดท้ายเสมอ เพื่อปิดการทำงานให้สมบูรณ์ไม่ค้างกลางทาง',
   },
 ];
 
@@ -2179,8 +2194,14 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left: Draggable Symbol Palette */}
           <div className="lg:col-span-4 space-y-2.5">
-            <div className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-1">
-              1. คลังสัญลักษณ์ (ลากไปวาง หรือคลิกเพิ่ม)
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                1. คลังสัญลักษณ์ (ลากไปวาง หรือคลิกเพิ่ม)
+              </div>
+              <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1 shrink-0">
+                <HelpCircle className="w-3 h-3 text-indigo-500" />
+                <span>ชี้เพื่อดูวิธีใช้</span>
+              </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
               {EDITOR_PALETTE.map((item) => (
@@ -2197,8 +2218,8 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                     setIsCanvasDragOver(false);
                   }}
                   onClick={() => addNodeToCanvas(item.kind)}
-                  className={`p-3 rounded-xl border-2 flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing hover:shadow-sm transition-all select-none ${item.cardClass}`}
-                  title="ลากไปวางบนกระดาน หรือคลิกเพื่อเพิ่มต่อท้าย"
+                  className={`group relative p-3 rounded-xl border-2 flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing hover:shadow-sm transition-all select-none ${item.cardClass}`}
+                  aria-label={`${item.nameTh}: ${item.tooltipFunction}`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <GripVertical className="w-4 h-4 opacity-50 shrink-0" />
@@ -2209,9 +2230,41 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                       <div className="text-[10px] opacity-75">{item.badgeText}</div>
                     </div>
                   </div>
-                  <span className="w-6 h-6 rounded-lg bg-white/80 flex items-center justify-center shrink-0">
-                    <Plus className="w-3.5 h-3.5" />
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span
+                      className="w-5 h-5 rounded-full bg-white/70 text-slate-500 flex items-center justify-center group-hover:text-indigo-600 transition-colors"
+                      aria-hidden="true"
+                    >
+                      <HelpCircle className="w-3.5 h-3.5" />
+                    </span>
+                    <span className="w-6 h-6 rounded-lg bg-white/80 flex items-center justify-center">
+                      <Plus className="w-3.5 h-3.5" />
+                    </span>
+                  </div>
+
+                  {/* Hoverable Educational Tooltip */}
+                  <div
+                    role="tooltip"
+                    className="pointer-events-none invisible opacity-0 group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100 transition-all duration-150 absolute z-30 bottom-full left-0 mb-2 w-72 sm:w-80 p-3 rounded-xl bg-slate-900 text-white shadow-xl border border-slate-700 text-left"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 mb-1.5">
+                      <span>{item.visualEmoji}</span>
+                      <span>{item.nameTh}</span>
+                    </div>
+                    <div className="space-y-1.5 text-[11px] leading-relaxed">
+                      <div>
+                        <span className="font-bold text-sky-300">หน้าที่: </span>
+                        <span className="text-slate-100">{item.tooltipFunction}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold text-emerald-300">ใช้ตอนไหนดีที่สุด: </span>
+                        <span className="text-slate-200">{item.tooltipBestUse}</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 pt-1.5 border-t border-slate-700/80 text-[10px] text-slate-400">
+                      💡 ลากไปวางบนกระดาน หรือคลิกเพื่อเพิ่มต่อท้ายได้เลย
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -2392,10 +2445,11 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                       nodeColor = 'bg-sky-50 border-sky-400 text-sky-950';
                     }
 
+                    const paletteInfo = EDITOR_PALETTE.find((p) => p.kind === node.kind);
                     const kindLabel =
                       symbolDisplayMode === 'visual'
-                        ? EDITOR_PALETTE.find((p) => p.kind === node.kind)?.visualName
-                        : EDITOR_PALETTE.find((p) => p.kind === node.kind)?.nameTh;
+                        ? paletteInfo?.visualName
+                        : paletteInfo?.nameTh;
 
                     return (
                       <React.Fragment key={node.uid}>
@@ -2431,11 +2485,40 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                           }`}
                         >
                           <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold opacity-80">
+                            <div className="relative group/nodeinfo inline-flex items-center gap-1.5 text-[10px] font-bold opacity-85">
                               <GripVertical className="w-3.5 h-3.5 cursor-grab" />
                               <span>
                                 #{idx + 1} · {kindLabel}
                               </span>
+                              {paletteInfo && (
+                                <>
+                                  <span
+                                    tabIndex={0}
+                                    className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-white/75 text-slate-600 hover:text-indigo-700 cursor-help focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    aria-label={`คำอธิบายสัญลักษณ์ ${paletteInfo.nameTh}`}
+                                  >
+                                    <HelpCircle className="w-3 h-3" />
+                                  </span>
+                                  <div
+                                    role="tooltip"
+                                    className={`pointer-events-none invisible opacity-0 group-hover/nodeinfo:visible group-hover/nodeinfo:opacity-100 group-focus-within/nodeinfo:visible group-focus-within/nodeinfo:opacity-100 transition-all duration-150 absolute z-30 left-0 w-64 sm:w-72 p-2.5 rounded-xl bg-slate-900 text-white shadow-xl border border-slate-700 text-left font-normal ${
+                                      idx === 0 ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
+                                    }`}
+                                  >
+                                    <div className="text-[11px] font-bold text-amber-300 mb-1">
+                                      {paletteInfo.visualEmoji} {paletteInfo.nameTh}
+                                    </div>
+                                    <div className="text-[10px] leading-relaxed text-slate-100">
+                                      <strong className="text-sky-300">หน้าที่: </strong>
+                                      {paletteInfo.tooltipFunction}
+                                    </div>
+                                    <div className="text-[10px] leading-relaxed text-slate-200 mt-1">
+                                      <strong className="text-emerald-300">ใช้ตอนไหน: </strong>
+                                      {paletteInfo.tooltipBestUse}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
                             </div>
                             <div className="flex items-center gap-1">
                               <button
