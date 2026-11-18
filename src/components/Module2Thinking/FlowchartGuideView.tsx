@@ -1620,6 +1620,9 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
   const [editorActiveEdge, setEditorActiveEdge] = useState<number | null>(null);
   const [editorRunPassedCount, setEditorRunPassedCount] = useState<number>(0);
   const [editorIsRunning, setEditorIsRunning] = useState<boolean>(false);
+  const [isStepThroughMode, setIsStepThroughMode] = useState<boolean>(false);
+  const pythonScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const activePythonRowRef = React.useRef<HTMLDivElement | null>(null);
   const [editorRewarded, setEditorRewarded] = useState<boolean>(false);
   const [exportFeedback, setExportFeedback] = useState<string | null>(null);
   const [shareableLinkPreview, setShareableLinkPreview] = useState<string | null>(null);
@@ -1823,6 +1826,8 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
 
   const commitEditorNodes = (computeNext: (curr: EditorNode[]) => EditorNode[]) => {
     lastTextEditMetaRef.current = { key: '', time: 0 };
+    setIsStepThroughMode(false);
+    setEditorActiveStep(null);
     setEditorActiveEdge(null);
     setEditorRunPassedCount(0);
     setEditorHistory((prev) => {
@@ -1839,6 +1844,7 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
   const handleUndo = () => {
     if (!canUndo) return;
     lastTextEditMetaRef.current = { key: '', time: 0 };
+    setIsStepThroughMode(false);
     setEditorHistory((prev) => {
       if (prev.past.length === 0) return prev;
       const previous = prev.past[prev.past.length - 1];
@@ -1857,6 +1863,7 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
   const handleRedo = () => {
     if (!canRedo) return;
     lastTextEditMetaRef.current = { key: '', time: 0 };
+    setIsStepThroughMode(false);
     setEditorHistory((prev) => {
       if (prev.future.length === 0) return prev;
       const next = prev.future[0];
@@ -1891,6 +1898,7 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
     setActiveTemplateId(null);
     setActiveMissionId('mission_free');
     setEditorValidation(null);
+    setIsStepThroughMode(false);
     setEditorActiveStep(null);
     setEditorActiveEdge(null);
     setEditorRunPassedCount(0);
@@ -2678,6 +2686,8 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
       lastTextEditMetaRef.current.key === editKey && now - lastTextEditMetaRef.current.time < 1000;
     lastTextEditMetaRef.current = { key: editKey, time: now };
 
+    setIsStepThroughMode(false);
+    setEditorActiveStep(null);
     setEditorActiveEdge(null);
     setEditorRunPassedCount(0);
     setEditorHistory((prev) => {
@@ -2748,6 +2758,7 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
       )
     );
     setEditorValidation(null);
+    setIsStepThroughMode(false);
     setEditorActiveStep(null);
     setEditorActiveEdge(null);
     setEditorRunPassedCount(0);
@@ -2770,10 +2781,11 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
         true
       )
     );
+    setIsStepThroughMode(false);
     setEditorActiveStep(null);
     setEditorValidation({
       valid: true,
-      message: `✨ โหลดแม่แบบ "${tpl.patternTag}" ลงกระดานเรียบร้อยแล้ว! ลองแก้ไขข้อความ ลากจัดวางบนตาราง หรือกด "ตรวจ & รันผังงาน" ได้เลย`,
+      message: `✨ โหลดแม่แบบ "${tpl.patternTag}" ลงกระดานเรียบร้อยแล้ว! ลองแก้ไขข้อความ ลากจัดวางบนตาราง กด "ทีละขั้น (Next)" หรือ "ตรวจ & รันผังงาน" ได้เลย`,
       tips: [`โครงสร้างแม่แบบ: ${tpl.previewFlow}`],
     });
   };
@@ -2828,9 +2840,104 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
     });
   };
 
+  const collectFlowchartValidationTips = (nodes: EditorNode[]): string[] => {
+    const tips: string[] = [];
+    if (nodes[0]?.kind !== 'start') {
+      tips.push('กล่องแรกสุดควรเป็น "จุดเริ่มต้น (Start)" รูปวงรีครับ');
+    }
+    if (nodes[nodes.length - 1]?.kind !== 'end') {
+      tips.push('กล่องสุดท้ายควรเป็น "จุดสิ้นสุด (End)" รูปวงรีครับ');
+    }
+    const middleNodes = nodes.slice(1, -1);
+    if (nodes.length < 3 || middleNodes.length === 0) {
+      tips.push('ควรมีขั้นตอนการทำงาน (Process / Input / Decision / Output) อย่างน้อย 1 กล่องระหว่างจุดเริ่มต้นและสิ้นสุด');
+    }
+    if (activeMissionId === 'mission_door' && !nodes.some((n) => n.kind === 'decision')) {
+      tips.push('ภารกิจประตูอัตโนมัติต้องมีกล่อง "ตรวจสอบเงื่อนไข (Decision ◇)" ด้วยนะครับ');
+    }
+    return tips;
+  };
+
+  const finalizeTraceValidation = (tips: string[], isManualStep: boolean) => {
+    if (tips.length === 0) {
+      setEditorValidation({
+        valid: true,
+        message: isManualStep
+          ? `🎉 แกะรอยทีละขั้นจนจบครบทั้ง ${editorNodes.length} ขั้นตอนแล้ว! โครงสร้างผังงานถูกต้องตามกฎทอง`
+          : `🎉 ยอดเยี่ยมมาก! ผังงานของคุณมีโครงสร้างถูกต้องตามกฎทองครบทุกข้อ (ทั้งหมด ${editorNodes.length} ขั้นตอน)`,
+        tips: ['ลองบันทึกภาพหน้าจอ คัดลอกโค้ด Python ไปรัน หรืออธิบายลำดับขั้นให้เพื่อนฟังได้เลย!'],
+      });
+      if (!editorRewarded && addPoints) {
+        setEditorRewarded(true);
+        addPoints(25);
+      }
+    } else {
+      setEditorValidation({
+        valid: false,
+        message: isManualStep
+          ? 'แกะรอยครบทุกกล่องแล้ว แต่ยังปรับให้สมบูรณ์ตามกฎ Flowchart ได้อีกนิดนะ:'
+          : 'ผังงานรันจบแล้ว แต่ยังปรับให้สมบูรณ์ตามกฎ Flowchart ได้อีกนิดนะ:',
+        tips,
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (editorActiveStep === null) return;
+    const container = pythonScrollRef.current;
+    const activeRow = activePythonRowRef.current;
+    if (!container || !activeRow) return;
+    const targetTop = activeRow.offsetTop - container.clientHeight / 2 + activeRow.clientHeight / 2;
+    container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+  }, [editorActiveStep]);
+
+  const handleResetStepThrough = () => {
+    setIsStepThroughMode(false);
+    setEditorActiveStep(null);
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
+  };
+
+  const handleStepThroughNext = () => {
+    if (editorIsRunning) return;
+    if (editorNodes.length === 0) {
+      setEditorValidation({
+        valid: false,
+        message: 'ผังงานยังว่างอยู่เลย! ลองลากสัญลักษณ์จากด้านซ้ายมาวางบนกระดานก่อนนะครับ',
+        tips: ['ต้องมีจุดเริ่มต้น (Start) และจุดสิ้นสุด (End)'],
+      });
+      return;
+    }
+
+    setShowPythonPanel(true);
+
+    if (!isStepThroughMode || editorActiveStep === null) {
+      setIsStepThroughMode(true);
+      setEditorValidation(null);
+      setEditorActiveStep(0);
+      setEditorActiveEdge(null);
+      setEditorRunPassedCount(0);
+      return;
+    }
+
+    const nextIdx = editorActiveStep + 1;
+    if (nextIdx < editorNodes.length) {
+      setEditorActiveStep(nextIdx);
+      setEditorActiveEdge(nextIdx - 1);
+      setEditorRunPassedCount(Math.max(0, nextIdx - 1));
+      return;
+    }
+
+    const tips = collectFlowchartValidationTips(editorNodes);
+    setIsStepThroughMode(false);
+    setEditorActiveStep(null);
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
+    finalizeTraceValidation(tips, true);
+  };
+
   const validateAndRunEditorFlowchart = async () => {
     if (editorIsRunning) return;
-    const tips: string[] = [];
 
     if (editorNodes.length === 0) {
       setEditorValidation({
@@ -2841,22 +2948,11 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
       return;
     }
 
-    if (editorNodes[0].kind !== 'start') {
-      tips.push('กล่องแรกสุดควรเป็น "จุดเริ่มต้น (Start)" รูปวงรีครับ');
-    }
-    if (editorNodes[editorNodes.length - 1].kind !== 'end') {
-      tips.push('กล่องสุดท้ายควรเป็น "จุดสิ้นสุด (End)" รูปวงรีครับ');
-    }
-    const middleNodes = editorNodes.slice(1, -1);
-    if (editorNodes.length < 3 || middleNodes.length === 0) {
-      tips.push('ควรมีขั้นตอนการทำงาน (Process / Input / Decision / Output) อย่างน้อย 1 กล่องระหว่างจุดเริ่มต้นและสิ้นสุด');
-    }
-    if (activeMissionId === 'mission_door' && !editorNodes.some((n) => n.kind === 'decision')) {
-      tips.push('ภารกิจประตูอัตโนมัติต้องมีกล่อง "ตรวจสอบเงื่อนไข (Decision ◇)" ด้วยนะครับ');
-    }
+    const tips = collectFlowchartValidationTips(editorNodes);
 
     // Run step-by-step highlight & animated connection flow through student's logic chain
     const runToken = ++editorRunTokenRef.current;
+    setIsStepThroughMode(false);
     setEditorIsRunning(true);
     setEditorValidation(null);
     setEditorActiveEdge(null);
@@ -2881,24 +2977,7 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
     setEditorActiveEdge(null);
     setEditorActiveStep(null);
     setEditorIsRunning(false);
-
-    if (tips.length === 0) {
-      setEditorValidation({
-        valid: true,
-        message: `🎉 ยอดเยี่ยมมาก! ผังงานของคุณมีโครงสร้างถูกต้องตามกฎทองครบทุกข้อ (ทั้งหมด ${editorNodes.length} ขั้นตอน)`,
-        tips: ['ลองบันทึกภาพหน้าจอหรืออธิบายลำดับขั้นให้เพื่อนฟังได้เลย!'],
-      });
-      if (!editorRewarded && addPoints) {
-        setEditorRewarded(true);
-        addPoints(25);
-      }
-    } else {
-      setEditorValidation({
-        valid: false,
-        message: 'ผังงานรันจบแล้ว แต่ยังปรับให้สมบูรณ์ตามกฎ Flowchart ได้อีกนิดนะ:',
-        tips,
-      });
-    }
+    finalizeTraceValidation(tips, false);
   };
 
   const renderFlowNodeBox = (node: FlowchartStepNode, idx: number) => {
@@ -3703,15 +3782,69 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                 </button>
                 <button
                   type="button"
+                  disabled={editorIsRunning || editorNodes.length === 0}
+                  onClick={handleStepThroughNext}
+                  title="โหมดแกะรอยทีละขั้น (Step-through) — คลิก Next เพื่อรันทีละบล็อกและดูไฮไลต์โค้ด Python ตามจริง"
+                  className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border text-xs font-bold shadow-xs transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
+                    isStepThroughMode
+                      ? 'bg-amber-500 hover:bg-amber-600 border-amber-600 text-white'
+                      : 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800'
+                  }`}
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                  <span>
+                    {!isStepThroughMode
+                      ? 'ทีละขั้น (Next)'
+                      : editorActiveStep !== null && editorActiveStep >= editorNodes.length - 1
+                      ? 'จบการแกะรอย (Finish)'
+                      : `ถัดไป (Next ${(editorActiveStep ?? 0) + 1}/${editorNodes.length})`}
+                  </span>
+                </button>
+                {isStepThroughMode && (
+                  <button
+                    type="button"
+                    onClick={handleResetStepThrough}
+                    title="ออกจากโหมดแกะรอยทีละขั้น"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span>ออกโหมดทีละขั้น</span>
+                  </button>
+                )}
+                <button
+                  type="button"
                   disabled={editorIsRunning}
                   onClick={validateAndRunEditorFlowchart}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-50"
                 >
                   <Play className="w-3.5 h-3.5" />
                   <span>{editorIsRunning ? 'กำลังรันทีละขั้น...' : 'ตรวจ & รันผังงาน'}</span>
                 </button>
               </div>
             </div>
+
+            {isStepThroughMode && editorActiveStep !== null && editorNodes[editorActiveStep] && (
+              <div className="mb-2.5 px-3.5 py-2.5 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-bold flex flex-wrap items-center gap-2">
+                    <span className="text-amber-700 tabular-nums">
+                      กำลังแกะรอยขั้นที่ {editorActiveStep + 1} / {editorNodes.length}
+                    </span>
+                    <span className="text-amber-400" aria-hidden="true">·</span>
+                    <span className="truncate">{editorNodes[editorActiveStep].label}</span>
+                  </div>
+                  {editorNodes[editorActiveStep].kind === 'decision' && (
+                    <div className="mt-1 text-[11px] text-amber-800 flex flex-wrap gap-x-3 gap-y-0.5">
+                      <span>✔️ ใช่: {editorNodes[editorActiveStep].trueAction || '-'}</span>
+                      <span>❌ ไม่ใช่: {editorNodes[editorActiveStep].falseAction || '-'}</span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-[11px] font-semibold text-indigo-700 shrink-0">
+                  กด &quot;ถัดไป (Next)&quot; เพื่อไปบล็อกถัดไป
+                </span>
+              </div>
+            )}
 
             {exportFeedback && (
               <div className="mb-2.5 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 space-y-2">
@@ -4242,6 +4375,14 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                   <span className="text-xs text-slate-300 font-medium tabular-nums">
                     {editorNodes.length} บล็อก / {pythonLines.length} บรรทัด
                   </span>
+                  {editorActiveStep !== null && (
+                    <>
+                      <span className="text-slate-500" aria-hidden="true">·</span>
+                      <span className="text-xs font-semibold text-amber-300 tabular-nums">
+                        กำลังทำงาน: ขั้นที่ {editorActiveStep + 1} / {editorNodes.length}
+                      </span>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -4301,28 +4442,37 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
 
               {showPythonPanel && (
                 <>
-                  <div className="p-3 sm:p-4 max-h-[300px] overflow-auto font-mono text-xs leading-relaxed">
-                    {pythonLines.map((lineObj, lineIdx) => {
-                      const isActiveLine =
-                        editorActiveStep !== null && lineObj.nodeIdx === editorActiveStep;
-                      return (
-                        <div
-                          key={lineIdx}
-                          className={`flex items-start gap-3 px-2 py-0.5 rounded transition-colors ${
-                            isActiveLine
-                              ? 'bg-indigo-500/25 ring-1 ring-indigo-400/50'
-                              : 'hover:bg-slate-800/60'
-                          }`}
-                        >
-                          <span className="w-7 text-right select-none text-slate-500 shrink-0 tabular-nums">
-                            {lineIdx + 1}
-                          </span>
-                          <pre className="whitespace-pre font-mono flex-1 overflow-x-auto">
-                            {lineObj.text ? highlightFlowchartPythonLine(lineObj.text) : ' '}
-                          </pre>
-                        </div>
-                      );
-                    })}
+                  <div
+                    ref={pythonScrollRef}
+                    className="p-3 sm:p-4 max-h-[300px] overflow-auto font-mono text-xs leading-relaxed"
+                  >
+                    {(() => {
+                      let attachedActiveRef = false;
+                      return pythonLines.map((lineObj, lineIdx) => {
+                        const isActiveLine =
+                          editorActiveStep !== null && lineObj.nodeIdx === editorActiveStep;
+                        const assignRef = isActiveLine && !attachedActiveRef;
+                        if (assignRef) attachedActiveRef = true;
+                        return (
+                          <div
+                            key={lineIdx}
+                            ref={assignRef ? activePythonRowRef : undefined}
+                            className={`flex items-start gap-3 px-2 py-0.5 rounded transition-colors ${
+                              isActiveLine
+                                ? 'bg-indigo-500/25 ring-1 ring-indigo-400/50'
+                                : 'hover:bg-slate-800/60'
+                            }`}
+                          >
+                            <span className="w-7 text-right select-none text-slate-500 shrink-0 tabular-nums">
+                              {lineIdx + 1}
+                            </span>
+                            <pre className="whitespace-pre font-mono flex-1 overflow-x-auto">
+                              {lineObj.text ? highlightFlowchartPythonLine(lineObj.text) : ' '}
+                            </pre>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
 
                   <div className="px-4 sm:px-5 py-2.5 bg-slate-950/60 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
