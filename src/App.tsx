@@ -10,15 +10,18 @@ import { NetiquetteScenarios } from './components/Module1Safety/NetiquetteScenar
 import { SafetyQuiz } from './components/Module1Safety/SafetyQuiz.tsx';
 import { PDPALab } from './components/Module1Safety/PDPALab.tsx';
 import { PDPAPrivacyGenerator } from './components/Module1Safety/PDPAPrivacyGenerator.tsx';
+import { InternetSearchLab } from './components/Module1Safety/InternetSearchLab.tsx';
 
 import { PillarsView } from './components/Module2Thinking/PillarsView.tsx';
 import { FlowchartGuideView } from './components/Module2Thinking/FlowchartGuideView.tsx';
 import { ControlStructuresView } from './components/Module2Thinking/ControlStructuresView.tsx';
 import { AlgorithmPuzzleGame } from './components/Module2Thinking/AlgorithmPuzzleGame.tsx';
+import { LogicAndStoryboardLab } from './components/Module2Thinking/LogicAndStoryboardLab.tsx';
 
 import { ScratchStudio } from './components/Module3CodingLab/ScratchStudio.tsx';
 import { MicrobitSimulator } from './components/Module3CodingLab/MicrobitSimulator.tsx';
 import { CodeExamplesGallery } from './components/Module3CodingLab/CodeExamplesGallery.tsx';
+import { CodeDebuggingLab } from './components/Module3CodingLab/CodeDebuggingLab.tsx';
 
 import { ShowcaseGallery } from './components/Module4Showcase/ShowcaseGallery.tsx';
 import { SubmitProjectModal } from './components/Module4Showcase/SubmitProjectModal.tsx';
@@ -26,6 +29,7 @@ import { PeerReviewWall } from './components/Module4Showcase/PeerReviewWall.tsx'
 import { ReflectionJournal } from './components/Module4Showcase/ReflectionJournal.tsx';
 import { DailyJournal } from './components/Module4Showcase/DailyJournal.tsx';
 import { CertificateModal } from './components/Module4Showcase/CertificateModal.tsx';
+import { DataProcessingLab } from './components/Module4Showcase/DataProcessingLab.tsx';
 
 // 4 New Systems
 import { ProfileModal } from './components/ProfileModal.tsx';
@@ -147,13 +151,24 @@ const isLegacyMockProfile = (p?: any): boolean => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const hasSharedFlowchart =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fc');
+
+  const [activeTab, setActiveTab] = useState<string>(hasSharedFlowchart ? 'thinking' : 'dashboard');
 
   // Sub-tab selectors for each module
-  const [safetySubTab, setSafetySubTab] = useState<'pdpaLab' | 'pdpa' | 'password' | 'netiquette' | 'quiz' | 'pdpaGenerator'>('pdpaLab');
-  const [thinkingSubTab, setThinkingSubTab] = useState<'pillars' | 'flowchart' | 'controls' | 'puzzle'>('pillars');
-  const [codingSubTab, setCodingSubTab] = useState<'scratch' | 'microbit' | 'musicLab' | 'examplesGallery'>('scratch');
-  const [showcaseSubTab, setShowcaseSubTab] = useState<'gallery' | 'reviews' | 'reflection' | 'dailyJournal'>('gallery');
+  const [safetySubTab, setSafetySubTab] = useState<
+    'pdpaLab' | 'pdpa' | 'password' | 'netiquette' | 'quiz' | 'pdpaGenerator' | 'searchLab'
+  >('pdpaLab');
+  const [thinkingSubTab, setThinkingSubTab] = useState<
+    'pillars' | 'flowchart' | 'controls' | 'puzzle' | 'logicLab'
+  >(hasSharedFlowchart ? 'flowchart' : 'pillars');
+  const [codingSubTab, setCodingSubTab] = useState<
+    'scratch' | 'microbit' | 'musicLab' | 'examplesGallery' | 'debugLab'
+  >('scratch');
+  const [showcaseSubTab, setShowcaseSubTab] = useState<
+    'gallery' | 'reviews' | 'reflection' | 'dailyJournal' | 'dataLab'
+  >('gallery');
 
   // Student Profiles State for Multi-Profile Management (เพิ่ม, ลบ, แก้ไข, สลับ)
   // ลบโปรไฟล์เริ่มต้นของระบบออกทั้งหมด ข้อมูลจะถูกดึงอัตโนมัติจากแท็บ Students ใน Google Sheet
@@ -1754,10 +1769,10 @@ export default function App() {
           />
         )}
 
-        {/* ----------------- VIEW 1: DIGITAL SAFETY & PDPA ----------------- */}
+        {/* ----------------- VIEW 1: DIGITAL SAFETY, SEARCH & PDPA ----------------- */}
         {activeTab === 'safety' && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 dark:bg-slate-800 rounded-2xl max-w-4xl">
+            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 dark:bg-slate-800 rounded-2xl max-w-5xl">
               <button
                 onClick={() => setSafetySubTab('pdpaLab')}
                 className={`flex-1 min-w-[130px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap flex items-center justify-center gap-1.5 ${
@@ -1791,12 +1806,22 @@ export default function App() {
                 4. มารยาทดิจิทัล
               </button>
               <button
+                onClick={() => setSafetySubTab('searchLab')}
+                className={`flex-1 min-w-[160px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap flex items-center justify-center gap-1.5 ${
+                  safetySubTab === 'searchLab'
+                    ? 'bg-white text-emerald-700 shadow-sm font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>🔍 5. ค้นหาข้อมูลขั้นสูง (ป.6/3)</span>
+              </button>
+              <button
                 onClick={() => setSafetySubTab('quiz')}
                 className={`flex-1 min-w-[100px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
                   safetySubTab === 'quiz' ? 'bg-white text-emerald-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                5. แบบทดสอบ
+                6. แบบทดสอบ
               </button>
               <button
                 onClick={() => setSafetySubTab('pdpaGenerator')}
@@ -1806,7 +1831,7 @@ export default function App() {
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>📜 6. สร้างหนังสือยินยอม PDPA</span>
+                <span>📜 7. สร้างหนังสือยินยอม PDPA</span>
                 <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
                   PDF
                 </span>
@@ -1831,6 +1856,12 @@ export default function App() {
             {safetySubTab === 'netiquette' && (
               <NetiquetteScenarios addPoints={(pts) => addPoints(pts, 'ตอบสถานการณ์มารยาทดิจิทัลถูกต้อง', 'safety')} />
             )}
+            {safetySubTab === 'searchLab' && (
+              <InternetSearchLab
+                onComplete={() => markModuleComplete('safety')}
+                addPoints={(pts, reason) => addPoints(pts, reason || 'ฝึกสืบค้นและประเมินข้อมูล ป.6/3 สำเร็จ', 'safety')}
+              />
+            )}
             {safetySubTab === 'quiz' && (
               <SafetyQuiz
                 onComplete={() => markModuleComplete('safety')}
@@ -1850,7 +1881,7 @@ export default function App() {
         {/* ----------------- VIEW 2: COMPUTATIONAL THINKING & FLOWCHART ----------------- */}
         {activeTab === 'thinking' && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl max-w-5xl">
               <button
                 onClick={() => setThinkingSubTab('pillars')}
                 className={`flex-1 min-w-[140px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
@@ -1884,7 +1915,15 @@ export default function App() {
                   thinkingSubTab === 'puzzle' ? 'bg-white text-sky-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                4. เกมแก้ปัญหาเขาวงกต (5 ด่าน)
+                4. เกมเขาวงกต (5 ด่าน)
+              </button>
+              <button
+                onClick={() => setThinkingSubTab('logicLab')}
+                className={`flex-1 min-w-[170px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap cursor-pointer ${
+                  thinkingSubTab === 'logicLab' ? 'bg-white text-sky-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                🧠 5. ตรรกะ · OX/Sudoku · สตอรีบอร์ด
               </button>
             </div>
 
@@ -1906,13 +1945,19 @@ export default function App() {
                 addPoints={(pts) => addPoints(pts, 'พิชิตด่านหุ่นยนต์แก้ปัญหาเขาวงกต', 'thinking')}
               />
             )}
+            {thinkingSubTab === 'logicLab' && (
+              <LogicAndStoryboardLab
+                onComplete={() => markModuleComplete('thinking')}
+                addPoints={(pts, reason) => addPoints(pts, reason || 'ฝึกตรรกะ Binary Search และ Storyboard สำเร็จ', 'thinking')}
+              />
+            )}
           </div>
         )}
 
         {/* ----------------- VIEW 3: HANDS-ON CODING LAB ----------------- */}
         {activeTab === 'codingLab' && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl max-w-5xl">
               <button
                 onClick={() => setCodingSubTab('scratch')}
                 className={`flex-1 min-w-[130px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
@@ -1942,14 +1987,19 @@ export default function App() {
               </button>
               <button
                 onClick={() => setCodingSubTab('examplesGallery')}
-                className={`flex-1 min-w-[170px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap flex items-center justify-center gap-1.5 ${
+                className={`flex-1 min-w-[160px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap flex items-center justify-center gap-1.5 ${
                   codingSubTab === 'examplesGallery' ? 'bg-white text-indigo-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <span>📚 4. คลังโจทย์ตัวอย่างโค้ด</span>
-                <span className="px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-[10px] font-bold">
-                  โจทย์ &amp; เฉลย
-                </span>
+              </button>
+              <button
+                onClick={() => setCodingSubTab('debugLab')}
+                className={`flex-1 min-w-[170px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap flex items-center justify-center gap-1.5 ${
+                  codingSubTab === 'debugLab' ? 'bg-white text-rose-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>🐞 5. ห้องจับผิด &amp; แก้บั๊กโค้ด</span>
               </button>
             </div>
 
@@ -1986,17 +2036,23 @@ export default function App() {
                 addPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
               />
             )}
+            {codingSubTab === 'debugLab' && (
+              <CodeDebuggingLab
+                onComplete={() => markModuleComplete('codingLab')}
+                addPoints={(pts, reason) => addPoints(pts, reason || 'แก้บั๊กโค้ดของผู้อื่นสำเร็จ', 'coding')}
+              />
+            )}
           </div>
         )}
 
-        {/* ----------------- VIEW 4: SHOWCASE, COMMUNITY & REFLECTION ----------------- */}
+        {/* ----------------- VIEW 4: SHOWCASE, DATA PROCESSING & REFLECTION ----------------- */}
         {activeTab === 'showcase' && (
           <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl max-w-xl">
+            <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/70 rounded-2xl max-w-5xl">
               <button
                 onClick={() => setShowcaseSubTab('gallery')}
                 className={`flex-1 min-w-[130px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                  showcaseSubTab === 'gallery' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  showcaseSubTab === 'gallery' ? 'bg-white text-purple-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 1. คลังแสดงผลงาน ({projects.length})
@@ -2004,7 +2060,7 @@ export default function App() {
               <button
                 onClick={() => setShowcaseSubTab('reviews')}
                 className={`flex-1 min-w-[130px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                  showcaseSubTab === 'reviews' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  showcaseSubTab === 'reviews' ? 'bg-white text-purple-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 2. กำแพง 2 Stars &amp; Wish
@@ -2012,7 +2068,7 @@ export default function App() {
               <button
                 onClick={() => setShowcaseSubTab('reflection')}
                 className={`flex-1 min-w-[130px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap ${
-                  showcaseSubTab === 'reflection' ? 'bg-white text-purple-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  showcaseSubTab === 'reflection' ? 'bg-white text-purple-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 3. สมุดสะท้อนคิด 3-2-1
@@ -2024,6 +2080,14 @@ export default function App() {
                 }`}
               >
                 <span>🔥 4. บันทึกประจำวัน (Streak {profile.streakDays || 4} วัน)</span>
+              </button>
+              <button
+                onClick={() => setShowcaseSubTab('dataLab')}
+                className={`flex-1 min-w-[175px] py-2 px-3 text-xs font-semibold rounded-xl transition-all whitespace-nowrap flex items-center justify-center gap-1.5 ${
+                  showcaseSubTab === 'dataLab' ? 'bg-white text-purple-700 shadow-sm font-bold' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>📊 5. จัดการข้อมูล &amp; Blog (ป.4/4, ป.5/4)</span>
               </button>
             </div>
 
@@ -2066,6 +2130,13 @@ export default function App() {
                 todayGoal={todayGoal}
                 onSetTodayGoal={handleSetTodayGoal}
                 onToggleTodayGoal={handleToggleTodayGoal}
+              />
+            )}
+
+            {showcaseSubTab === 'dataLab' && (
+              <DataProcessingLab
+                onComplete={() => markModuleComplete('showcase')}
+                addPoints={(pts, reason) => addPoints(pts, reason || 'ประมวลผลและนำเสนอข้อมูล ป.4/4–ป.5/4 สำเร็จ', 'showcase')}
               />
             )}
           </div>

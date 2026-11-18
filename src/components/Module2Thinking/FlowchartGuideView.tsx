@@ -24,6 +24,14 @@ import {
   ImageDown,
   FileJson,
   HelpCircle,
+  Share2,
+  Check,
+  Magnet,
+  AlignCenter,
+  Code2,
+  Copy,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface FlowchartGuideViewProps {
@@ -380,7 +388,82 @@ interface EditorNode {
   label: string;
   trueAction?: string;
   falseAction?: string;
+  x?: number;
+  y?: number;
 }
+
+const CANVAS_GRID_SIZE = 24;
+const CANVAS_LOGICAL_WIDTH = 720;
+const NODE_CARD_WIDTH = 336;
+const CANVAS_PADDING = 24;
+const CENTER_NODE_X = (CANVAS_LOGICAL_WIDTH - NODE_CARD_WIDTH) / 2; // 192px (8 * 24)
+const CONNECTOR_VERTICAL_GAP = 48; // 2 * 24
+
+const getEstimatedNodeHeight = (kind: EditorSymbolKind): number =>
+  kind === 'decision' ? 168 : 96;
+
+const snapCoordinate = (value: number, enabled: boolean, gridSize = CANVAS_GRID_SIZE): number =>
+  enabled ? Math.round(value / gridSize) * gridSize : Math.round(value);
+
+const clampNodePosition = (x: number, y: number): { x: number; y: number } => ({
+  x: Math.max(
+    CANVAS_PADDING,
+    Math.min(CANVAS_LOGICAL_WIDTH - NODE_CARD_WIDTH - CANVAS_PADDING, x)
+  ),
+  y: Math.max(CANVAS_PADDING, y),
+});
+
+const layoutNodesTidily = (
+  nodes: EditorNode[],
+  heightsMap?: Record<string, number>,
+  preserveExplicitX = false
+): EditorNode[] => {
+  let cursorY = CANVAS_PADDING;
+  return nodes.map((node) => {
+    const snappedY = Math.round(cursorY / CANVAS_GRID_SIZE) * CANVAS_GRID_SIZE;
+    const h = heightsMap?.[node.uid] || getEstimatedNodeHeight(node.kind);
+    cursorY = snappedY + h + CONNECTOR_VERTICAL_GAP;
+    const targetX =
+      preserveExplicitX && typeof node.x === 'number' && Number.isFinite(node.x)
+        ? clampNodePosition(snapCoordinate(node.x, true), snappedY).x
+        : CENTER_NODE_X;
+    return {
+      ...node,
+      x: targetX,
+      y: snappedY,
+    };
+  });
+};
+
+const ensureNodeCoordinates = (nodes: EditorNode[], snapEnabled = true): EditorNode[] => {
+  let fallbackY = CANVAS_PADDING;
+  let prevX = CENTER_NODE_X;
+
+  return nodes.map((node) => {
+    const estH = getEstimatedNodeHeight(node.kind);
+    if (
+      typeof node.x === 'number' &&
+      typeof node.y === 'number' &&
+      Number.isFinite(node.x) &&
+      Number.isFinite(node.y)
+    ) {
+      const clamped = clampNodePosition(
+        snapCoordinate(node.x, snapEnabled),
+        snapCoordinate(node.y, snapEnabled)
+      );
+      prevX = clamped.x;
+      fallbackY = Math.max(fallbackY, clamped.y + estH + CONNECTOR_VERTICAL_GAP);
+      return { ...node, x: clamped.x, y: clamped.y };
+    }
+
+    const clamped = clampNodePosition(
+      snapCoordinate(prevX, true),
+      snapCoordinate(fallbackY, true)
+    );
+    fallbackY = clamped.y + estH + CONNECTOR_VERTICAL_GAP;
+    return { ...node, x: clamped.x, y: clamped.y };
+  });
+};
 
 interface EditorPaletteItem {
   kind: EditorSymbolKind;
@@ -660,11 +743,804 @@ const FLOWCHART_TEMPLATES: FlowchartTemplateItem[] = [
       { kind: 'end', label: 'จบการทำงาน (End)' },
     ],
   },
+  {
+    id: 'tpl_nested_loop',
+    patternTag: 'Nested Loop Pattern (ลูปซ้อนลูป)',
+    title: '⭐ วาดลายดาวซ้อนกัน (Outer Loop ➔ Inner Loop)',
+    gradeTag: 'ป.5–ป.6',
+    description: 'ตัวอย่างลูปซ้อนลูป: ลูปนอกนับแถว (Row 1–3) และลูปในวาดดาว ★ แถวละ 4 ดวง รวม 12 ดวง',
+    previewFlow: 'Start ➔ Row=1 ➔ Outer ◇ ➔ Inner ◇ ➔ Newline ➔ End',
+    badgeColor: 'bg-fuchsia-100 text-fuchsia-800',
+    nodes: [
+      { kind: 'start', label: 'เริ่มต้นโปรแกรมวาดลายดาว (Nested Loop)', x: 96 },
+      { kind: 'process', label: 'กำหนด ลูปนอก: row = 1 (วาดทั้งหมด 3 แถว)', x: 96 },
+      {
+        kind: 'decision',
+        label: 'Outer Loop: row <= 3 (ยังไม่ครบ 3 แถว) ?',
+        trueAction: 'เข้าสู่ลูปใน (Inner Loop) เพื่อวาดดาวในแถวนี้',
+        falseAction: 'วาดครบทั้ง 3 แถวแล้ว ออกจากลูปนอก 🏁',
+        x: 96,
+      },
+      { kind: 'process', label: '↳ [ลูปใน] กำหนด ลูปใน: col = 1 (แถวละ 4 ดวง)', x: 264 },
+      {
+        kind: 'decision',
+        label: '↳ Inner Loop: col <= 4 (ดาวแถวนี้ครบ 4 ดวงหรือยัง) ?',
+        trueAction: 'วาด "★ " ไม่ขึ้นบรรทัดใหม่ + col = col + 1 ⤴️',
+        falseAction: 'ครบ 4 ดวงในแถวนี้แล้ว ออกจากลูปใน ↩️',
+        x: 264,
+      },
+      { kind: 'process', label: 'ขึ้นบรรทัดใหม่ + เพิ่ม ลูปนอก: row = row + 1 ⤴️', x: 96 },
+      { kind: 'output', label: 'แสดงผลลายดาว 3 แถว × 4 ดวง (รวม 12 ดวง) ⭐', x: 96 },
+      { kind: 'end', label: 'จบการทำงาน (End)', x: 96 },
+    ],
+  },
 ];
 
+const FlowConnectorLine: React.FC<{
+  status: 'idle' | 'flowing' | 'passed';
+  compact?: boolean;
+}> = ({ status, compact = false }) => {
+  const heightClass = compact ? 'h-8' : 'h-9';
+  const isFlowing = status === 'flowing';
+  const isPassed = status === 'passed';
+
+  return (
+    <div
+      className={`relative flex flex-col items-center justify-center w-8 ${heightClass} my-0.5 select-none`}
+      aria-hidden="true"
+    >
+      {isFlowing && (
+        <span className="absolute inset-y-0.5 w-3.5 rounded-full bg-indigo-400/35 blur-xs animate-pulse" />
+      )}
+
+      <svg
+        viewBox="0 0 24 36"
+        className={`w-6 h-full overflow-visible transition-all duration-300 ${
+          isFlowing
+            ? 'text-indigo-600 drop-shadow-[0_0_6px_rgba(79,70,229,0.55)] scale-110'
+            : isPassed
+            ? 'text-emerald-500'
+            : 'text-slate-300'
+        }`}
+        fill="none"
+      >
+        <line
+          x1="12"
+          y1="2"
+          x2="12"
+          y2="27"
+          stroke="currentColor"
+          strokeOpacity={isFlowing ? 0.3 : 1}
+          strokeWidth={isFlowing || isPassed ? 2.8 : 2}
+          strokeLinecap="round"
+        />
+
+        {isFlowing && (
+          <line
+            x1="12"
+            y1="2"
+            x2="12"
+            y2="27"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            className="animate-flowchart-dash"
+          />
+        )}
+
+        <path
+          d="M6.5 23.5L12 31.5L17.5 23.5"
+          stroke="currentColor"
+          strokeWidth={isFlowing || isPassed ? 2.8 : 2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill={isFlowing || isPassed ? 'currentColor' : 'none'}
+        />
+      </svg>
+
+      {isFlowing && (
+        <span className="absolute top-0.5 w-2.5 h-2.5 rounded-full bg-cyan-400 ring-2 ring-indigo-500 shadow-sm animate-flowchart-dot" />
+      )}
+    </div>
+  );
+};
+
+interface SharedFlowchartPayload {
+  v: 1;
+  m?: string;
+  t?: string | null;
+  d?: 'visual' | 'text';
+  g?: 0 | 1;
+  n: Array<{
+    k: EditorSymbolKind;
+    l: string;
+    ta?: string;
+    fa?: string;
+    x?: number;
+    y?: number;
+  }>;
+}
+
+const VALID_EDITOR_KINDS: ReadonlyArray<EditorSymbolKind> = [
+  'start',
+  'input',
+  'process',
+  'decision',
+  'output',
+  'end',
+];
+
+const encodeShareableFlowchart = (payload: SharedFlowchartPayload): string => {
+  const json = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+};
+
+const decodeShareableFlowchart = (
+  encoded: string
+): {
+  nodes: EditorNode[];
+  missionId: string;
+  templateId: string | null;
+  displayMode: 'visual' | 'text';
+  snapToGrid: boolean;
+} | null => {
+  try {
+    const padded = encoded.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((encoded.length + 3) % 4);
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const json = new TextDecoder().decode(bytes);
+    const parsed = JSON.parse(json) as Partial<SharedFlowchartPayload>;
+    if (!parsed || parsed.v !== 1 || !Array.isArray(parsed.n)) return null;
+
+    const snap = parsed.g !== 0;
+    const now = Date.now();
+    const rawNodes: EditorNode[] = parsed.n.slice(0, 100).flatMap((item, idx) => {
+      if (!item || typeof item !== 'object') return [];
+      if (!VALID_EDITOR_KINDS.includes(item.k as EditorSymbolKind)) return [];
+      const kind = item.k as EditorSymbolKind;
+      return [
+        {
+          uid: `shared_${now}_${idx}`,
+          kind,
+          label: typeof item.l === 'string' ? item.l : '',
+          ...(typeof item.x === 'number' && Number.isFinite(item.x) ? { x: item.x } : {}),
+          ...(typeof item.y === 'number' && Number.isFinite(item.y) ? { y: item.y } : {}),
+          ...(kind === 'decision'
+            ? {
+                trueAction: typeof item.ta === 'string' ? item.ta : '',
+                falseAction: typeof item.fa === 'string' ? item.fa : '',
+              }
+            : {}),
+        },
+      ];
+    });
+
+    if (rawNodes.length === 0) return null;
+    const nodes = ensureNodeCoordinates(rawNodes, snap);
+
+    return {
+      nodes,
+      missionId:
+        typeof parsed.m === 'string' && EDITOR_MISSIONS.some((m) => m.id === parsed.m)
+          ? parsed.m
+          : 'mission_free',
+      templateId:
+        typeof parsed.t === 'string' && FLOWCHART_TEMPLATES.some((t) => t.id === parsed.t)
+          ? parsed.t
+          : null,
+      displayMode: parsed.d === 'text' ? 'text' : 'visual',
+      snapToGrid: snap,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const readSharedFlowchartFromUrl = () => {
+  if (typeof window === 'undefined') return null;
+  const fcParam = new URLSearchParams(window.location.search).get('fc');
+  if (!fcParam) return null;
+  return decodeShareableFlowchart(fcParam);
+};
+
+interface FlowchartPythonLine {
+  text: string;
+  nodeIdx?: number;
+}
+
+const stripDecorForPython = (raw: string): string =>
+  raw
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const escapePyDoubleQuote = (raw: string): string =>
+  raw.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+const buildFlowchartPythonLines = (
+  nodes: EditorNode[],
+  includeComments: boolean
+): FlowchartPythonLine[] => {
+  if (nodes.length === 0) {
+    return [
+      {
+        text: '# ลากสัญลักษณ์ลงบนกระดาน เพื่อดูโค้ดภาษาไพทอนแบบเรียลไทม์',
+      },
+    ];
+  }
+
+  const lines: FlowchartPythonLine[] = [];
+  const declaredVars = new Set<string>();
+  let genericInputCount = 0;
+  let outerLoopIndent = '';
+  let activeOuterLoopVar: string | null = null;
+
+  if (includeComments) {
+    lines.push({ text: '# โค้ดภาษาไพทอนที่แปลงจากผังงาน (Flowchart ➔ Python 3)' });
+  }
+
+  const ensureVar = (varName: string, defaultExpr: string, nodeIdx: number, comment?: string) => {
+    if (declaredVars.has(varName)) return;
+    declaredVars.add(varName);
+    lines.push({
+      text:
+        includeComments && comment
+          ? `${varName} = ${defaultExpr}  # ${comment}`
+          : `${varName} = ${defaultExpr}`,
+      nodeIdx,
+    });
+  };
+
+  const emitBranchActions = (
+    rawAction: string | undefined,
+    indent: string,
+    nodeIdx: number,
+    isLoopBody = false
+  ) => {
+    const clean = stripDecorForPython(rawAction || '');
+    if (!clean) {
+      lines.push({ text: `${indent}pass`, nodeIdx });
+      return;
+    }
+
+    let emittedSomething = false;
+    let handledCountInc = false;
+
+    const blinkMatch = clean.match(/รอบกะพริบ\s*=\s*(\d+)/);
+    if (blinkMatch) {
+      declaredVars.add('blink_limit');
+      lines.push({ text: `${indent}blink_limit = ${blinkMatch[1]}`, nodeIdx });
+      emittedSomething = true;
+    }
+
+    const countSetMatch = clean.match(/ตัวนับ(?:รอบ)?\s*=\s*(\d+)/);
+    if (countSetMatch && !/ตัวนับ(?:รอบ)?\s*\+/.test(clean)) {
+      declaredVars.add('count');
+      lines.push({ text: `${indent}count = ${countSetMatch[1]}`, nodeIdx });
+      emittedSomething = true;
+    }
+
+    const scoreIncMatch = clean.match(/คะแนน\s*=\s*คะแนน\s*\+\s*(\d+)/);
+    if (scoreIncMatch) {
+      declaredVars.add('score');
+      lines.push({ text: `${indent}score += ${scoreIncMatch[1]}`, nodeIdx });
+      emittedSomething = true;
+    }
+
+    if (/เปิดพัดลม/.test(clean)) {
+      declaredVars.add('fan_on');
+      lines.push({ text: `${indent}fan_on = True`, nodeIdx });
+      lines.push({ text: `${indent}print("${escapePyDoubleQuote(clean)}")`, nodeIdx });
+      emittedSomething = true;
+    } else if (/ปิดพัดลม/.test(clean)) {
+      declaredVars.add('fan_on');
+      lines.push({ text: `${indent}fan_on = False`, nodeIdx });
+      lines.push({ text: `${indent}print("${escapePyDoubleQuote(clean)}")`, nodeIdx });
+      emittedSomething = true;
+    } else if (/เปิดปั๊ม/.test(clean)) {
+      declaredVars.add('pump_on');
+      lines.push({ text: `${indent}pump_on = True`, nodeIdx });
+      lines.push({ text: `${indent}print("${escapePyDoubleQuote(clean)}")`, nodeIdx });
+      emittedSomething = true;
+    } else if (/พักปั๊ม|ปิดปั๊ม/.test(clean)) {
+      declaredVars.add('pump_on');
+      lines.push({ text: `${indent}pump_on = False`, nodeIdx });
+      lines.push({ text: `${indent}print("${escapePyDoubleQuote(clean)}")`, nodeIdx });
+      emittedSomething = true;
+    }
+
+    if (
+      /ตัวนับ(?:รอบ)?\s*=\s*ตัวนับ(?:รอบ)?\s*\+\s*1|รอบ\s*\+\s*1/.test(clean)
+    ) {
+      handledCountInc = true;
+      if (!emittedSomething) {
+        const displayPart = stripDecorForPython(
+          clean
+            .replace(/ตัวนับ(?:รอบ)?\s*=\s*ตัวนับ(?:รอบ)?\s*\+\s*1/g, '')
+            .replace(/รอบ\s*\+\s*1/g, '')
+            .replace(/\+\s*$/g, '')
+        );
+        if (displayPart) {
+          lines.push({
+            text: declaredVars.has('count')
+              ? `${indent}print(f"รอบที่ {count}: ${escapePyDoubleQuote(displayPart)}")`
+              : `${indent}print("${escapePyDoubleQuote(displayPart)}")`,
+            nodeIdx,
+          });
+        }
+      }
+      declaredVars.add('count');
+      lines.push({ text: `${indent}count += 1`, nodeIdx });
+      emittedSomething = true;
+    }
+
+    if (!emittedSomething) {
+      const cleanedPrompt = clean.replace(/^(Then:|Else:)\s*/i, '');
+      lines.push({
+        text: `${indent}print("${escapePyDoubleQuote(cleanedPrompt)}")`,
+        nodeIdx,
+      });
+    }
+
+    if (isLoopBody && !handledCountInc) {
+      declaredVars.add('count');
+      lines.push({
+        text: includeComments
+          ? `${indent}count += 1  # เพิ่มตัวนับรอบทีละ 1`
+          : `${indent}count += 1`,
+        nodeIdx,
+      });
+    }
+  };
+
+  nodes.forEach((node, idx) => {
+    const clean = stripDecorForPython(node.label);
+
+    if (node.kind === 'start') {
+      if (includeComments) {
+        lines.push({
+          text: `# [Start] ${clean || 'เริ่มต้นการทำงาน'}`,
+          nodeIdx: idx,
+        });
+      }
+      return;
+    }
+
+    if (node.kind === 'end') {
+      outerLoopIndent = '';
+      activeOuterLoopVar = null;
+      if (includeComments) {
+        lines.push({
+          text: `# [End] ${clean || 'จบการทำงาน'}`,
+          nodeIdx: idx,
+        });
+      }
+      return;
+    }
+
+    if (node.kind === 'input') {
+      if (/\bA\b.*\bB\b/i.test(clean)) {
+        declaredVars.add('a');
+        declaredVars.add('b');
+        lines.push({
+          text: includeComments
+            ? 'a = int(input("กรอกค่า A: "))  # รับข้อมูลตัวเลข A'
+            : 'a = int(input("กรอกค่า A: "))',
+          nodeIdx: idx,
+        });
+        lines.push({
+          text: includeComments
+            ? 'b = int(input("กรอกค่า B: "))  # รับข้อมูลตัวเลข B'
+            : 'b = int(input("กรอกค่า B: "))',
+          nodeIdx: idx,
+        });
+      } else if (/อุณหภูมิ|temp/i.test(clean)) {
+        declaredVars.add('temp');
+        lines.push({
+          text: includeComments
+            ? 'temp = float(input("กรอกอุณหภูมิห้อง (°C): "))  # รับค่าอุณหภูมิ'
+            : 'temp = float(input("กรอกอุณหภูมิห้อง (°C): "))',
+          nodeIdx: idx,
+        });
+      } else if (/ความชื้น|moisture/i.test(clean)) {
+        declaredVars.add('moisture');
+        lines.push({
+          text: includeComments
+            ? 'moisture = int(input("อ่านค่าความชื้นดิน (%): "))  # อ่านค่าจากเซ็นเซอร์'
+            : 'moisture = int(input("อ่านค่าความชื้นดิน (%): "))',
+          nodeIdx: idx,
+        });
+      } else if (/คะแนน|score/i.test(clean)) {
+        declaredVars.add('score');
+        lines.push({
+          text: 'score = int(input("กรอกคะแนน: "))',
+          nodeIdx: idx,
+        });
+      } else if (/อายุ|age/i.test(clean)) {
+        declaredVars.add('age');
+        lines.push({
+          text: 'age = int(input("กรอกอายุ: "))',
+          nodeIdx: idx,
+        });
+      } else if (/ปุ่ม|button|โหมด/i.test(clean)) {
+        declaredVars.add('button_a');
+        lines.push({
+          text: includeComments
+            ? 'button_a = input("กดปุ่ม A หรือไม่? (y/n): ") == "y"  # อ่านค่าปุ่มกด'
+            : 'button_a = input("กดปุ่ม A หรือไม่? (y/n): ") == "y"',
+          nodeIdx: idx,
+        });
+      } else if (/เซ็นเซอร์|เคลื่อนไหว|motion/i.test(clean)) {
+        declaredVars.add('motion_detected');
+        lines.push({
+          text: includeComments
+            ? 'motion_detected = input("ตรวจพบคนเดินผ่านหรือไม่? (y/n): ") == "y"  # Input จากเซ็นเซอร์'
+            : 'motion_detected = input("ตรวจพบคนเดินผ่านหรือไม่? (y/n): ") == "y"',
+          nodeIdx: idx,
+        });
+      } else if (/เตรียม/.test(clean)) {
+        declaredVars.add('ingredients_ready');
+        lines.push({
+          text: includeComments
+            ? `ingredients_ready = True  # ${clean}`
+            : 'ingredients_ready = True',
+          nodeIdx: idx,
+        });
+      } else {
+        genericInputCount += 1;
+        const varName = genericInputCount === 1 ? 'user_input' : `user_input_${genericInputCount}`;
+        declaredVars.add(varName);
+        lines.push({
+          text: `${varName} = input("${escapePyDoubleQuote(clean || 'กรอกข้อมูล')}: ")`,
+          nodeIdx: idx,
+        });
+      }
+      return;
+    }
+
+    if (node.kind === 'process') {
+      const ind = outerLoopIndent;
+      if (/ผลรวม\s*=\s*A\s*\+\s*B|A\s*\+\s*B/i.test(clean)) {
+        ensureVar('a', '0', idx, 'ค่าเริ่มต้น A');
+        ensureVar('b', '0', idx, 'ค่าเริ่มต้น B');
+        declaredVars.add('total');
+        lines.push({
+          text: includeComments
+            ? `${ind}total = a + b  # ประมวลผลรวมค่า A และ B`
+            : `${ind}total = a + b`,
+          nodeIdx: idx,
+        });
+      } else if (/\brow\s*=\s*row\s*\+\s*\d+|\brow\s*\+=\s*\d+/i.test(clean)) {
+        const incMatch = clean.match(/\brow\s*(?:=\s*row\s*\+|\+=)\s*(\d+)/i);
+        const step = incMatch ? incMatch[1] : '1';
+        if (/ขึ้นบรรทัดใหม่/.test(clean)) {
+          lines.push({
+            text: includeComments
+              ? `${ind}print()  # ขึ้นบรรทัดใหม่เมื่อจบ 1 แถว`
+              : `${ind}print()`,
+            nodeIdx: idx,
+          });
+        }
+        declaredVars.add('row');
+        lines.push({
+          text: includeComments
+            ? `${ind}row += ${step}  # ขยับไปแถวถัดไป (ลูปนอก)`
+            : `${ind}row += ${step}`,
+          nodeIdx: idx,
+        });
+        if (activeOuterLoopVar === 'row') {
+          outerLoopIndent = '';
+          activeOuterLoopVar = null;
+        }
+      } else if (/\brow\s*=\s*(\d+)/i.test(clean)) {
+        const m = clean.match(/\brow\s*=\s*(\d+)/i);
+        declaredVars.add('row');
+        lines.push({
+          text: includeComments
+            ? `${ind}row = ${m ? m[1] : '1'}  # กำหนดตัวนับลูปนอก (แถว)`
+            : `${ind}row = ${m ? m[1] : '1'}`,
+          nodeIdx: idx,
+        });
+      } else if (/\bcol\s*=\s*(\d+)/i.test(clean)) {
+        const m = clean.match(/\bcol\s*=\s*(\d+)/i);
+        declaredVars.add('col');
+        lines.push({
+          text: includeComments
+            ? `${ind}col = ${m ? m[1] : '1'}  # รีเซ็ตตัวนับลูปใน (คอลัมน์)`
+            : `${ind}col = ${m ? m[1] : '1'}`,
+          nodeIdx: idx,
+        });
+      } else if (/คะแนน\s*=\s*0|score\s*=\s*0/i.test(clean)) {
+        declaredVars.add('score');
+        lines.push({
+          text: includeComments ? `${ind}score = 0  # กำหนดค่าเริ่มต้นตัวแปร` : `${ind}score = 0`,
+          nodeIdx: idx,
+        });
+      } else if (/ตัวนับ(?:รอบ)?\s*=\s*(\d+)/.test(clean)) {
+        const m = clean.match(/ตัวนับ(?:รอบ)?\s*=\s*(\d+)/);
+        declaredVars.add('count');
+        lines.push({
+          text: includeComments
+            ? `${ind}count = ${m ? m[1] : 1}  # กำหนดค่าตัวนับรอบเริ่มต้น`
+            : `${ind}count = ${m ? m[1] : 1}`,
+          nodeIdx: idx,
+        });
+      } else if (/เข้าสู่ Repeat Loop/i.test(clean)) {
+        if (includeComments) {
+          lines.push({ text: `${ind}# ${clean}`, nodeIdx: idx });
+        }
+      } else {
+        const assignMatch = clean.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)$/);
+        if (assignMatch) {
+          declaredVars.add(assignMatch[1]);
+          lines.push({
+            text: `${ind}${assignMatch[1]} = ${assignMatch[2]}`,
+            nodeIdx: idx,
+          });
+        } else {
+          lines.push({
+            text: includeComments
+              ? `${ind}print("ขั้นตอน: ${escapePyDoubleQuote(clean || 'ประมวลผล')}")  # Process`
+              : `${ind}print("ขั้นตอน: ${escapePyDoubleQuote(clean || 'ประมวลผล')}")`,
+            nodeIdx: idx,
+          });
+        }
+      }
+      return;
+    }
+
+    if (node.kind === 'decision') {
+      const ind = outerLoopIndent;
+      const isLoop = /repeat|loop|ตัวนับ|รอบ\s*<=|\b(row|col)\s*(<=|<)/i.test(clean);
+
+      if (isLoop) {
+        const isOuterRowLoop = /outer loop|\brow\s*(<=|<)/i.test(clean);
+        const isInnerColLoop = /inner loop|\bcol\s*(<=|<)/i.test(clean);
+
+        if (isOuterRowLoop) {
+          ensureVar('row', '1', idx, 'ตัวนับแถวเริ่มต้น');
+          const rowCmp = clean.match(/\brow\s*(<=|<)\s*(\d+)/i);
+          const loopCond = rowCmp ? `row ${rowCmp[1]} ${rowCmp[2]}` : 'row <= 3';
+          const hasInnerBlockLater = nodes.slice(idx + 1).some((n) =>
+            /inner loop|\bcol\b|\brow\s*=\s*row\s*\+|\brow\s*\+=/i.test(n.label)
+          );
+
+          lines.push({
+            text: includeComments
+              ? `${ind}while ${loopCond}:  # ลูปนอก: วนซ้ำตามจำนวนแถว`
+              : `${ind}while ${loopCond}:`,
+            nodeIdx: idx,
+          });
+
+          if (hasInnerBlockLater) {
+            outerLoopIndent = '    ';
+            activeOuterLoopVar = 'row';
+            if (includeComments && node.trueAction) {
+              lines.push({
+                text: `    # ${stripDecorForPython(node.trueAction)}`,
+                nodeIdx: idx,
+              });
+            }
+          } else {
+            emitBranchActions(node.trueAction, `${ind}    `, idx, false);
+            lines.push({ text: `${ind}    row += 1`, nodeIdx: idx });
+          }
+          return;
+        }
+
+        if (isInnerColLoop) {
+          if (!declaredVars.has('col')) {
+            declaredVars.add('col');
+            lines.push({
+              text: includeComments
+                ? `${ind}col = 1  # ตัวนับคอลัมน์เริ่มต้น`
+                : `${ind}col = 1`,
+              nodeIdx: idx,
+            });
+          }
+          const colCmp = clean.match(/\bcol\s*(<=|<)\s*(\d+)/i);
+          const loopCond = colCmp ? `col ${colCmp[1]} ${colCmp[2]}` : 'col <= 4';
+          lines.push({
+            text: includeComments
+              ? `${ind}while ${loopCond}:  # ลูปใน: วาดดาวทีละดวงในแถว`
+              : `${ind}while ${loopCond}:`,
+            nodeIdx: idx,
+          });
+
+          const trueClean = stripDecorForPython(node.trueAction || '');
+          if (/★|ดาว|ไม่ขึ้นบรรทัดใหม่/.test(trueClean)) {
+            lines.push({
+              text: `${ind}    print("★", end=" ")`,
+              nodeIdx: idx,
+            });
+            declaredVars.add('col');
+            lines.push({ text: `${ind}    col += 1`, nodeIdx: idx });
+          } else {
+            emitBranchActions(node.trueAction, `${ind}    `, idx, false);
+            lines.push({ text: `${ind}    col += 1`, nodeIdx: idx });
+          }
+          const falseClean = stripDecorForPython(node.falseAction || '');
+          if (includeComments && falseClean) {
+            lines.push({ text: `${ind}# ${falseClean}`, nodeIdx: idx });
+          }
+          return;
+        }
+
+        ensureVar('count', '1', idx, 'ตัวนับรอบเริ่มต้น');
+        let loopCond = 'count <= 4';
+
+        if (/รอบกะพริบ/.test(clean)) {
+          ensureVar('blink_limit', '3', idx, 'จำนวนรอบเป้าหมาย');
+          loopCond = 'count <= blink_limit';
+        } else {
+          const cmpMatch = clean.match(/(<=|<)\s*(\d+)/);
+          if (cmpMatch) {
+            loopCond = `count ${cmpMatch[1]} ${cmpMatch[2]}`;
+          }
+        }
+
+        lines.push({
+          text: includeComments
+            ? `${ind}while ${loopCond}:  # วนซ้ำตราบใดที่เงื่อนไขเป็นจริง`
+            : `${ind}while ${loopCond}:`,
+          nodeIdx: idx,
+        });
+        emitBranchActions(node.trueAction, `${ind}    `, idx, true);
+        const falseClean = stripDecorForPython(node.falseAction || '');
+        if (includeComments && falseClean) {
+          lines.push({ text: `${ind}# เมื่อเงื่อนไขเป็นเท็จ: ${falseClean}`, nodeIdx: idx });
+        }
+        return;
+      }
+
+      let conditionExpr = 'condition_ok';
+      const tempMatch = clean.match(/(?:อุณหภูมิ|temp)[^\d><=]*(>=|<=|>|<|==|!=)\s*(\d+(?:\.\d+)?)/i);
+      const moistureMatch = clean.match(/(?:ความชื้น|moisture)[^\d><=]*(>=|<=|>|<|==|!=)\s*(\d+(?:\.\d+)?)/i);
+      const scoreMatch = clean.match(/(?:คะแนน|score)[^\d><=]*(>=|<=|>|<|==|!=)\s*(\d+(?:\.\d+)?)/i);
+      const asciiCmpMatch = clean.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(>=|<=|>|<|==|!=)\s*(\d+(?:\.\d+)?)/);
+
+      if (tempMatch) {
+        ensureVar('temp', '32.0', idx, 'ค่าอุณหภูมิทดสอบ');
+        conditionExpr = `temp ${tempMatch[1]} ${tempMatch[2]}`;
+      } else if (moistureMatch) {
+        ensureVar('moisture', '25', idx, 'ค่าความชื้นทดสอบ');
+        conditionExpr = `moisture ${moistureMatch[1]} ${moistureMatch[2]}`;
+      } else if (scoreMatch) {
+        ensureVar('score', '75', idx, 'ค่าคะแนนทดสอบ');
+        conditionExpr = `score ${scoreMatch[1]} ${scoreMatch[2]}`;
+      } else if (asciiCmpMatch) {
+        ensureVar(asciiCmpMatch[1], '0', idx, 'ค่าเริ่มต้นตัวแปร');
+        conditionExpr = `${asciiCmpMatch[1]} ${asciiCmpMatch[2]} ${asciiCmpMatch[3]}`;
+      } else if (/ปุ่ม|button/i.test(clean)) {
+        ensureVar('button_a', 'True', idx, 'สถานะปุ่ม A');
+        conditionExpr = 'button_a';
+      } else if (/มีคนเดิน|เคลื่อนไหว|motion/i.test(clean)) {
+        ensureVar('motion_detected', 'True', idx, 'สถานะเซ็นเซอร์ตรวจจับคน');
+        conditionExpr = 'motion_detected';
+      } else if (/เหรียญ|coin/i.test(clean)) {
+        ensureVar('touch_coin', 'True', idx, 'สถานะชนเหรียญ');
+        conditionExpr = 'touch_coin';
+      } else if (/ฝนตก|rain/i.test(clean)) {
+        ensureVar('is_raining', 'True', idx, 'สภาพอากาศ');
+        conditionExpr = 'is_raining';
+      } else {
+        ensureVar('condition_ok', 'True', idx, clean || 'เงื่อนไขทดสอบ');
+        conditionExpr = 'condition_ok';
+      }
+
+      lines.push({
+        text: includeComments
+          ? `${ind}if ${conditionExpr}:  # ${clean || 'ตรวจสอบเงื่อนไข'}`
+          : `${ind}if ${conditionExpr}:`,
+        nodeIdx: idx,
+      });
+      emitBranchActions(node.trueAction, `${ind}    `, idx, false);
+      if (node.falseAction && stripDecorForPython(node.falseAction)) {
+        lines.push({
+          text: includeComments ? `${ind}else:  # กรณีเงื่อนไขเป็นเท็จ` : `${ind}else:`,
+          nodeIdx: idx,
+        });
+        emitBranchActions(node.falseAction, `${ind}    `, idx, false);
+      }
+      return;
+    }
+
+    if (node.kind === 'output') {
+      outerLoopIndent = '';
+      activeOuterLoopVar = null;
+      if (declaredVars.has('total') && /ผลรวม|total/i.test(clean)) {
+        lines.push({ text: 'print("ผลรวม =", total)', nodeIdx: idx });
+      } else if (declaredVars.has('score') && /คะแนน|score/i.test(clean)) {
+        lines.push({ text: 'print("คะแนนล่าสุด:", score)', nodeIdx: idx });
+      } else if (declaredVars.has('fan_on') && /พัดลม|fan/i.test(clean)) {
+        lines.push({
+          text: 'print("สถานะพัดลม:", "เปิด" if fan_on else "ปิด")',
+          nodeIdx: idx,
+        });
+      } else {
+        lines.push({
+          text: includeComments
+            ? `print("${escapePyDoubleQuote(clean || 'แสดงผลลัพธ์')}")  # Output`
+            : `print("${escapePyDoubleQuote(clean || 'แสดงผลลัพธ์')}")`,
+          nodeIdx: idx,
+        });
+      }
+    }
+  });
+
+  return lines;
+};
+
+const highlightFlowchartPythonLine = (line: string) => {
+  const tokens = line.split(
+    /(f?"[^"]*"|'[^']*'|#.*$|\b(?:if|elif|else|for|in|range|while|not|and|or|def|True|False|input|int|float|print)\b)/g
+  );
+
+  return (
+    <>
+      {tokens.map((tok, tIdx) => {
+        if (!tok) return null;
+        if (tok.startsWith('#')) {
+          return (
+            <span key={tIdx} className="text-slate-400 italic">
+              {tok}
+            </span>
+          );
+        }
+        if (/^(if|elif|else|for|in|while|not|and|or|def)$/.test(tok)) {
+          return (
+            <span key={tIdx} className="text-purple-400 font-semibold">
+              {tok}
+            </span>
+          );
+        }
+        if (/^(True|False)$/.test(tok)) {
+          return (
+            <span key={tIdx} className="text-amber-300 font-semibold">
+              {tok}
+            </span>
+          );
+        }
+        if (/^(range|input|int|float|print)$/.test(tok)) {
+          return (
+            <span key={tIdx} className="text-sky-300 font-semibold">
+              {tok}
+            </span>
+          );
+        }
+        if (/^(f?"[^"]*"|'[^']*')$/.test(tok)) {
+          return (
+            <span key={tIdx} className="text-emerald-300">
+              {tok}
+            </span>
+          );
+        }
+        return (
+          <span key={tIdx} className="text-slate-100">
+            {tok}
+          </span>
+        );
+      })}
+    </>
+  );
+};
+
 export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoints }) => {
+  const initialSharedData = React.useMemo(() => readSharedFlowchartFromUrl(), []);
+  const editorSectionRef = React.useRef<HTMLDivElement | null>(null);
+
   const [selectedSymbolId, setSelectedSymbolId] = useState<string>('terminator');
-  const [symbolDisplayMode, setSymbolDisplayMode] = useState<'visual' | 'text'>('visual');
+  const [symbolDisplayMode, setSymbolDisplayMode] = useState<'visual' | 'text'>(
+    initialSharedData?.displayMode || 'visual'
+  );
   const [gradeFilter, setGradeFilter] = useState<'all' | 'ป.4' | 'ป.5' | 'ป.6'>('all');
   const [selectedExampleId, setSelectedExampleId] = useState<string>('p5_exam');
 
@@ -678,36 +1554,83 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
 
   // Drag-and-Drop Flowchart Editor state with Undo/Redo history stack
-  const [activeMissionId, setActiveMissionId] = useState<string>('mission_free');
-  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [activeMissionId, setActiveMissionId] = useState<string>(
+    initialSharedData?.missionId || 'mission_free'
+  );
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(
+    initialSharedData?.templateId ?? null
+  );
   const [editorHistory, setEditorHistory] = useState<{
     past: EditorNode[][];
     present: EditorNode[];
     future: EditorNode[][];
   }>({
     past: [],
-    present: [
-      { uid: 'init_1', kind: 'start', label: 'เริ่มต้น (Start)' },
-      { uid: 'init_2', kind: 'process', label: 'ลงมือทำขั้นตอนที่ 1' },
-    ],
+    present:
+      initialSharedData?.nodes ||
+      ensureNodeCoordinates(
+        [
+          { uid: 'init_1', kind: 'start', label: 'เริ่มต้น (Start)' },
+          { uid: 'init_2', kind: 'process', label: 'ลงมือทำขั้นตอนที่ 1' },
+        ],
+        true
+      ),
     future: [],
   });
   const editorNodes = editorHistory.present;
   const lastTextEditMetaRef = React.useRef<{ key: string; time: number }>({ key: '', time: 0 });
+  const canvasInnerRef = React.useRef<HTMLDivElement | null>(null);
+  const [snapToGrid, setSnapToGrid] = useState<boolean>(initialSharedData?.snapToGrid ?? true);
+  const [nodeHeights, setNodeHeights] = useState<Record<string, number>>({});
   const [draggedPaletteKind, setDraggedPaletteKind] = useState<EditorSymbolKind | null>(null);
-  const [draggedNodeIndex, setDraggedNodeIndex] = useState<number | null>(null);
-  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [paletteDropPreview, setPaletteDropPreview] = useState<{ x: number; y: number } | null>(null);
+  const [draggingNodeState, setDraggingNodeState] = useState<{
+    uid: string;
+    x: number;
+    y: number;
+    alignX: number | null;
+    alignY: number | null;
+  } | null>(null);
+  const pointerDragRef = React.useRef<{
+    uid: string;
+    startClientX: number;
+    startClientY: number;
+    origX: number;
+    origY: number;
+    scaleX: number;
+    scaleY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
   const [isCanvasDragOver, setIsCanvasDragOver] = useState<boolean>(false);
   const [editorValidation, setEditorValidation] = useState<{
     valid: boolean;
     message: string;
     tips: string[];
-  } | null>(null);
+  } | null>(
+    initialSharedData
+      ? {
+          valid: true,
+          message: `🔗 เปิดผังงานจากลิงก์ที่แชร์มาเรียบร้อยแล้ว! (${initialSharedData.nodes.length} ขั้นตอน)`,
+          tips: ['สามารถแก้ไขข้อความ ลากวางบนตาราง หรือกด "ตรวจ & รันผังงาน" ได้ทันที'],
+        }
+      : null
+  );
   const [editorActiveStep, setEditorActiveStep] = useState<number | null>(null);
+  const [editorActiveEdge, setEditorActiveEdge] = useState<number | null>(null);
+  const [editorRunPassedCount, setEditorRunPassedCount] = useState<number>(0);
   const [editorIsRunning, setEditorIsRunning] = useState<boolean>(false);
   const [editorRewarded, setEditorRewarded] = useState<boolean>(false);
   const [exportFeedback, setExportFeedback] = useState<string | null>(null);
+  const [shareableLinkPreview, setShareableLinkPreview] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState<boolean>(false);
+  const [showPythonPanel, setShowPythonPanel] = useState<boolean>(true);
+  const [showFcPyComments, setShowFcPyComments] = useState<boolean>(true);
+  const [fcPyCopied, setFcPyCopied] = useState<boolean>(false);
   const exportFeedbackTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const linkCopiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fcPyCopiedTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editorRunTokenRef = React.useRef<number>(0);
   const canUndo = editorHistory.past.length > 0 && !editorIsRunning;
   const canRedo = editorHistory.future.length > 0 && !editorIsRunning;
 
@@ -727,6 +1650,8 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
   // Quiz state
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [quizRewarded, setQuizRewarded] = useState<boolean>(false);
+  const [complexQuizAns, setComplexQuizAns] = useState<Record<number, boolean>>({});
+  const [complexQuizChecked, setComplexQuizChecked] = useState<boolean>(false);
 
   const selectedSymbol = FLOWCHART_SYMBOLS.find((s) => s.id === selectedSymbolId) || FLOWCHART_SYMBOLS[0];
 
@@ -898,6 +1823,8 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
 
   const commitEditorNodes = (computeNext: (curr: EditorNode[]) => EditorNode[]) => {
     lastTextEditMetaRef.current = { key: '', time: 0 };
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
     setEditorHistory((prev) => {
       const next = computeNext(prev.present);
       if (next === prev.present) return prev;
@@ -923,6 +1850,8 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
     });
     setEditorValidation(null);
     setEditorActiveStep(null);
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
   };
 
   const handleRedo = () => {
@@ -939,6 +1868,8 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
     });
     setEditorValidation(null);
     setEditorActiveStep(null);
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
   };
 
   const handleZoomOut = () => {
@@ -955,34 +1886,268 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
 
   const handleResetCanvas = () => {
     if (editorIsRunning) return;
+    editorRunTokenRef.current += 1;
     commitEditorNodes(() => []);
     setActiveTemplateId(null);
     setActiveMissionId('mission_free');
     setEditorValidation(null);
     setEditorActiveStep(null);
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
     setExportFeedback(null);
     setDraggedPaletteKind(null);
-    setDraggedNodeIndex(null);
-    setDropTargetIndex(null);
+    setPaletteDropPreview(null);
+    setDraggingNodeState(null);
+    pointerDragRef.current = null;
     setIsCanvasDragOver(false);
   };
 
+  const handleToggleSnapToGrid = () => {
+    if (editorIsRunning) return;
+    const nextSnap = !snapToGrid;
+    setSnapToGrid(nextSnap);
+    if (nextSnap && editorNodes.length > 0) {
+      const hasOffGrid = editorNodes.some((n) => {
+        const nx = n.x ?? CENTER_NODE_X;
+        const ny = n.y ?? CANVAS_PADDING;
+        return nx % CANVAS_GRID_SIZE !== 0 || ny % CANVAS_GRID_SIZE !== 0;
+      });
+      if (hasOffGrid) {
+        commitEditorNodes((prev) => ensureNodeCoordinates(prev, true));
+      }
+      showExportFeedback(`🧲 เปิดโหมดชิดตาราง (Snap to Grid ${CANVAS_GRID_SIZE}px) แล้ว — บล็อกจะจัดแนวอัตโนมัติ`);
+    } else if (!nextSnap) {
+      showExportFeedback('✋ ปิดชิดตารางชั่วคราว — ลากวางตำแหน่งอิสระได้');
+    }
+  };
+
+  const handleTidyAlignCanvas = () => {
+    if (editorIsRunning || editorNodes.length === 0) return;
+    commitEditorNodes((prev) => layoutNodesTidily(prev, nodeHeights));
+    setEditorValidation(null);
+    showExportFeedback('✨ จัดเรียงบล็อกทั้งหมดตรงแนวกลางชิดตารางเรียบร้อยแล้ว!');
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) {
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey) || editorIsRunning) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey && canUndo) {
+        e.preventDefault();
+        handleUndo();
+      } else if (((key === 'z' && e.shiftKey) || (key === 'y' && !e.shiftKey)) && canRedo) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
+  useEffect(() => {
+    if (initialSharedData && editorSectionRef.current) {
+      const timer = setTimeout(() => {
+        editorSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [initialSharedData]);
+
   useEffect(() => {
     return () => {
+      editorRunTokenRef.current += 1;
       if (exportFeedbackTimerRef.current) {
         clearTimeout(exportFeedbackTimerRef.current);
+      }
+      if (linkCopiedTimerRef.current) {
+        clearTimeout(linkCopiedTimerRef.current);
+      }
+      if (fcPyCopiedTimerRef.current) {
+        clearTimeout(fcPyCopiedTimerRef.current);
       }
     };
   }, []);
 
-  const showExportFeedback = (message: string) => {
+  // Measure rendered heights of canvas nodes so orthogonal SVG connectors attach cleanly
+  useEffect(() => {
+    const el = canvasInnerRef.current;
+    if (!el) return;
+    const nodeEls = el.querySelectorAll<HTMLElement>('[data-flowchart-node-uid]');
+    const nextHeights: Record<string, number> = {};
+    nodeEls.forEach((nodeEl) => {
+      const uid = nodeEl.getAttribute('data-flowchart-node-uid');
+      if (uid) {
+        nextHeights[uid] = nodeEl.offsetHeight;
+      }
+    });
+    setNodeHeights((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(nextHeights);
+      if (
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((k) => prev[k] === nextHeights[k])
+      ) {
+        return prev;
+      }
+      return nextHeights;
+    });
+  }, [editorNodes, symbolDisplayMode, canvasZoomIdx]);
+
+  // Smooth pointer-based dragging inside the 2D Snap-to-Grid canvas
+  useEffect(() => {
+    if (!draggingNodeState) return;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      const drag = pointerDragRef.current;
+      if (!drag) return;
+      const dx = (e.clientX - drag.startClientX) / drag.scaleX;
+      const dy = (e.clientY - drag.startClientY) / drag.scaleY;
+      const raw = clampNodePosition(drag.origX + dx, drag.origY + dy);
+      let nextX = snapCoordinate(raw.x, snapToGrid);
+      let nextY = snapCoordinate(raw.y, snapToGrid);
+      let alignX: number | null = null;
+      let alignY: number | null = null;
+
+      for (const other of editorNodes) {
+        if (other.uid === drag.uid) continue;
+        const ox = other.x ?? CENTER_NODE_X;
+        const oy = other.y ?? CANVAS_PADDING;
+        if (Math.abs(nextX - ox) <= 8) {
+          nextX = ox;
+          alignX = ox + NODE_CARD_WIDTH / 2;
+        }
+        if (Math.abs(nextY - oy) <= 8) {
+          nextY = oy;
+          alignY = oy;
+        }
+      }
+
+      const clamped = clampNodePosition(nextX, nextY);
+      drag.currentX = clamped.x;
+      drag.currentY = clamped.y;
+      setDraggingNodeState({
+        uid: drag.uid,
+        x: clamped.x,
+        y: clamped.y,
+        alignX,
+        alignY,
+      });
+    };
+
+    const handlePointerUp = () => {
+      const drag = pointerDragRef.current;
+      pointerDragRef.current = null;
+      setDraggingNodeState(null);
+      if (!drag) return;
+      if (drag.currentX !== drag.origX || drag.currentY !== drag.origY) {
+        commitEditorNodes((prev) =>
+          prev.map((n) =>
+            n.uid === drag.uid ? { ...n, x: drag.currentX, y: drag.currentY } : n
+          )
+        );
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+  }, [draggingNodeState?.uid, snapToGrid, editorNodes]);
+
+  const showExportFeedback = (message: string, shareUrl?: string) => {
     setExportFeedback(message);
+    setShareableLinkPreview(shareUrl || null);
     if (exportFeedbackTimerRef.current) {
       clearTimeout(exportFeedbackTimerRef.current);
     }
     exportFeedbackTimerRef.current = setTimeout(() => {
       setExportFeedback(null);
-    }, 4000);
+      setShareableLinkPreview(null);
+    }, shareUrl ? 8000 : 4000);
+  };
+
+  const handleCopyShareLink = async () => {
+    if (editorNodes.length === 0 || editorIsRunning || typeof window === 'undefined') return;
+
+    const payload: SharedFlowchartPayload = {
+      v: 1,
+      ...(activeMissionId !== 'mission_free' ? { m: activeMissionId } : {}),
+      ...(activeTemplateId ? { t: activeTemplateId } : {}),
+      ...(symbolDisplayMode !== 'visual' ? { d: symbolDisplayMode } : {}),
+      g: snapToGrid ? 1 : 0,
+      n: editorNodes.map((node) => ({
+        k: node.kind,
+        l: node.label,
+        ...(typeof node.x === 'number' ? { x: node.x } : {}),
+        ...(typeof node.y === 'number' ? { y: node.y } : {}),
+        ...(node.kind === 'decision'
+          ? {
+              ta: node.trueAction || '',
+              fa: node.falseAction || '',
+            }
+          : {}),
+      })),
+    };
+
+    const encoded = encodeShareableFlowchart(payload);
+    const url = new URL(window.location.href);
+    url.searchParams.set('fc', encoded);
+    const shareUrl = url.toString();
+
+    let copied = false;
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+    }
+
+    if (!copied) {
+      const textarea = document.createElement('textarea');
+      textarea.value = shareUrl;
+      textarea.setAttribute('readonly', '');
+      textarea.className = 'fixed -left-[9999px] top-0 opacity-0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        copied = document.execCommand('copy');
+      } catch {
+        copied = false;
+      }
+      document.body.removeChild(textarea);
+    }
+
+    if (copied) {
+      setLinkCopied(true);
+      if (linkCopiedTimerRef.current) {
+        clearTimeout(linkCopiedTimerRef.current);
+      }
+      linkCopiedTimerRef.current = setTimeout(() => {
+        setLinkCopied(false);
+      }, 2500);
+      showExportFeedback(
+        '🔗 คัดลอกลิงก์แชร์ผังงานเรียบร้อยแล้ว! ส่งลิงก์ให้เพื่อนหรือคุณครูเปิดดูผลงานได้ทันที',
+        shareUrl
+      );
+    } else {
+      showExportFeedback(
+        '🔗 สร้างลิงก์แชร์ผังงานแล้ว! กดคัดลอกลิงก์ด้านล่างเพื่อนำไปแชร์ได้เลย',
+        shareUrl
+      );
+    }
   };
 
   const getActiveFlowchartTitle = (): string => {
@@ -1030,11 +2195,17 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
       title: getActiveFlowchartTitle(),
       missionId: activeMissionId,
       templateId: activeTemplateId,
+      snapToGrid,
+      gridSize: CANVAS_GRID_SIZE,
       nodeCount: editorNodes.length,
       nodes: editorNodes.map((n, index) => ({
         step: index + 1,
         kind: n.kind,
         label: n.label,
+        position: {
+          x: n.x ?? CENTER_NODE_X,
+          y: n.y ?? CANVAS_PADDING,
+        },
         ...(n.kind === 'decision'
           ? {
               trueAction: n.trueAction || '',
@@ -1431,27 +2602,68 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
     }
   };
 
-  const createEditorNode = (kind: EditorSymbolKind): EditorNode => {
+  const createEditorNode = (
+    kind: EditorSymbolKind,
+    pos?: { x: number; y: number }
+  ): EditorNode => {
     const meta = EDITOR_PALETTE.find((p) => p.kind === kind) || EDITOR_PALETTE[2];
+    const clamped = clampNodePosition(
+      snapCoordinate(pos?.x ?? CENTER_NODE_X, snapToGrid),
+      snapCoordinate(pos?.y ?? CANVAS_PADDING, snapToGrid)
+    );
     return {
       uid: `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       kind,
       label: meta.defaultLabel,
+      x: clamped.x,
+      y: clamped.y,
       ...(kind === 'decision'
         ? { trueAction: 'ทำคำสั่งฝั่งใช่ ✅', falseAction: 'ทำคำสั่งฝั่งไม่ใช่ ❌' }
         : {}),
     };
   };
 
-  const addNodeToCanvas = (kind: EditorSymbolKind, insertAt?: number) => {
+  const getLogicalCanvasPoint = (clientX: number, clientY: number): { x: number; y: number } => {
+    const el = canvasInnerRef.current;
+    if (!el) return { x: CENTER_NODE_X + NODE_CARD_WIDTH / 2, y: CANVAS_PADDING + 48 };
+    const rect = el.getBoundingClientRect();
+    const scaleX = rect.width / CANVAS_LOGICAL_WIDTH || 1;
+    const scaleY = el.offsetHeight > 0 ? rect.height / el.offsetHeight : scaleX;
+    return {
+      x: (clientX - rect.left) / scaleX,
+      y: (clientY - rect.top) / scaleY,
+    };
+  };
+
+  const getSnappedDropPositionFromPointer = (clientX: number, clientY: number) => {
+    const pt = getLogicalCanvasPoint(clientX, clientY);
+    const rawX = pt.x - NODE_CARD_WIDTH / 2;
+    const rawY = pt.y - 44;
+    const snappedX = snapCoordinate(rawX, snapToGrid);
+    const snappedY = snapCoordinate(rawY, snapToGrid);
+    return clampNodePosition(snappedX, snappedY);
+  };
+
+  const addNodeToCanvas = (kind: EditorSymbolKind, dropPos?: { x: number; y: number }) => {
     if (editorIsRunning) return;
-    const newNode = createEditorNode(kind);
     commitEditorNodes((prev) => {
-      if (typeof insertAt === 'number' && insertAt >= 0 && insertAt <= prev.length) {
-        const copy = [...prev];
-        copy.splice(insertAt, 0, newNode);
-        return copy;
+      let targetPos = dropPos;
+      if (!targetPos) {
+        if (prev.length === 0) {
+          targetPos = { x: CENTER_NODE_X, y: CANVAS_PADDING };
+        } else {
+          const last = prev[prev.length - 1];
+          const maxBottom = prev.reduce((max, n) => {
+            const h = nodeHeights[n.uid] || getEstimatedNodeHeight(n.kind);
+            return Math.max(max, (n.y ?? CANVAS_PADDING) + h);
+          }, CANVAS_PADDING);
+          targetPos = {
+            x: snapCoordinate(last.x ?? CENTER_NODE_X, snapToGrid),
+            y: snapCoordinate(maxBottom + CONNECTOR_VERTICAL_GAP, snapToGrid),
+          };
+        }
       }
+      const newNode = createEditorNode(kind, targetPos);
       return [...prev, newNode];
     });
     setEditorValidation(null);
@@ -1466,6 +2678,8 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
       lastTextEditMetaRef.current.key === editKey && now - lastTextEditMetaRef.current.time < 1000;
     lastTextEditMetaRef.current = { key: editKey, time: now };
 
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
     setEditorHistory((prev) => {
       const next = computeNext(prev.present);
       if (isSameBurst) {
@@ -1503,26 +2717,40 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
     if (target < 0 || target >= editorNodes.length) return;
     commitEditorNodes((prev) => {
       const copy = [...prev];
+      const aPos = { x: copy[index].x, y: copy[index].y };
+      const bPos = { x: copy[target].x, y: copy[target].y };
       const [item] = copy.splice(index, 1);
       copy.splice(target, 0, item);
+      // Swap grid positions so visual top-to-bottom layout stays tidy with step order
+      if (typeof aPos.x === 'number' && typeof aPos.y === 'number' && typeof bPos.x === 'number' && typeof bPos.y === 'number') {
+        const swappedA = direction === 'up' ? index - 1 : index + 1;
+        const swappedB = index;
+        copy[swappedA] = { ...copy[swappedA], x: bPos.x, y: bPos.y };
+        copy[swappedB] = { ...copy[swappedB], x: aPos.x, y: aPos.y };
+      }
       return copy;
     });
     setEditorValidation(null);
   };
 
   const loadEditorMission = (missionId: string) => {
+    if (editorIsRunning) return;
     const found = EDITOR_MISSIONS.find((m) => m.id === missionId);
     if (!found) return;
     setActiveMissionId(missionId);
     setActiveTemplateId(null);
     commitEditorNodes(() =>
-      found.starterNodes.map((n, idx) => ({
-        ...n,
-        uid: `mission_${missionId}_${idx}_${Date.now()}`,
-      }))
+      layoutNodesTidily(
+        found.starterNodes.map((n, idx) => ({
+          ...n,
+          uid: `mission_${missionId}_${idx}_${Date.now()}`,
+        }))
+      )
     );
     setEditorValidation(null);
     setEditorActiveStep(null);
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
     setEditorIsRunning(false);
   };
 
@@ -1533,43 +2761,71 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
     setActiveTemplateId(templateId);
     setActiveMissionId('mission_free');
     commitEditorNodes(() =>
-      tpl.nodes.map((n, idx) => ({
-        ...n,
-        uid: `tpl_${templateId}_${idx}_${Date.now()}`,
-      }))
+      layoutNodesTidily(
+        tpl.nodes.map((n, idx) => ({
+          ...n,
+          uid: `tpl_${templateId}_${idx}_${Date.now()}`,
+        })),
+        undefined,
+        true
+      )
     );
     setEditorActiveStep(null);
     setEditorValidation({
       valid: true,
-      message: `✨ โหลดแม่แบบ "${tpl.patternTag}" ลงกระดานเรียบร้อยแล้ว! ลองแก้ไขข้อความ ย้ายลำดับ หรือกด "ตรวจ & รันผังงาน" ได้เลย`,
+      message: `✨ โหลดแม่แบบ "${tpl.patternTag}" ลงกระดานเรียบร้อยแล้ว! ลองแก้ไขข้อความ ลากจัดวางบนตาราง หรือกด "ตรวจ & รันผังงาน" ได้เลย`,
       tips: [`โครงสร้างแม่แบบ: ${tpl.previewFlow}`],
     });
   };
 
-  const handleCanvasDrop = (e: React.DragEvent, insertIndex?: number) => {
+  const handleCanvasDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsCanvasDragOver(false);
-    setDropTargetIndex(null);
 
     if (draggedPaletteKind) {
-      addNodeToCanvas(draggedPaletteKind, insertIndex);
+      const pos = paletteDropPreview || getSnappedDropPositionFromPointer(e.clientX, e.clientY);
+      addNodeToCanvas(draggedPaletteKind, pos);
       setDraggedPaletteKind(null);
+      setPaletteDropPreview(null);
+    }
+  };
+
+  const handleNodePointerDown = (e: React.PointerEvent, node: EditorNode) => {
+    if (editorIsRunning || e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (
+      target?.closest('input, textarea, button, select, a, [data-no-drag="true"]')
+    ) {
       return;
     }
+    e.preventDefault();
+    const el = canvasInnerRef.current;
+    const rect = el?.getBoundingClientRect();
+    const scaleX = rect && rect.width > 0 ? rect.width / CANVAS_LOGICAL_WIDTH : 1;
+    const scaleY =
+      rect && el && el.offsetHeight > 0 ? rect.height / el.offsetHeight : scaleX;
+    const origX = node.x ?? CENTER_NODE_X;
+    const origY = node.y ?? CANVAS_PADDING;
 
-    if (draggedNodeIndex !== null && typeof insertIndex === 'number') {
-      commitEditorNodes((prev) => {
-        if (draggedNodeIndex < 0 || draggedNodeIndex >= prev.length) return prev;
-        const copy = [...prev];
-        const [moved] = copy.splice(draggedNodeIndex, 1);
-        const adjustedIdx = draggedNodeIndex < insertIndex ? insertIndex - 1 : insertIndex;
-        copy.splice(Math.max(0, Math.min(copy.length, adjustedIdx)), 0, moved);
-        return copy;
-      });
-      setDraggedNodeIndex(null);
-      setEditorValidation(null);
-    }
+    pointerDragRef.current = {
+      uid: node.uid,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      origX,
+      origY,
+      scaleX,
+      scaleY,
+      currentX: origX,
+      currentY: origY,
+    };
+    setDraggingNodeState({
+      uid: node.uid,
+      x: origX,
+      y: origY,
+      alignX: null,
+      alignY: null,
+    });
   };
 
   const validateAndRunEditorFlowchart = async () => {
@@ -1599,12 +2855,30 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
       tips.push('ภารกิจประตูอัตโนมัติต้องมีกล่อง "ตรวจสอบเงื่อนไข (Decision ◇)" ด้วยนะครับ');
     }
 
-    // Run step-by-step highlight animation through student's logic chain
+    // Run step-by-step highlight & animated connection flow through student's logic chain
+    const runToken = ++editorRunTokenRef.current;
     setEditorIsRunning(true);
+    setEditorValidation(null);
+    setEditorActiveEdge(null);
+    setEditorRunPassedCount(0);
+
     for (let i = 0; i < editorNodes.length; i++) {
+      if (editorRunTokenRef.current !== runToken) return;
       setEditorActiveStep(i);
-      await new Promise((resolve) => setTimeout(resolve, 550));
+      setEditorActiveEdge(null);
+      await new Promise((resolve) => setTimeout(resolve, 380));
+      if (editorRunTokenRef.current !== runToken) return;
+
+      if (i < editorNodes.length - 1) {
+        setEditorActiveEdge(i);
+        await new Promise((resolve) => setTimeout(resolve, 380));
+        if (editorRunTokenRef.current !== runToken) return;
+        setEditorRunPassedCount(i + 1);
+      }
     }
+
+    if (editorRunTokenRef.current !== runToken) return;
+    setEditorActiveEdge(null);
     setEditorActiveStep(null);
     setEditorIsRunning(false);
 
@@ -1630,6 +2904,11 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
   const renderFlowNodeBox = (node: FlowchartStepNode, idx: number) => {
     const isCurrent = idx === activeStepIdx;
     const isPassed = idx < activeStepIdx;
+    const connectorStatus: 'idle' | 'flowing' | 'passed' = isPassed
+      ? 'passed'
+      : isCurrent && idx < traceNodes.length - 1 && (isAutoPlaying || activeStepIdx > 0)
+      ? 'flowing'
+      : 'idle';
 
     let shapeClass = 'rounded-xl';
     let borderBg = isCurrent
@@ -1684,11 +2963,7 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
             <div className="text-xs sm:text-sm font-bold leading-snug">{node.text}</div>
           </div>
         </button>
-        {idx < traceNodes.length - 1 && (
-          <div className="my-1 flex flex-col items-center text-slate-400">
-            <ArrowDown className={`w-4 h-4 ${isPassed || isCurrent ? 'text-indigo-500' : ''}`} />
-          </div>
-        )}
+        {idx < traceNodes.length - 1 && <FlowConnectorLine status={connectorStatus} />}
       </div>
     );
   };
@@ -2095,7 +3370,10 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
       </div>
 
       {/* Section 3B: Interactive Drag-and-Drop Flowchart Editor */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm">
+      <div
+        ref={editorSectionRef}
+        className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 shadow-sm"
+      >
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
           <div>
             <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider flex items-center gap-1.5">
@@ -2210,11 +3488,10 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                   draggable={!editorIsRunning}
                   onDragStart={() => {
                     setDraggedPaletteKind(item.kind);
-                    setDraggedNodeIndex(null);
                   }}
                   onDragEnd={() => {
                     setDraggedPaletteKind(null);
-                    setDropTargetIndex(null);
+                    setPaletteDropPreview(null);
                     setIsCanvasDragOver(false);
                   }}
                   onClick={() => addNodeToCanvas(item.kind)}
@@ -2281,11 +3558,12 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                   type="button"
                   disabled={!canUndo}
                   onClick={handleUndo}
-                  title="ย้อนกลับ (Undo)"
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="ย้อนกลับการกระทำล่าสุดบนกระดาน (Undo · Ctrl+Z)"
+                  aria-label="ย้อนกลับ (Undo)"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 text-slate-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Undo2 className="w-3.5 h-3.5" />
-                  <span>ย้อนกลับ</span>
+                  <span>ย้อนกลับ (Undo)</span>
                   {editorHistory.past.length > 0 && (
                     <span className="px-1 rounded bg-slate-100 text-[10px] font-bold text-slate-600">
                       {editorHistory.past.length}
@@ -2301,6 +3579,33 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                 >
                   <Redo2 className="w-3.5 h-3.5" />
                   <span>ทำซ้ำ</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={editorIsRunning}
+                  onClick={handleToggleSnapToGrid}
+                  title={`เปิด/ปิดการดูดชิดตารางอัตโนมัติ (Snap to Grid ${CANVAS_GRID_SIZE}px)`}
+                  aria-pressed={snapToGrid}
+                  aria-label="สลับโหมดชิดตาราง (Snap to Grid)"
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                    snapToGrid
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs hover:bg-indigo-700'
+                      : 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Magnet className="w-3.5 h-3.5" />
+                  <span>{snapToGrid ? 'ชิดตาราง: เปิด' : 'ชิดตาราง: ปิด'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={editorIsRunning || editorNodes.length === 0}
+                  onClick={handleTidyAlignCanvas}
+                  title="จัดเรียงบล็อกทั้งหมดให้ตรงแนวกลางและชิดตารางอย่างเป็นระเบียบ"
+                  aria-label="จัดเรียงตรงแนว (Auto-Align)"
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700 text-slate-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <AlignCenter className="w-3.5 h-3.5" />
+                  <span>จัดเรียงตรงแนว</span>
                 </button>
                 <div
                   className="inline-flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden"
@@ -2357,10 +3662,29 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
                     disabled={editorIsRunning || editorNodes.length === 0}
                     onClick={handleExportJson}
                     title="บันทึกโครงสร้างผังงานเป็นไฟล์ข้อมูล (.json)"
-                    className="inline-flex items-center gap-1 px-2.5 py-1.5 hover:bg-sky-50 hover:text-sky-700 text-slate-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 hover:bg-sky-50 hover:text-sky-700 text-slate-700 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-r border-slate-200"
                   >
                     <FileJson className="w-3.5 h-3.5" />
                     <span>บันทึก JSON</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={editorIsRunning || editorNodes.length === 0}
+                    onClick={handleCopyShareLink}
+                    title="สร้างและคัดลอกลิงก์ URL ของผังงานปัจจุบันเพื่อแชร์ให้เพื่อนหรือคุณครู"
+                    aria-label="คัดลอกลิงก์แชร์ผังงาน (Copy Shareable Link)"
+                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+                      linkCopied
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'hover:bg-indigo-50 hover:text-indigo-700 text-slate-700'
+                    }`}
+                  >
+                    {linkCopied ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    ) : (
+                      <Share2 className="w-3.5 h-3.5" />
+                    )}
+                    <span>{linkCopied ? 'คัดลอกลิงก์แล้ว!' : 'คัดลอกลิงก์แชร์'}</span>
                   </button>
                 </div>
                 <button
@@ -2390,229 +3714,458 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
             </div>
 
             {exportFeedback && (
-              <div className="mb-2.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center justify-between gap-2">
-                <span>{exportFeedback}</span>
-                <button
-                  type="button"
-                  onClick={() => setExportFeedback(null)}
-                  className="text-emerald-700 hover:text-emerald-950 font-bold text-[11px] cursor-pointer"
-                >
-                  ปิด
-                </button>
+              <div className="mb-2.5 px-3 py-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span>{exportFeedback}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setExportFeedback(null);
+                      setShareableLinkPreview(null);
+                    }}
+                    className="text-emerald-700 hover:text-emerald-950 font-bold text-[11px] cursor-pointer shrink-0"
+                  >
+                    ปิด
+                  </button>
+                </div>
+                {shareableLinkPreview && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={shareableLinkPreview}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onClick={(e) => e.currentTarget.select()}
+                      aria-label="ลิงก์แชร์ผังงาน"
+                      className="w-full px-2.5 py-1 rounded-lg bg-white border border-emerald-200 text-[11px] font-mono text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Drop Canvas Area */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsCanvasDragOver(true);
-              }}
-              onDragLeave={() => setIsCanvasDragOver(false)}
-              onDrop={(e) => handleCanvasDrop(e, editorNodes.length)}
-              className={`min-h-[360px] max-h-[680px] overflow-auto rounded-2xl border-2 border-dashed p-4 sm:p-6 flex flex-col items-center transition-colors ${
-                isCanvasDragOver
-                  ? 'bg-indigo-50/70 border-indigo-400'
-                  : 'bg-slate-50 border-slate-300'
-              }`}
-            >
-              {editorNodes.length === 0 ? (
-                <div className="my-auto text-center text-slate-400 space-y-2 py-8">
-                  <div className="text-3xl">🧩</div>
-                  <div className="text-sm font-bold text-slate-600">
-                    ลากสัญลักษณ์มาวางที่นี่ เพื่อเริ่มสร้างสายโซ่ตรรกะของคุณ!
-                  </div>
-                  <div className="text-xs">
-                    แนะนำ: เริ่มด้วย <strong>จุดเริ่มต้น (Start)</strong> → <strong>ขั้นตอนทำ/ตัดสินใจ</strong> → <strong>จุดสิ้นสุด (End)</strong>
-                  </div>
-                </div>
-              ) : (
-                <div className={`w-full max-w-md mx-auto flex flex-col items-center transition-all ${currentZoom.className}`}>
-                  {editorNodes.map((node, idx) => {
-                    const isRunningHere = editorActiveStep === idx;
-                    const isDroppingAbove = dropTargetIndex === idx;
+            {/* Drop Canvas Area (2D Snap-to-Grid Blueprint) */}
+            {(() => {
+              const effectiveNodes = editorNodes.map((node) => {
+                if (draggingNodeState && draggingNodeState.uid === node.uid) {
+                  return { ...node, x: draggingNodeState.x, y: draggingNodeState.y };
+                }
+                return {
+                  ...node,
+                  x: node.x ?? CENTER_NODE_X,
+                  y: node.y ?? CANVAS_PADDING,
+                };
+              });
 
-                    let nodeContainerShape = 'rounded-xl';
-                    let nodeColor = 'bg-white border-indigo-400 text-slate-900';
-                    if (node.kind === 'start' || node.kind === 'end') {
-                      nodeContainerShape = 'rounded-full px-6';
-                      nodeColor = 'bg-rose-50 border-rose-400 text-rose-950';
-                    } else if (node.kind === 'decision') {
-                      nodeContainerShape = 'rounded-2xl border-dashed';
-                      nodeColor = 'bg-amber-50 border-amber-400 text-amber-950';
-                    } else if (node.kind === 'input' || node.kind === 'output') {
-                      nodeContainerShape = 'rounded-xl';
-                      nodeColor = 'bg-sky-50 border-sky-400 text-sky-950';
+              const maxNodeBottom = effectiveNodes.reduce((max, n) => {
+                const h = nodeHeights[n.uid] || getEstimatedNodeHeight(n.kind);
+                return Math.max(max, (n.y ?? CANVAS_PADDING) + h);
+              }, 300);
+
+              const previewBottom = paletteDropPreview
+                ? paletteDropPreview.y +
+                  getEstimatedNodeHeight(draggedPaletteKind || 'process') +
+                  48
+                : 0;
+
+              const canvasHeight = Math.max(
+                432,
+                Math.ceil((Math.max(maxNodeBottom, previewBottom) + 72) / CANVAS_GRID_SIZE) *
+                  CANVAS_GRID_SIZE
+              );
+
+              return (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsCanvasDragOver(true);
+                    if (draggedPaletteKind) {
+                      const pos = getSnappedDropPositionFromPointer(e.clientX, e.clientY);
+                      setPaletteDropPreview((prev) =>
+                        prev && prev.x === pos.x && prev.y === pos.y ? prev : pos
+                      );
                     }
-
-                    const paletteInfo = EDITOR_PALETTE.find((p) => p.kind === node.kind);
-                    const kindLabel =
-                      symbolDisplayMode === 'visual'
-                        ? paletteInfo?.visualName
-                        : paletteInfo?.nameTh;
-
-                    return (
-                      <React.Fragment key={node.uid}>
-                        {/* Inter-node drop zone */}
-                        <div
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setDropTargetIndex(idx);
-                          }}
-                          onDrop={(e) => handleCanvasDrop(e, idx)}
-                          className={`w-full transition-all flex items-center justify-center ${
-                            isDroppingAbove
-                              ? 'h-8 my-1 rounded-lg bg-indigo-100 border-2 border-dashed border-indigo-400 text-[10px] font-bold text-indigo-700'
-                              : 'h-2'
-                          }`}
-                        >
-                          {isDroppingAbove && 'วางแทรกตรงนี้'}
-                        </div>
-
-                        <div
-                          draggable={!editorIsRunning}
-                          onDragStart={() => {
-                            setDraggedNodeIndex(idx);
-                            setDraggedPaletteKind(null);
-                          }}
-                          onDragEnd={() => {
-                            setDraggedNodeIndex(null);
-                            setDropTargetIndex(null);
-                          }}
-                          className={`w-full border-2 p-3 transition-all shadow-xs ${nodeContainerShape} ${nodeColor} ${
-                            isRunningHere ? 'ring-4 ring-indigo-300 scale-[1.03] shadow-md bg-indigo-50!' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <div className="relative group/nodeinfo inline-flex items-center gap-1.5 text-[10px] font-bold opacity-85">
-                              <GripVertical className="w-3.5 h-3.5 cursor-grab" />
-                              <span>
-                                #{idx + 1} · {kindLabel}
-                              </span>
-                              {paletteInfo && (
-                                <>
-                                  <span
-                                    tabIndex={0}
-                                    className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-white/75 text-slate-600 hover:text-indigo-700 cursor-help focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                    aria-label={`คำอธิบายสัญลักษณ์ ${paletteInfo.nameTh}`}
-                                  >
-                                    <HelpCircle className="w-3 h-3" />
-                                  </span>
-                                  <div
-                                    role="tooltip"
-                                    className={`pointer-events-none invisible opacity-0 group-hover/nodeinfo:visible group-hover/nodeinfo:opacity-100 group-focus-within/nodeinfo:visible group-focus-within/nodeinfo:opacity-100 transition-all duration-150 absolute z-30 left-0 w-64 sm:w-72 p-2.5 rounded-xl bg-slate-900 text-white shadow-xl border border-slate-700 text-left font-normal ${
-                                      idx === 0 ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
-                                    }`}
-                                  >
-                                    <div className="text-[11px] font-bold text-amber-300 mb-1">
-                                      {paletteInfo.visualEmoji} {paletteInfo.nameTh}
-                                    </div>
-                                    <div className="text-[10px] leading-relaxed text-slate-100">
-                                      <strong className="text-sky-300">หน้าที่: </strong>
-                                      {paletteInfo.tooltipFunction}
-                                    </div>
-                                    <div className="text-[10px] leading-relaxed text-slate-200 mt-1">
-                                      <strong className="text-emerald-300">ใช้ตอนไหน: </strong>
-                                      {paletteInfo.tooltipBestUse}
-                                    </div>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                disabled={editorIsRunning || idx === 0}
-                                onClick={() => moveEditorNode(idx, 'up')}
-                                className="p-1 rounded bg-white/80 hover:bg-white text-slate-600 disabled:opacity-30 cursor-pointer"
-                                title="เลื่อนขึ้น"
-                              >
-                                <ArrowUp className="w-3 h-3" />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={editorIsRunning || idx === editorNodes.length - 1}
-                                onClick={() => moveEditorNode(idx, 'down')}
-                                className="p-1 rounded bg-white/80 hover:bg-white text-slate-600 disabled:opacity-30 cursor-pointer"
-                                title="เลื่อนลง"
-                              >
-                                <ArrowDown className="w-3 h-3" />
-                              </button>
-                              <button
-                                type="button"
-                                disabled={editorIsRunning}
-                                onClick={() => removeEditorNode(node.uid)}
-                                className="p-1 rounded bg-white/80 hover:bg-rose-100 text-rose-600 disabled:opacity-30 cursor-pointer"
-                                title="ลบกล่องนี้"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-
-                          <input
-                            type="text"
-                            value={node.label}
-                            disabled={editorIsRunning}
-                            onChange={(e) => updateNodeLabel(node.uid, e.target.value)}
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-white/90 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                            placeholder="พิมพ์คำอธิบายขั้นตอนที่นี่..."
-                          />
-
-                          {node.kind === 'decision' && (
-                            <div className="grid grid-cols-2 gap-2 mt-2">
-                              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-1.5">
-                                <div className="text-[9px] font-bold text-emerald-700 mb-0.5">✔️ ถ้า ใช่ (True):</div>
-                                <input
-                                  type="text"
-                                  value={node.trueAction || ''}
-                                  disabled={editorIsRunning}
-                                  onChange={(e) => updateDecisionBranch(node.uid, 'trueAction', e.target.value)}
-                                  className="w-full px-1.5 py-1 rounded bg-white border border-emerald-200 text-[11px] font-semibold text-slate-800 focus:outline-none"
-                                />
-                              </div>
-                              <div className="bg-rose-50 border border-rose-200 rounded-lg p-1.5">
-                                <div className="text-[9px] font-bold text-rose-700 mb-0.5">❌ ถ้า ไม่ใช่ (False):</div>
-                                <input
-                                  type="text"
-                                  value={node.falseAction || ''}
-                                  disabled={editorIsRunning}
-                                  onChange={(e) => updateDecisionBranch(node.uid, 'falseAction', e.target.value)}
-                                  className="w-full px-1.5 py-1 rounded bg-white border border-rose-200 text-[11px] font-semibold text-slate-800 focus:outline-none"
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {idx < editorNodes.length - 1 && (
-                          <div className="my-1 text-slate-400">
-                            <ArrowDown className={`w-4 h-4 ${isRunningHere ? 'text-indigo-600 scale-125' : ''}`} />
-                          </div>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-
-                  {/* Bottom drop hint */}
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                      setIsCanvasDragOver(false);
+                      setPaletteDropPreview(null);
+                    }
+                  }}
+                  onDrop={handleCanvasDrop}
+                  className={`min-h-[380px] max-h-[680px] overflow-auto rounded-2xl border-2 border-dashed transition-colors ${
+                    isCanvasDragOver
+                      ? 'bg-indigo-50/70 border-indigo-400'
+                      : 'bg-slate-100/70 border-slate-300'
+                  }`}
+                >
                   <div
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDropTargetIndex(editorNodes.length);
+                    ref={canvasInnerRef}
+                    style={{
+                      width: `${CANVAS_LOGICAL_WIDTH}px`,
+                      minHeight: `${canvasHeight}px`,
                     }}
-                    onDrop={(e) => handleCanvasDrop(e, editorNodes.length)}
-                    className={`w-full mt-2 py-2 rounded-xl border border-dashed text-center text-[11px] transition-colors ${
-                      dropTargetIndex === editorNodes.length
-                        ? 'bg-indigo-100 border-indigo-400 text-indigo-800 font-bold'
-                        : 'border-slate-300 text-slate-400'
+                    className={`relative mx-auto transition-colors ${currentZoom.className} ${
+                      snapToGrid
+                        ? 'bg-white/90 bg-[linear-gradient(to_right,rgba(99,102,241,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(99,102,241,0.1)_1px,transparent_1px)] [background-size:24px_24px]'
+                        : 'bg-slate-50/95'
                     }`}
                   >
-                    + ลากสัญลักษณ์มาปล่อยที่นี่เพื่อต่อท้าย
+                    {/* Subtle Snap-to-Grid Hint Pill */}
+                    <div className="sticky top-2 left-2 z-20 inline-flex items-center gap-1.5 ml-3 mt-2 px-2.5 py-1 rounded-lg bg-white/90 border border-slate-200 shadow-xs text-[10px] font-semibold text-slate-600 pointer-events-none">
+                      <Magnet
+                        className={`w-3 h-3 ${snapToGrid ? 'text-indigo-600' : 'text-slate-400'}`}
+                      />
+                      <span>
+                        {snapToGrid
+                          ? `โหมดชิดตาราง (${CANVAS_GRID_SIZE}px) เปิดอยู่ · ลากกล่องจัดวางได้อิสระ`
+                          : 'โหมดวางอิสระ (ปิดชิดตาราง)'}
+                      </span>
+                    </div>
+
+                    {editorNodes.length === 0 && !paletteDropPreview ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-slate-400 space-y-2 p-8 pointer-events-none">
+                        <div className="text-3xl">🧩</div>
+                        <div className="text-sm font-bold text-slate-600">
+                          ลากสัญลักษณ์มาวางบนตารางที่นี่ เพื่อเริ่มสร้างสายโซ่ตรรกะของคุณ!
+                        </div>
+                        <div className="text-xs">
+                          แนะนำ: เริ่มด้วย <strong>จุดเริ่มต้น (Start)</strong> →{' '}
+                          <strong>ขั้นตอนทำ/ตัดสินใจ</strong> → <strong>จุดสิ้นสุด (End)</strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* SVG Flow Connectors & Smart Alignment Guides Layer */}
+                        <svg
+                          width={CANVAS_LOGICAL_WIDTH}
+                          height={canvasHeight}
+                          viewBox={`0 0 ${CANVAS_LOGICAL_WIDTH} ${canvasHeight}`}
+                          className="absolute inset-0 pointer-events-none z-0"
+                          aria-hidden="true"
+                        >
+                          {/* Active Alignment Guide Lines while dragging a block */}
+                          {draggingNodeState?.alignX !== null &&
+                            draggingNodeState?.alignX !== undefined && (
+                              <line
+                                x1={draggingNodeState.alignX}
+                                y1={0}
+                                x2={draggingNodeState.alignX}
+                                y2={canvasHeight}
+                                stroke="#06b6d4"
+                                strokeWidth="1.5"
+                                strokeDasharray="5 4"
+                              />
+                            )}
+                          {draggingNodeState?.alignY !== null &&
+                            draggingNodeState?.alignY !== undefined && (
+                              <line
+                                x1={0}
+                                y1={draggingNodeState.alignY}
+                                x2={CANVAS_LOGICAL_WIDTH}
+                                y2={draggingNodeState.alignY}
+                                stroke="#06b6d4"
+                                strokeWidth="1.5"
+                                strokeDasharray="5 4"
+                              />
+                            )}
+
+                          {/* Sequential Flow Connectors between consecutive logic blocks */}
+                          {effectiveNodes.map((fromNode, idx) => {
+                            if (idx >= effectiveNodes.length - 1) return null;
+                            const toNode = effectiveNodes[idx + 1];
+                            const fromH =
+                              nodeHeights[fromNode.uid] || getEstimatedNodeHeight(fromNode.kind);
+                            const sx = (fromNode.x ?? CENTER_NODE_X) + NODE_CARD_WIDTH / 2;
+                            const sy = (fromNode.y ?? CANVAS_PADDING) + fromH;
+                            const tx = (toNode.x ?? CENTER_NODE_X) + NODE_CARD_WIDTH / 2;
+                            const ty = toNode.y ?? CANVAS_PADDING;
+                            const endTipY = ty - 4;
+
+                            let pathD = '';
+                            if (endTipY >= sy + 8) {
+                              if (Math.abs(sx - tx) <= 2) {
+                                pathD = `M ${sx} ${sy} L ${tx} ${endTipY}`;
+                              } else {
+                                const midY = Math.round((sy + endTipY) / 2);
+                                pathD = `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${endTipY}`;
+                              }
+                            } else {
+                              const exitY = sy + 18;
+                              const entryY = endTipY - 16;
+                              const detourX =
+                                sx <= tx
+                                  ? Math.min(
+                                      CANVAS_LOGICAL_WIDTH - 16,
+                                      Math.max(sx, tx) + NODE_CARD_WIDTH / 2 + 24
+                                    )
+                                  : Math.max(
+                                      16,
+                                      Math.min(sx, tx) - NODE_CARD_WIDTH / 2 - 24
+                                    );
+                              pathD = `M ${sx} ${sy} L ${sx} ${exitY} L ${detourX} ${exitY} L ${detourX} ${entryY} L ${tx} ${entryY} L ${tx} ${endTipY}`;
+                            }
+
+                            const status: 'idle' | 'flowing' | 'passed' =
+                              editorActiveEdge === idx
+                                ? 'flowing'
+                                : idx < editorRunPassedCount
+                                ? 'passed'
+                                : 'idle';
+                            const isFlowing = status === 'flowing';
+                            const isPassed = status === 'passed';
+                            const strokeColor = isFlowing
+                              ? '#4f46e5'
+                              : isPassed
+                              ? '#10b981'
+                              : '#cbd5e1';
+
+                            return (
+                              <g key={`${fromNode.uid}->${toNode.uid}`}>
+                                {isFlowing && (
+                                  <path
+                                    d={pathD}
+                                    fill="none"
+                                    stroke="#818cf8"
+                                    strokeOpacity="0.35"
+                                    strokeWidth="8"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                )}
+                                <path
+                                  d={pathD}
+                                  fill="none"
+                                  stroke={strokeColor}
+                                  strokeOpacity={isFlowing ? 0.35 : 1}
+                                  strokeWidth={isFlowing || isPassed ? 2.8 : 2.2}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                {isFlowing && (
+                                  <path
+                                    d={pathD}
+                                    fill="none"
+                                    stroke="#4f46e5"
+                                    strokeWidth="3"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="animate-flowchart-dash"
+                                  />
+                                )}
+                                <polygon
+                                  points={`${tx - 5.5},${endTipY - 6} ${tx},${endTipY + 3} ${tx + 5.5},${endTipY - 6}`}
+                                  fill={strokeColor}
+                                />
+                                {isFlowing && (
+                                  <circle
+                                    r="4.5"
+                                    fill="#22d3ee"
+                                    stroke="#4f46e5"
+                                    strokeWidth="2"
+                                  >
+                                    <animateMotion dur="0.65s" repeatCount="indefinite" path={pathD} />
+                                  </circle>
+                                )}
+                              </g>
+                            );
+                          })}
+                        </svg>
+
+                        {/* Snapped Drop Preview Ghost when dragging from Palette */}
+                        {draggedPaletteKind && paletteDropPreview && (
+                          <div
+                            style={{
+                              left: `${paletteDropPreview.x}px`,
+                              top: `${paletteDropPreview.y}px`,
+                              width: `${NODE_CARD_WIDTH}px`,
+                              height: `${getEstimatedNodeHeight(draggedPaletteKind)}px`,
+                            }}
+                            className="absolute z-10 rounded-xl border-2 border-dashed border-indigo-500 bg-indigo-100/75 flex flex-col items-center justify-center text-center p-2 pointer-events-none shadow-sm"
+                          >
+                            <span className="text-xs font-bold text-indigo-800">
+                              🧲 ปล่อยเพื่อวางชิดตาราง
+                            </span>
+                            <span className="text-[10px] font-mono text-indigo-600 mt-0.5">
+                              X: {paletteDropPreview.x}px · Y: {paletteDropPreview.y}px
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Positioned Logic Blocks */}
+                        {effectiveNodes.map((node, idx) => {
+                          const isRunningHere = editorActiveStep === idx;
+                          const isBeingDragged = draggingNodeState?.uid === node.uid;
+                          const nodeX = node.x ?? CENTER_NODE_X;
+                          const nodeY = node.y ?? CANVAS_PADDING;
+
+                          let nodeContainerShape = 'rounded-xl';
+                          let nodeColor = 'bg-white border-indigo-400 text-slate-900';
+                          if (node.kind === 'start' || node.kind === 'end') {
+                            nodeContainerShape = 'rounded-full px-6';
+                            nodeColor = 'bg-rose-50 border-rose-400 text-rose-950';
+                          } else if (node.kind === 'decision') {
+                            nodeContainerShape = 'rounded-2xl border-dashed';
+                            nodeColor = 'bg-amber-50 border-amber-400 text-amber-950';
+                          } else if (node.kind === 'input' || node.kind === 'output') {
+                            nodeContainerShape = 'rounded-xl';
+                            nodeColor = 'bg-sky-50 border-sky-400 text-sky-950';
+                          }
+
+                          const paletteInfo = EDITOR_PALETTE.find((p) => p.kind === node.kind);
+                          const kindLabel =
+                            symbolDisplayMode === 'visual'
+                              ? paletteInfo?.visualName
+                              : paletteInfo?.nameTh;
+
+                          return (
+                            <div
+                              key={node.uid}
+                              data-flowchart-node-uid={node.uid}
+                              onPointerDown={(e) => handleNodePointerDown(e, node)}
+                              style={{
+                                left: `${nodeX}px`,
+                                top: `${nodeY}px`,
+                                width: `${NODE_CARD_WIDTH}px`,
+                              }}
+                              className={`absolute z-10 border-2 p-3 select-none ${
+                                isBeingDragged
+                                  ? 'z-30 shadow-xl ring-4 ring-cyan-300/80 cursor-grabbing transition-none'
+                                  : 'transition-shadow cursor-grab shadow-xs hover:shadow-md'
+                              } ${nodeContainerShape} ${nodeColor} ${
+                                isRunningHere
+                                  ? 'ring-4 ring-indigo-300 scale-[1.03] shadow-md bg-indigo-50!'
+                                  : ''
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-1.5 touch-none">
+                                <div className="relative group/nodeinfo inline-flex items-center gap-1.5 text-[10px] font-bold opacity-85">
+                                  <GripVertical className="w-3.5 h-3.5 shrink-0" />
+                                  <span>
+                                    #{idx + 1} · {kindLabel}
+                                    {/inner loop|↳|ลูปใน/i.test(node.label)
+                                      ? ' · ลูปใน (Inner Loop)'
+                                      : /outer loop|ลูปนอก/i.test(node.label)
+                                      ? ' · ลูปนอก (Outer Loop)'
+                                      : ''}
+                                  </span>
+                                  {paletteInfo && (
+                                    <>
+                                      <span
+                                        tabIndex={0}
+                                        data-no-drag="true"
+                                        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-white/75 text-slate-600 hover:text-indigo-700 cursor-help focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        aria-label={`คำอธิบายสัญลักษณ์ ${paletteInfo.nameTh}`}
+                                      >
+                                        <HelpCircle className="w-3 h-3" />
+                                      </span>
+                                      <div
+                                        role="tooltip"
+                                        className={`pointer-events-none invisible opacity-0 group-hover/nodeinfo:visible group-hover/nodeinfo:opacity-100 group-focus-within/nodeinfo:visible group-focus-within/nodeinfo:opacity-100 transition-all duration-150 absolute z-30 left-0 w-64 sm:w-72 p-2.5 rounded-xl bg-slate-900 text-white shadow-xl border border-slate-700 text-left font-normal ${
+                                          nodeY < 160 ? 'top-full mt-1.5' : 'bottom-full mb-1.5'
+                                        }`}
+                                      >
+                                        <div className="text-[11px] font-bold text-amber-300 mb-1">
+                                          {paletteInfo.visualEmoji} {paletteInfo.nameTh}
+                                        </div>
+                                        <div className="text-[10px] leading-relaxed text-slate-100">
+                                          <strong className="text-sky-300">หน้าที่: </strong>
+                                          {paletteInfo.tooltipFunction}
+                                        </div>
+                                        <div className="text-[10px] leading-relaxed text-slate-200 mt-1">
+                                          <strong className="text-emerald-300">ใช้ตอนไหน: </strong>
+                                          {paletteInfo.tooltipBestUse}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1" data-no-drag="true">
+                                  {isBeingDragged && (
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-900 text-white font-mono text-[9px] font-bold mr-0.5">
+                                      {nodeX},{nodeY}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    disabled={editorIsRunning || idx === 0}
+                                    onClick={() => moveEditorNode(idx, 'up')}
+                                    className="p-1 rounded bg-white/80 hover:bg-white text-slate-600 disabled:opacity-30 cursor-pointer"
+                                    title="เลื่อนลำดับขึ้น"
+                                  >
+                                    <ArrowUp className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={editorIsRunning || idx === editorNodes.length - 1}
+                                    onClick={() => moveEditorNode(idx, 'down')}
+                                    className="p-1 rounded bg-white/80 hover:bg-white text-slate-600 disabled:opacity-30 cursor-pointer"
+                                    title="เลื่อนลำดับลง"
+                                  >
+                                    <ArrowDown className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={editorIsRunning}
+                                    onClick={() => removeEditorNode(node.uid)}
+                                    className="p-1 rounded bg-white/80 hover:bg-rose-100 text-rose-600 disabled:opacity-30 cursor-pointer"
+                                    title="ลบกล่องนี้"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <input
+                                type="text"
+                                value={node.label}
+                                disabled={editorIsRunning}
+                                onChange={(e) => updateNodeLabel(node.uid, e.target.value)}
+                                className="w-full px-2.5 py-1.5 rounded-lg bg-white/90 border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                placeholder="พิมพ์คำอธิบายขั้นตอนที่นี่..."
+                              />
+
+                              {node.kind === 'decision' && (
+                                <div className="grid grid-cols-2 gap-2 mt-2">
+                                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-1.5">
+                                    <div className="text-[9px] font-bold text-emerald-700 mb-0.5">
+                                      ✔️ ถ้า ใช่ (True):
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={node.trueAction || ''}
+                                      disabled={editorIsRunning}
+                                      onChange={(e) =>
+                                        updateDecisionBranch(node.uid, 'trueAction', e.target.value)
+                                      }
+                                      className="w-full px-1.5 py-1 rounded bg-white border border-emerald-200 text-[11px] font-semibold text-slate-800 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div className="bg-rose-50 border border-rose-200 rounded-lg p-1.5">
+                                    <div className="text-[9px] font-bold text-rose-700 mb-0.5">
+                                      ❌ ถ้า ไม่ใช่ (False):
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={node.falseAction || ''}
+                                      disabled={editorIsRunning}
+                                      onChange={(e) =>
+                                        updateDecisionBranch(node.uid, 'falseAction', e.target.value)
+                                      }
+                                      className="w-full px-1.5 py-1 rounded bg-white border border-rose-200 text-[11px] font-semibold text-slate-800 focus:outline-none"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
+              );
+            })()}
 
             {/* Validation Feedback */}
             {editorValidation && (
@@ -2640,6 +4193,157 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
             )}
           </div>
         </div>
+
+        {/* Secondary Live Python 3 Code Display Panel */}
+        {(() => {
+          const pythonLines = buildFlowchartPythonLines(editorNodes, showFcPyComments);
+          const plainPythonCode = pythonLines.map((l) => l.text).join('\n');
+
+          const handleCopyFlowchartPython = async () => {
+            let ok = false;
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+              try {
+                await navigator.clipboard.writeText(plainPythonCode);
+                ok = true;
+              } catch {
+                ok = false;
+              }
+            }
+            if (!ok) {
+              const ta = document.createElement('textarea');
+              ta.value = plainPythonCode;
+              ta.setAttribute('readonly', '');
+              ta.className = 'fixed -left-[9999px] top-0 opacity-0';
+              document.body.appendChild(ta);
+              ta.select();
+              try {
+                ok = document.execCommand('copy');
+              } catch {
+                ok = false;
+              }
+              document.body.removeChild(ta);
+            }
+            if (ok) {
+              setFcPyCopied(true);
+              if (fcPyCopiedTimerRef.current) clearTimeout(fcPyCopiedTimerRef.current);
+              fcPyCopiedTimerRef.current = setTimeout(() => setFcPyCopied(false), 2000);
+            }
+          };
+
+          return (
+            <div className="mt-6 rounded-2xl bg-slate-900 border border-slate-700 shadow-lg overflow-hidden">
+              <div className="px-4 sm:px-5 py-3 bg-slate-950/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                  <Code2 className="w-4 h-4 text-sky-400 shrink-0" />
+                  <h5 className="text-sm font-bold text-slate-100 whitespace-nowrap">
+                    โค้ดภาษาไพทอนแบบเรียลไทม์ (Python 3)
+                  </h5>
+                  <span className="text-slate-500" aria-hidden="true">·</span>
+                  <span className="text-xs text-slate-300 font-medium tabular-nums">
+                    {editorNodes.length} บล็อก / {pythonLines.length} บรรทัด
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFcPyComments((prev) => !prev)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                      showFcPyComments
+                        ? 'bg-slate-800 border-slate-600 text-amber-300'
+                        : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {showFcPyComments ? '💬 ซ่อนคำอธิบาย #' : '💬 แสดงคำอธิบาย #'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyFlowchartPython}
+                    disabled={editorNodes.length === 0}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${
+                      fcPyCopied
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                    }`}
+                  >
+                    {fcPyCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>คัดลอกโค้ดแล้ว!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>คัดลอกโค้ด Python</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPythonPanel((prev) => !prev)}
+                    aria-expanded={showPythonPanel}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    {showPythonPanel ? (
+                      <>
+                        <ChevronUp className="w-3.5 h-3.5" />
+                        <span>ย่อ</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-3.5 h-3.5" />
+                        <span>แสดงโค้ด</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {showPythonPanel && (
+                <>
+                  <div className="p-3 sm:p-4 max-h-[300px] overflow-auto font-mono text-xs leading-relaxed">
+                    {pythonLines.map((lineObj, lineIdx) => {
+                      const isActiveLine =
+                        editorActiveStep !== null && lineObj.nodeIdx === editorActiveStep;
+                      return (
+                        <div
+                          key={lineIdx}
+                          className={`flex items-start gap-3 px-2 py-0.5 rounded transition-colors ${
+                            isActiveLine
+                              ? 'bg-indigo-500/25 ring-1 ring-indigo-400/50'
+                              : 'hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <span className="w-7 text-right select-none text-slate-500 shrink-0 tabular-nums">
+                            {lineIdx + 1}
+                          </span>
+                          <pre className="whitespace-pre font-mono flex-1 overflow-x-auto">
+                            {lineObj.text ? highlightFlowchartPythonLine(lineObj.text) : ' '}
+                          </pre>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="px-4 sm:px-5 py-2.5 bg-slate-950/60 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+                    <span>
+                      💡 เทียบสัญลักษณ์:{' '}
+                      <code className="text-sky-300">รับค่า (Input)</code> ➔{' '}
+                      <code className="text-purple-300">input()</code> ·{' '}
+                      <code className="text-amber-300">เงื่อนไข (Decision ◇)</code> ➔{' '}
+                      <code className="text-purple-300">if / else / while</code> ·{' '}
+                      <code className="text-cyan-300">แสดงผล (Output)</code> ➔{' '}
+                      <code className="text-purple-300">print()</code>
+                    </span>
+                    <span className="text-emerald-400 font-semibold">
+                      ไฮไลต์บรรทัดตามขั้นตอนอัตโนมัติเมื่อกด &quot;ตรวจ &amp; รันผังงาน&quot;
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Section 4: Interactive Flowchart Mini-Quiz (5 Questions) */}
@@ -2709,6 +4413,106 @@ export const FlowchartGuideView: React.FC<FlowchartGuideViewProps> = ({ addPoint
               </div>
             );
           })}
+
+          {/* O-NET Style Complex Choice Flowchart Question */}
+          {(() => {
+            const fcComplex = [
+              {
+                text: 'ผังงานที่มีสัญลักษณ์รูปข้าวหลามตัด ◇ ต้องมีลูกศรทางออกอย่างน้อย 2 ทิศทาง (ใช่/จริง และ ไม่ใช่/เท็จ)',
+                isTrue: true,
+              },
+              {
+                text: 'สัญลักษณ์สี่เหลี่ยมผืนผ้า (Process) ใช้สำหรับตั้งคำถามเงื่อนไขและเปรียบเทียบค่าตัวแปร',
+                isTrue: false,
+              },
+              {
+                text: 'หากลูกศรชี้วนย้อนกลับขึ้นไปยังกล่องด้านบนก่อนถึง End แสดงว่ามีการทำงานแบบวนซ้ำ (Loop)',
+                isTrue: true,
+              },
+            ];
+            const allPicked = fcComplex.every((_, i) => complexQuizAns[i] !== undefined);
+            const allOk = fcComplex.every((st, i) => complexQuizAns[i] === st.isTrue);
+            return (
+              <div className="p-4 rounded-xl bg-indigo-50/50 border border-indigo-200 space-y-3">
+                <div className="text-xs sm:text-sm font-bold text-slate-900">
+                  ข้อ 6 (รูปแบบ O-NET เลือกตอบเชิงซ้อน): พิจารณาข้อความเกี่ยวกับผังงาน Flowchart แล้วระบุว่า &quot;ถูกต้อง&quot; หรือ &quot;ไม่ถูกต้อง&quot;
+                </div>
+                <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 border-b border-slate-200 font-bold text-slate-800">
+                        <th className="py-2.5 px-3">ข้อความ</th>
+                        <th className="py-2.5 px-3 text-center w-24">ถูกต้อง</th>
+                        <th className="py-2.5 px-3 text-center w-24">ไม่ถูกต้อง</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {fcComplex.map((st, idx) => {
+                        const v = complexQuizAns[idx];
+                        const ok = complexQuizChecked && v === st.isTrue;
+                        const bad = complexQuizChecked && v !== st.isTrue;
+                        return (
+                          <tr key={idx} className={ok ? 'bg-emerald-50/70' : bad ? 'bg-rose-50/70' : ''}>
+                            <td className="py-2.5 px-3 text-slate-800">
+                              {idx + 1}. {st.text}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                disabled={complexQuizChecked}
+                                onClick={() => setComplexQuizAns((prev) => ({ ...prev, [idx]: true }))}
+                                className={`px-2.5 py-1 rounded border text-[11px] font-bold cursor-pointer ${
+                                  v === true ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white border-slate-300 text-slate-600'
+                                }`}
+                              >
+                                ถูกต้อง
+                              </button>
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                disabled={complexQuizChecked}
+                                onClick={() => setComplexQuizAns((prev) => ({ ...prev, [idx]: false }))}
+                                className={`px-2.5 py-1 rounded border text-[11px] font-bold cursor-pointer ${
+                                  v === false ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-300 text-slate-600'
+                                }`}
+                              >
+                                ไม่ถูกต้อง
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  {complexQuizChecked ? (
+                    <span className="text-xs font-semibold text-indigo-900">
+                      {allOk
+                        ? 'ตอบถูกต้องทุกข้อย่อย! (+10 XP)'
+                        : 'เฉลย: ข้อ 1 ถูก (Decision มี 2 ทาง), ข้อ 2 ผิด (Process คือลงมือทำ ไม่ใช่เงื่อนไข), ข้อ 3 ถูก (ลูกศรย้อนกลับคือ Loop)'}
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-500">เลือกคำตอบครบ 3 ข้อย่อยแล้วกดตรวจ</span>
+                  )}
+                  {!complexQuizChecked && (
+                    <button
+                      type="button"
+                      disabled={!allPicked}
+                      onClick={() => {
+                        setComplexQuizChecked(true);
+                        if (allOk && addPoints) addPoints(10);
+                      }}
+                      className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold cursor-pointer"
+                    >
+                      ตรวจข้อเลือกตอบเชิงซ้อน
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

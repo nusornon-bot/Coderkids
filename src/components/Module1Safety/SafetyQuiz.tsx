@@ -12,6 +12,24 @@ export const SafetyQuiz: React.FC<SafetyQuizProps> = ({ onComplete, addPoints })
   const [submitted, setSubmitted] = useState(false);
   const [hasAwardedPoints, setHasAwardedPoints] = useState(false);
 
+  const [complexAns, setComplexAns] = useState<Record<number, boolean>>({});
+  const [complexSubmitted, setComplexSubmitted] = useState(false);
+
+  const COMPLEX_STATEMENTS = [
+    {
+      text: 'การใช้รหัสผ่านเดียวกันทุกเว็บไซต์ช่วยจำง่าย และไม่เพิ่มความเสี่ยงหากเว็บใดเว็บหนึ่งข้อมูลรั่วไหล',
+      isTrue: false,
+    },
+    {
+      text: 'ก่อนนำภาพถ่ายหรือคลิปเพื่อนไปโพสต์สาธารณะ ควรขอความยินยอมจากเจ้าตัวก่อนตามหลัก PDPA และมารยาทดิจิทัล',
+      isTrue: true,
+    },
+    {
+      text: 'หากพบข่าวที่แชร์ต่อกันแต่ไม่มีแหล่งอ้างอิง ควรตรวจสอบกับเว็บไซต์ทางการหรือหลายแหล่งก่อนเชื่อและแชร์ต่อ',
+      isTrue: true,
+    },
+  ];
+
   const handleSelect = (qId: number, optIdx: number) => {
     if (submitted) return;
     setSelectedAnswers((prev) => ({
@@ -43,10 +61,14 @@ export const SafetyQuiz: React.FC<SafetyQuizProps> = ({ onComplete, addPoints })
   const handleReset = () => {
     setSelectedAnswers({});
     setSubmitted(false);
+    setComplexAns({});
+    setComplexSubmitted(false);
   };
 
   const score = calculateScore();
   const allAnswered = SAFETY_QUIZ.every((q) => selectedAnswers[q.id] !== undefined);
+  const allComplexAnswered = COMPLEX_STATEMENTS.every((_, idx) => complexAns[idx] !== undefined);
+  const complexAllRight = COMPLEX_STATEMENTS.every((st, idx) => complexAns[idx] === st.isTrue);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8">
@@ -54,10 +76,10 @@ export const SafetyQuiz: React.FC<SafetyQuizProps> = ({ onComplete, addPoints })
         <div>
           <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">แบบทดสอบท้ายบทเรียน</span>
           <h3 className="text-xl font-bold text-slate-900 mt-0.5">
-            แบบประเมินความรู้: ความปลอดภัยดิจิทัล &amp; PDPA
+            แบบประเมินความรู้: ความปลอดภัยดิจิทัล &amp; PDPA (ครบ 2 รูปแบบข้อสอบ O-NET)
           </h3>
           <p className="text-sm text-slate-500 mt-1">
-            ทดสอบความรู้ความเข้าใจ 5 ข้อ เพื่อรับตราความรู้และเกียรติบัตร
+            ทดสอบความรู้ความเข้าใจทั้งแบบปรนัย 5 ข้อ และแบบเลือกตอบเชิงซ้อน (ประเมินข้อความถูก/ผิด)
           </p>
         </div>
 
@@ -146,6 +168,95 @@ export const SafetyQuiz: React.FC<SafetyQuizProps> = ({ onComplete, addPoints })
             </div>
           );
         })}
+
+        {/* O-NET Complex Choice Question */}
+        <div className="p-5 rounded-xl bg-indigo-50/50 border border-indigo-200 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span className="text-[11px] font-bold text-indigo-700">
+                ข้อ 6 (รูปแบบ O-NET เลือกตอบเชิงซ้อน)
+              </span>
+              <h4 className="text-sm font-bold text-slate-900 mt-0.5">
+                พิจารณาข้อความเกี่ยวกับความปลอดภัยดิจิทัลและ PDPA ต่อไปนี้ว่า &quot;ถูกต้อง&quot; หรือ &quot;ไม่ถูกต้อง&quot;
+              </h4>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-200 font-bold text-slate-800">
+                  <th className="py-2.5 px-3">ข้อความย่อย</th>
+                  <th className="py-2.5 px-3 text-center w-24">ถูกต้อง</th>
+                  <th className="py-2.5 px-3 text-center w-24">ไม่ถูกต้อง</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {COMPLEX_STATEMENTS.map((st, idx) => {
+                  const chosen = complexAns[idx];
+                  const ok = complexSubmitted && chosen === st.isTrue;
+                  const bad = complexSubmitted && chosen !== st.isTrue;
+                  return (
+                    <tr key={idx} className={ok ? 'bg-emerald-50/70' : bad ? 'bg-rose-50/70' : ''}>
+                      <td className="py-2.5 px-3 text-slate-800">
+                        {idx + 1}. {st.text}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <button
+                          type="button"
+                          disabled={complexSubmitted}
+                          onClick={() => setComplexAns((prev) => ({ ...prev, [idx]: true }))}
+                          className={`px-2.5 py-1 rounded border text-[11px] font-bold cursor-pointer ${
+                            chosen === true ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white border-slate-300 text-slate-600'
+                          }`}
+                        >
+                          ถูกต้อง
+                        </button>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <button
+                          type="button"
+                          disabled={complexSubmitted}
+                          onClick={() => setComplexAns((prev) => ({ ...prev, [idx]: false }))}
+                          className={`px-2.5 py-1 rounded border text-[11px] font-bold cursor-pointer ${
+                            chosen === false ? 'bg-rose-600 text-white border-rose-600' : 'bg-white border-slate-300 text-slate-600'
+                          }`}
+                        >
+                          ไม่ถูกต้อง
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {complexSubmitted ? (
+              <div className="text-xs font-semibold text-indigo-900">
+                {complexAllRight
+                  ? 'ตอบถูกครบทุกข้อย่อย! (+15 XP)'
+                  : 'มีบางข้อย่อยที่คลาดเคลื่อน: ห้ามใช้รหัสผ่านเดียวกันทุกเว็บ (ข้อ 1 ผิด) และต้องขอความยินยอม + ตรวจหลายแหล่ง (ข้อ 2-3 ถูก)'}
+              </div>
+            ) : (
+              <span className="text-[11px] text-slate-500">เลือกคำตอบครบ 3 ข้อย่อยแล้วกดตรวจ</span>
+            )}
+            {!complexSubmitted && (
+              <button
+                type="button"
+                disabled={!allComplexAnswered}
+                onClick={() => {
+                  setComplexSubmitted(true);
+                  if (complexAllRight) addPoints(15);
+                }}
+                className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold cursor-pointer"
+              >
+                ตรวจข้อเลือกตอบเชิงซ้อน
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="mt-8 flex justify-end">

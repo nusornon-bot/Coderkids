@@ -816,9 +816,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </p>
 
                 <div className="pt-2 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                  <div>1. รู้จักข้อมูลส่วนบุคคล &amp; สิทธิ PDPA</div>
-                  <div>2. ทดลองสร้างรหัสผ่านที่ปลอดภัย</div>
-                  <div>3. ทำแบบทดสอบวัดความเข้าใจ 5 ข้อ</div>
+                  <div>1. ข้อมูลส่วนบุคคล &amp; สิทธิ PDPA (ป.6/4)</div>
+                  <div>2. สืบค้นข้อมูล Operators &amp; กรองข่าวจริง (ป.6/3)</div>
+                  <div>3. แบบทดสอบ PDPA &amp; เลือกตอบเชิงซ้อน</div>
                 </div>
               </div>
 
@@ -875,9 +875,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </p>
 
                 <div className="pt-2 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                  <div>1. เข้าใจ 4 เสาหลักการคิดเชิงคำนวณ</div>
-                  <div>2. สัญลักษณ์ผังงาน &amp; เงื่อนไข If-Else</div>
-                  <div>3. ตะลุยด่านเกมเขาวงกตอัลกอริทึม</div>
+                  <div>1. 4 เสาหลัก CT &amp; ออกแบบ Flowchart</div>
+                  <div>2. Binary Search · เกม OX &amp; Sudoku (ป.4/1–ป.6/1)</div>
+                  <div>3. ออกแบบสตอรีบอร์ด &amp; เขาวงกตอัลกอริทึม</div>
                 </div>
               </div>
 
@@ -934,9 +934,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </p>
 
                 <div className="pt-2 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                  <div>1. ต่อบล็อกคำสั่ง Scratch สร้างชิ้นงาน</div>
-                  <div>2. ทดลองบอร์ดจำลอง Micro:bit V2</div>
-                  <div>3. อ่านค่าเซนเซอร์แสงและอุณหภูมิ</div>
+                  <div>1. ต่อบล็อก Scratch ตัวแปร เงื่อนไข ลูป &amp; Broadcast</div>
+                  <div>2. ห้องฝึกดีบักโค้ดผู้อื่นทีละบรรทัด (ป.4/2–ป.6/2)</div>
+                  <div>3. บอร์ดจำลอง Micro:bit V2 &amp; เซนเซอร์</div>
                 </div>
               </div>
 
@@ -993,9 +993,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </p>
 
                 <div className="pt-2 space-y-1.5 text-xs text-slate-600 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
-                  <div>1. ส่งผลงานและเขียนบันทึกสะท้อนคิด</div>
-                  <div>2. ชื่นชมผลงานเพื่อน (2 Stars &amp; A Wish)</div>
-                  <div>3. พิมพ์เกียรติบัตรผ่านหลักสูตร</div>
+                  <div>1. ประมวลผลข้อมูล &amp; ตารางอาหาร 5 วัน (ป.4/4)</div>
+                  <div>2. โพลสำรวจ แผนที่พื้นที่ &amp; Blog/Web (ป.5/4)</div>
+                  <div>3. ส่งผลงาน รีวิวเพื่อน &amp; พิมพ์เกียรติบัตร</div>
                 </div>
               </div>
 

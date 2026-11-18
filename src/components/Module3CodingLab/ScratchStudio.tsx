@@ -17,6 +17,9 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  Code2,
+  Copy,
+  Check,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -25,11 +28,11 @@ interface ScratchStudioProps {
   addPoints: (points: number) => void;
 }
 
-type BlockCategory = 'all' | 'events' | 'motion' | 'pen' | 'control' | 'looks';
+type BlockCategory = 'all' | 'events' | 'motion' | 'pen' | 'control' | 'looks' | 'variables';
 
 interface ProgramBlock {
   id: string;
-  category: 'events' | 'motion' | 'pen' | 'control' | 'looks';
+  category: 'events' | 'motion' | 'pen' | 'control' | 'looks' | 'variables';
   name: string;
   code: string;
   color: string;
@@ -81,8 +84,26 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<BlockCategory>('all');
   const [activePreset, setActivePreset] = useState<
-    'square' | 'triangle' | 'hexagon' | 'star' | 'circle' | 'pinwheel' | 'house' | 'spiral' | 'intro'
+    | 'square'
+    | 'triangle'
+    | 'hexagon'
+    | 'star'
+    | 'circle'
+    | 'pinwheel'
+    | 'house'
+    | 'spiral'
+    | 'intro'
+    | 'evenodd'
+    | 'bodycheck'
+    | 'lcm'
+    | 'broadcast'
   >('square');
+  const [inputValA, setInputValA] = useState<number>(12);
+  const [inputValB, setInputValB] = useState<number>(18);
+  const [varsHud, setVarsHud] = useState<Record<string, string | number>>({});
+  const [broadcastMessage, setBroadcastMessage] = useState<string | null>(null);
+  const [showPythonComments, setShowPythonComments] = useState<boolean>(true);
+  const [pythonCopied, setPythonCopied] = useState<boolean>(false);
 
   const SCRATCH_PRESET_EXPLANATIONS: Record<string, { title: string; concept: string; explanation: string; tip: string }> = {
     square: {
@@ -138,6 +159,30 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
       concept: 'ลำดับขั้นตอน (Sequence) และมัลติมีเดีย (Say & Sound)',
       explanation: 'ควบคุมตัวละครแมวส้มให้เดินหน้า 40 ก้าว แสดงกล่องคำพูดทักทาย ส่งเสียงร้องเหมียว (Meow!) และสะสมแต้มคะแนน 10 แต้ม',
       tip: 'การเขียนโค้ดเริ่มต้นจากการสั่งงานตามลำดับจากบนลงล่าง',
+    },
+    evenodd: {
+      title: 'ตรวจเลขคู่ / เลขคี่ (ป.5/2 · mod 2 Condition)',
+      concept: 'ตัวแปร (Variables) + เงื่อนไข If-Then-Else (n mod 2 == 0)',
+      explanation: 'รับค่าตัวเลข A จากผู้ใช้ คำนวณเศษจากการหาร 2 ด้วยตัวดำเนินการ mod เพื่อตรวจสอบให้ครอบคลุมทั้งกรณีเลขคู่ (เศษ 0) และเลขคี่ (เศษ 1)',
+      tip: 'ลองเปลี่ยนค่าตัวเลข A ด้านล่างเวที (เช่น 12 หรือ 17) แล้วกดรันเพื่อดูการแยกกิ่งเงื่อนไข!',
+    },
+    bodycheck: {
+      title: 'ตรวจความสมส่วนร่างกาย (ป.5/2 · น้ำหนัก-ส่วนสูง)',
+      concept: 'รับค่า A (น้ำหนัก kg), B (ส่วนสูง cm) + เงื่อนไขซ้อน If-Else',
+      explanation: 'คำนวณค่าดัชนีมวลกาย BMI = น้ำหนัก / (ส่วนสูงเป็นเมตร)² แล้วเทียบเกณฑ์ (< 18.5 ผอม, 18.5–22.9 สมส่วน, >= 23 ท้วม/อ้วน) ตามตัวชี้วัด ป.5/2',
+      tip: 'ลองปรับค่าน้ำหนัก (A) และส่วนสูง (B) เช่น 38 กก. สูง 140 ซม. แล้วกดรันดูผลลัพธ์',
+    },
+    lcm: {
+      title: 'คำนวณ ค.ร.น. (ป.6/2 · Variables + Loop + Condition)',
+      concept: 'ตัวแปร + วนซ้ำ Repeat Until + เงื่อนไข (lcm mod A == 0 && lcm mod B == 0)',
+      explanation: 'เริ่มจากค่ามากสุดระหว่าง A และ B แล้วใช้ลูปเพิ่มค่าทีละ 1 พร้อมตรวจสอบเงื่อนไขจนกว่าจะหารทั้ง A และ B ลงตัวพร้อมกัน ได้ค่า ค.ร.น. ที่ถูกต้อง',
+      tip: 'ลองใส่ค่า A = 4, B = 6 (ได้ ค.ร.น. 12) หรือ A = 12, B = 18 (ได้ ค.ร.น. 36) แล้วติดตามค่าตัวแปร!',
+    },
+    broadcast: {
+      title: 'ส่งสารข้ามตัวละคร Broadcast (ป.4/1 · Multi-Sprite)',
+      concept: 'เหตุการณ์ Broadcast ส่งต่อสัญญาณระหว่างตัวละคร',
+      explanation: 'แมวส้มส่งสาร Broadcast "ภารกิจสำเร็จ!" ไปยังเพื่อนตัวละครหุ่นยนต์ เพื่อสั่งให้ตอบรับและขยับตามลำดับเหตุการณ์ที่ออกแบบไว้',
+      tip: 'Broadcast ทำให้ตัวละครหลายตัวพูดคุยโต้ตอบกันเป็นนิทานหรือเกมได้อย่างเป็นระบบ',
     },
   };
 
@@ -302,11 +347,31 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
     { id: 'l_costume', category: 'looks', name: 'สลับชุดตัวละครถัดไป (Next Costume)', code: 'next_costume', color: 'bg-purple-600', desc: 'ขยับท่าทางตัวละคร' },
     { id: 's_meow', category: 'control', name: 'เล่นเสียงเหมียว (Meow!)', code: 'sound_meow', color: 'bg-rose-500', desc: 'เล่นเสียงแมวส้ม' },
     { id: 's_chime', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500', desc: 'เสียงกระดิ่งสำเร็จ' },
+
+    // 🧠 Variables, Conditionals & Broadcast (ป.4/1, ป.5/2, ป.6/2)
+    { id: 'v_read_ab', category: 'variables', name: 'อ่านค่าตัวแปร A และ B จากเวที', code: 'var_read_ab', color: 'bg-teal-600', desc: 'ดึงค่าตัวเลข A, B จากช่องรับค่าบนเวที' },
+    { id: 'v_check_evenodd', category: 'variables', name: 'ถ้า (A mod 2 == 0) แสดง "เลขคู่" มิฉะนั้น "เลขคี่"', code: 'var_even_odd', color: 'bg-teal-600', desc: 'ตรวจสอบเงื่อนไขเลขคู่/คี่ (ป.5/2)' },
+    { id: 'v_check_bmi', category: 'variables', name: 'ตรวจความสมส่วน (น้ำหนัก A กก. / ส่วนสูง B ซม.)', code: 'var_bmi_check', color: 'bg-teal-600', desc: 'คำนวณ BMI และจำแนกเกณฑ์สมส่วน (ป.5/2)' },
+    { id: 'v_calc_lcm', category: 'variables', name: 'วนลูปหา ค.ร.น. (LCM) ของตัวแปร A และ B', code: 'var_lcm_loop', color: 'bg-teal-600', desc: 'ใช้ตัวแปร + ลูป + เงื่อนไข หา ค.ร.น. (ป.6/2)' },
+    { id: 'v_broadcast_hello', category: 'variables', name: 'กระจายสัญญาณ (Broadcast "ภารกิจสำเร็จ!")', code: 'broadcast:ภารกิจสำเร็จ!', color: 'bg-amber-500', desc: 'ส่งสารสื่อสารไปยังตัวละครอื่น (ป.4/1)' },
   ];
 
-  // Presets with rich, diverse geometry and animations
+  // Presets with rich, diverse geometry and logic/variables
   const loadPreset = (
-    presetName: 'square' | 'triangle' | 'hexagon' | 'star' | 'circle' | 'pinwheel' | 'house' | 'spiral' | 'intro'
+    presetName:
+      | 'square'
+      | 'triangle'
+      | 'hexagon'
+      | 'star'
+      | 'circle'
+      | 'pinwheel'
+      | 'house'
+      | 'spiral'
+      | 'intro'
+      | 'evenodd'
+      | 'bodycheck'
+      | 'lcm'
+      | 'broadcast'
   ) => {
     setActivePreset(presetName);
     resetStage();
@@ -449,6 +514,44 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         { id: 'p_in4', category: 'looks', name: 'พูดว่า [ยินดีต้อนรับสู่โลกวิทยาการคำนวณ!]', code: 'say:ยินดีต้อนรับสู่โลกวิทยาการคำนวณ!', color: 'bg-purple-600' },
         { id: 'p_in5', category: 'control', name: 'เล่นเสียงเหมียว (Meow!)', code: 'sound_meow', color: 'bg-rose-500' },
         { id: 'p_in6', category: 'control', name: 'เปลี่ยน คะแนน เพิ่มขึ้น (10)', code: 'score:10', color: 'bg-amber-600' },
+      ]);
+    } else if (presetName === 'evenodd') {
+      setInputValA(17);
+      setScriptBlocks([
+        { id: 'p_eo1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
+        { id: 'p_eo2', category: 'motion', name: 'ไปที่ x: 0 y: 0 (จุดกึ่งกลาง)', code: 'goto:0,0', color: 'bg-blue-600' },
+        { id: 'p_eo3', category: 'variables', name: 'อ่านค่าตัวแปร A และ B จากเวที', code: 'var_read_ab', color: 'bg-teal-600' },
+        { id: 'p_eo4', category: 'variables', name: 'ถ้า (A mod 2 == 0) แสดง "เลขคู่" มิฉะนั้น "เลขคี่"', code: 'var_even_odd', color: 'bg-teal-600' },
+        { id: 'p_eo5', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500' },
+      ]);
+    } else if (presetName === 'bodycheck') {
+      setInputValA(38);
+      setInputValB(140);
+      setScriptBlocks([
+        { id: 'p_bm1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
+        { id: 'p_bm2', category: 'motion', name: 'ไปที่ x: 0 y: 0 (จุดกึ่งกลาง)', code: 'goto:0,0', color: 'bg-blue-600' },
+        { id: 'p_bm3', category: 'variables', name: 'อ่านค่าตัวแปร A และ B จากเวที', code: 'var_read_ab', color: 'bg-teal-600' },
+        { id: 'p_bm4', category: 'variables', name: 'ตรวจความสมส่วน (น้ำหนัก A กก. / ส่วนสูง B ซม.)', code: 'var_bmi_check', color: 'bg-teal-600' },
+        { id: 'p_bm5', category: 'control', name: 'เปลี่ยน คะแนน เพิ่มขึ้น (10)', code: 'score:10', color: 'bg-amber-600' },
+      ]);
+    } else if (presetName === 'lcm') {
+      setInputValA(4);
+      setInputValB(6);
+      setScriptBlocks([
+        { id: 'p_lc1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
+        { id: 'p_lc2', category: 'motion', name: 'ไปที่ x: 0 y: 0 (จุดกึ่งกลาง)', code: 'goto:0,0', color: 'bg-blue-600' },
+        { id: 'p_lc3', category: 'variables', name: 'อ่านค่าตัวแปร A และ B จากเวที', code: 'var_read_ab', color: 'bg-teal-600' },
+        { id: 'p_lc4', category: 'variables', name: 'วนลูปหา ค.ร.น. (LCM) ของตัวแปร A และ B', code: 'var_lcm_loop', color: 'bg-teal-600' },
+        { id: 'p_lc5', category: 'control', name: 'เล่นเสียงเวทมนตร์ (Chime!)', code: 'sound_chime', color: 'bg-rose-500' },
+      ]);
+    } else if (presetName === 'broadcast') {
+      setScriptBlocks([
+        { id: 'p_bc1', category: 'events', name: 'เมื่อคลิก ธงเขียว', code: 'start', color: 'bg-amber-500' },
+        { id: 'p_bc2', category: 'motion', name: 'ไปที่ x: -40 y: 0', code: 'goto:-40,0', color: 'bg-blue-600', customType: 'goto', val1: -40, val2: 0 },
+        { id: 'p_bc3', category: 'looks', name: 'พูดว่า [สวัสดีเพื่อน! กำลังส่งสัญญาณ Broadcast...]', code: 'say:สวัสดีเพื่อน! กำลังส่งสัญญาณ Broadcast...', color: 'bg-purple-600' },
+        { id: 'p_bc4', category: 'variables', name: 'กระจายสัญญาณ (Broadcast "ภารกิจสำเร็จ!")', code: 'broadcast:ภารกิจสำเร็จ!', color: 'bg-amber-500' },
+        { id: 'p_bc5', category: 'motion', name: 'ก้าว (60) ก้าว', code: 'move:60', color: 'bg-blue-600', customType: 'move', val1: 60 },
+        { id: 'p_bc6', category: 'control', name: 'เล่นเสียงเหมียว (Meow!)', code: 'sound_meow', color: 'bg-rose-500' },
       ]);
     }
   };
@@ -661,6 +764,8 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
     setIsPenDown(false);
     setIsSpriteHidden(false);
     setScore(0);
+    setVarsHud({});
+    setBroadcastMessage(null);
     setIsRunning(false);
     setActiveBlockId(null);
     drawStage([], { x: -40, y: 40, dir: 90, costume: 0 }, false, penColor, penSize, false);
@@ -670,6 +775,7 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
   const runScript = async () => {
     if (isRunning || scriptBlocks.length === 0) return;
     setIsRunning(true);
+    setBroadcastMessage(null);
 
     // Show sprite at start of execution unless first block hides it
     isSpriteHiddenRef.current = false;
@@ -1179,6 +1285,39 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
         const ms = parseInt(block.code.split(':')[1], 10) || 500;
         setSpeechBubble(`⏳ รอ ${(ms / 1000).toFixed(1)} วินาที...`);
         await new Promise((r) => setTimeout(r, ms));
+      } else if (block.code === 'var_read_ab') {
+        setVarsHud({ A: inputValA, B: inputValB });
+        setSpeechBubble(`📥 รับค่าตัวแปร A = ${inputValA}, B = ${inputValB}`);
+      } else if (block.code === 'var_even_odd') {
+        const modVal = Math.abs(inputValA) % 2;
+        const resultLabel = modVal === 0 ? 'เลขคู่ (Even)' : 'เลขคี่ (Odd)';
+        setVarsHud({ A: inputValA, 'A mod 2': modVal, ผลลัพธ์: resultLabel });
+        setSpeechBubble(`🔢 ${inputValA} mod 2 = ${modVal} -> เป็น "${resultLabel}"!`);
+      } else if (block.code === 'var_bmi_check') {
+        const heightM = Math.max(0.5, inputValB / 100);
+        const bmi = Number((inputValA / (heightM * heightM)).toFixed(1));
+        const status = bmi < 18.5 ? 'ผอม (ควรเพิ่มสารอาหาร)' : bmi < 23 ? 'สมส่วนดีมาก!' : 'น้ำหนักเกินเกณฑ์';
+        setVarsHud({ 'น้ำหนัก (A)': `${inputValA} kg`, 'ส่วนสูง (B)': `${inputValB} cm`, BMI: bmi, สถานะ: status });
+        setSpeechBubble(`⚖️ ค่า BMI = ${bmi} -> เกณฑ์: ${status}`);
+      } else if (block.code === 'var_lcm_loop') {
+        const a = Math.max(1, Math.abs(inputValA));
+        const b = Math.max(1, Math.abs(inputValB));
+        let lcm = Math.max(a, b);
+        let guard = 0;
+        while (!(lcm % a === 0 && lcm % b === 0) && guard < 2000) {
+          if (guard < 12) {
+            setVarsHud({ A: a, B: b, 'กำลังตรวจ lcm': lcm, สถานะ: 'หารยังไม่ลงตัวทั้งคู่' });
+            await new Promise((r) => setTimeout(r, 120));
+          }
+          lcm += 1;
+          guard += 1;
+        }
+        setVarsHud({ A: a, B: b, 'ค.ร.น. (LCM)': lcm, จำนวนรอบลูป: guard + 1 });
+        setSpeechBubble(`🧮 ค.ร.น. ของ ${a} และ ${b} คือ ${lcm} (วนลูป ${guard + 1} รอบ)!`);
+      } else if (block.code.startsWith('broadcast:')) {
+        const msg = block.code.split(':')[1] || 'สัญญาณ';
+        setBroadcastMessage(`📡 หุ่นยนต์ผู้ช่วยได้รับสาร "${msg}" แล้ว และตอบรับทันที!`);
+        setSpeechBubble(`📢 Broadcast: "${msg}"`);
       }
     }
 
@@ -1440,6 +1579,50 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
             >
               <span>👋 ทักทาย</span>
             </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('evenodd')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                activePreset === 'evenodd'
+                  ? 'bg-teal-700 text-white shadow-md ring-2 ring-teal-400 scale-[1.02]'
+                  : 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-sm hover:brightness-105'
+              }`}
+            >
+              <span>🔢 เลขคู่/คี่ (ป.5/2)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('bodycheck')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                activePreset === 'bodycheck'
+                  ? 'bg-cyan-700 text-white shadow-md ring-2 ring-cyan-400 scale-[1.02]'
+                  : 'bg-white dark:bg-slate-700 text-cyan-700 dark:text-cyan-300 shadow-sm hover:brightness-105'
+              }`}
+            >
+              <span>⚖️ สมส่วนร่างกาย (ป.5/2)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('lcm')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                activePreset === 'lcm'
+                  ? 'bg-violet-700 text-white shadow-md ring-2 ring-violet-400 scale-[1.02]'
+                  : 'bg-white dark:bg-slate-700 text-violet-700 dark:text-violet-300 shadow-sm hover:brightness-105'
+              }`}
+            >
+              <span>🧮 หา ค.ร.น. (ป.6/2)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => loadPreset('broadcast')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                activePreset === 'broadcast'
+                  ? 'bg-amber-700 text-white shadow-md ring-2 ring-amber-400 scale-[1.02]'
+                  : 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm hover:brightness-105'
+              }`}
+            >
+              <span>📡 Broadcast (ป.4/1)</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1574,6 +1757,58 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
               <div className="absolute top-4 left-6 max-w-[280px] p-3 rounded-2xl bg-white border border-slate-300 shadow-xl text-xs text-slate-800 font-bold animate-in fade-in zoom-in duration-200">
                 {speechBubble}
                 <div className="absolute -bottom-2 left-6 w-3 h-3 bg-white border-b border-r border-slate-300 transform rotate-45" />
+              </div>
+            )}
+
+            {/* Second Sprite Broadcast Receiver badge */}
+            {broadcastMessage && (
+              <div className="absolute bottom-3 right-3 max-w-[260px] p-2.5 rounded-xl bg-amber-50 border border-amber-300 shadow-md text-[11px] text-amber-950 font-bold flex items-center gap-2">
+                <span>🤖</span>
+                <span>{broadcastMessage}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Variables & Input HUD (for ป.4/1, ป.5/2, ป.6/2 logic scripts) */}
+          <div className="w-full max-w-[480px] p-3.5 rounded-2xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 space-y-2.5 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-bold text-teal-900 dark:text-teal-200">
+                🎛️ ตัวแปร &amp; ช่องรับค่า (Variables &amp; Input):
+              </span>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                  <span>A:</span>
+                  <input
+                    type="number"
+                    value={inputValA}
+                    disabled={isRunning}
+                    onChange={(e) => setInputValA(parseInt(e.target.value, 10) || 0)}
+                    className="w-14 px-1.5 py-0.5 rounded bg-white border border-teal-300 font-bold text-center text-xs"
+                  />
+                </label>
+                <label className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                  <span>B:</span>
+                  <input
+                    type="number"
+                    value={inputValB}
+                    disabled={isRunning}
+                    onChange={(e) => setInputValB(parseInt(e.target.value, 10) || 0)}
+                    className="w-14 px-1.5 py-0.5 rounded bg-white border border-teal-300 font-bold text-center text-xs"
+                  />
+                </label>
+              </div>
+            </div>
+            {Object.keys(varsHud).length > 0 && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                {Object.entries(varsHud).map(([k, v]) => (
+                  <div
+                    key={k}
+                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-teal-200 dark:border-teal-700 font-mono text-[11px]"
+                  >
+                    <span className="text-slate-500">{k}: </span>
+                    <strong className="text-teal-700 dark:text-teal-300">{v}</strong>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1736,6 +1971,17 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
                 }`}
               >
                 🟣 พูด &amp; เสียง
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('variables')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
+                  selectedCategory === 'variables'
+                    ? 'bg-teal-600 text-white shadow-sm'
+                    : 'text-teal-600 hover:bg-teal-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                🧠 ตัวแปร &amp; เงื่อนไข
               </button>
             </div>
 
@@ -2323,6 +2569,443 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
           </div>
         </div>
       </div>
+
+      {/* Bottom Full-Width Section: Live Scratch-to-Python 3 Code Panel */}
+      {(() => {
+        interface PythonCodeLine {
+          text: string;
+          blockId?: string;
+        }
+
+        const buildPythonLines = (): PythonCodeLine[] => {
+          if (scriptBlocks.length === 0) {
+            return [
+              { text: '# ยังไม่มีบล็อกคำสั่ง — เพิ่มบล็อกจากคลังคำสั่งด้านบนเพื่อดูโค้ดภาษา Python' },
+            ];
+          }
+
+          const lines: PythonCodeLine[] = [];
+          const usesTurtle = scriptBlocks.some(
+            (b) =>
+              b.category === 'motion' ||
+              b.category === 'pen' ||
+              b.code.startsWith('repeat') ||
+              b.code === 'hide' ||
+              b.code === 'show' ||
+              b.code === 'bounce'
+          );
+          const usesTime = scriptBlocks.some((b) => b.code.startsWith('wait:'));
+          const usesRandom = scriptBlocks.some(
+            (b) => b.code === 'goto:random' || b.code === 'random_color'
+          );
+          const usesScore = scriptBlocks.some((b) => b.code.startsWith('score:'));
+          const usesCostume = scriptBlocks.some((b) => b.code === 'next_costume');
+          const usesVarAb = scriptBlocks.some(
+            (b) =>
+              b.code === 'var_even_odd' ||
+              b.code === 'var_bmi_check' ||
+              b.code === 'var_lcm_loop'
+          );
+          const hasExplicitReadAb = scriptBlocks.some((b) => b.code === 'var_read_ab');
+
+          if (usesTurtle) lines.push({ text: 'import turtle' });
+          if (usesTime) lines.push({ text: 'import time' });
+          if (usesRandom) lines.push({ text: 'import random' });
+          if (usesTurtle || usesTime || usesRandom) lines.push({ text: '' });
+
+          if (usesTurtle) {
+            lines.push({
+              text: showPythonComments
+                ? 't = turtle.Turtle()  # สร้างตัวละครเต่า (แทนแมวส้ม)'
+                : 't = turtle.Turtle()',
+            });
+            lines.push({ text: 't.speed(3)' });
+          }
+          if (usesScore) {
+            lines.push({ text: 'score = 0' });
+          }
+          if (usesCostume) {
+            lines.push({ text: 'costume = 0' });
+          }
+          if (usesVarAb && !hasExplicitReadAb) {
+            lines.push({ text: `A = ${inputValA}` });
+            lines.push({ text: `B = ${inputValB}` });
+          }
+          if (usesTurtle || usesScore || usesCostume || (usesVarAb && !hasExplicitReadAb)) {
+            lines.push({ text: '' });
+          }
+
+          const formatSingleBlock = (block: ProgramBlock, indent = ''): PythonCodeLine[] => {
+            const out: PythonCodeLine[] = [];
+            const id = block.id;
+            const add = (text: string) => out.push({ text: `${indent}${text}`, blockId: id });
+            const cmt = (th: string) => (showPythonComments ? `  # ${th}` : '');
+
+            if (block.code === 'start') {
+              if (showPythonComments) add('# เมื่อคลิก ธงเขียว (เริ่มต้นโปรแกรม)');
+            } else if (block.code === 'erase_all') {
+              add(`t.clear()${cmt('ลบรอยวาดทั้งหมด')}`);
+            } else if (block.code === 'pen_down') {
+              add(`t.pendown()${cmt('จรดปากกา')}`);
+            } else if (block.code === 'pen_up') {
+              add(`t.penup()${cmt('ยกปากกา')}`);
+            } else if (block.code === 'hide') {
+              add(`t.hideturtle()${cmt('ซ่อนตัวละครไม่ให้บังภาพ')}`);
+            } else if (block.code === 'show') {
+              add(`t.showturtle()${cmt('แสดงตัวละคร')}`);
+            } else if (block.code.startsWith('goto:')) {
+              const target = block.code.split(':')[1] || '0,0';
+              if (target === 'random') {
+                add(
+                  `t.goto(random.randint(-130, 130), random.randint(-90, 90))${cmt('สุ่มพิกัด')}`
+                );
+              } else {
+                const parts = target.split(',');
+                const gx = parseInt(parts[0], 10) || 0;
+                const gy = parseInt(parts[1], 10) || 0;
+                add(`t.goto(${gx}, ${gy})${cmt(`ย้ายไปพิกัด (${gx}, ${gy})`)}`);
+              }
+            } else if (block.code.startsWith('point:')) {
+              const deg = parseInt(block.code.split(':')[1], 10);
+              const scratchDeg = isNaN(deg) ? 90 : deg;
+              const turtleDeg = (90 - scratchDeg + 360) % 360;
+              add(`t.setheading(${turtleDeg})${cmt(`หันทิศทาง Scratch ${scratchDeg}°`)}`);
+            } else if (block.code.startsWith('move:')) {
+              const steps = parseInt(block.code.split(':')[1], 10) || 10;
+              add(`t.forward(${steps})${cmt(`เดินหน้า ${steps} ก้าว`)}`);
+            } else if (block.code.startsWith('turn:')) {
+              const deg = parseInt(block.code.split(':')[1], 10) || 90;
+              if (deg >= 0) {
+                add(`t.right(${deg})${cmt(`หมุนตามเข็ม ${deg}°`)}`);
+              } else {
+                add(`t.left(${Math.abs(deg)})${cmt(`หมุนทวนเข็ม ${Math.abs(deg)}°`)}`);
+              }
+            } else if (block.code.startsWith('set_color:')) {
+              const hex = block.code.split(':')[1] || '#2563eb';
+              add(`t.pencolor("${hex}")`);
+            } else if (block.code === 'random_color') {
+              add(
+                `t.pencolor(random.choice(["#2563eb", "#dc2626", "#16a34a", "#ea580c", "#9333ea"]))`
+              );
+            } else if (block.code.startsWith('set_size:')) {
+              const sz = parseInt(block.code.split(':')[1], 10) || 4;
+              add(`t.pensize(${sz})`);
+            } else if (block.code.startsWith('say:')) {
+              const msg = (block.code.slice(4) || '').replace(/"/g, '\\"');
+              add(`print("${msg}")`);
+            } else if (block.code.startsWith('wait:')) {
+              const ms = parseInt(block.code.split(':')[1], 10) || 500;
+              add(`time.sleep(${Number((ms / 1000).toFixed(2))})`);
+            } else if (block.code.startsWith('score:')) {
+              const pts = parseInt(block.code.split(':')[1], 10) || 10;
+              add(`score += ${pts}`);
+            } else if (block.code === 'next_costume') {
+              add(`costume = (costume + 1) % 2`);
+            } else if (block.code === 'bounce') {
+              add(`t.right(180)${cmt('สะท้อนกลับ')}`);
+            } else if (block.code === 'sound_meow') {
+              add(`print("🐱 Meow!")${cmt('เล่นเสียงแมวเหมียว')}`);
+            } else if (block.code === 'sound_chime') {
+              add(`print("✨ Chime!")${cmt('เล่นเสียงเวทมนตร์')}`);
+            } else if (block.code === 'var_read_ab') {
+              add(`A = ${inputValA}${cmt('รับค่าตัวแปร A')}`);
+              add(`B = ${inputValB}${cmt('รับค่าตัวแปร B')}`);
+            } else if (block.code === 'var_even_odd') {
+              add(`if A % 2 == 0:`);
+              add(`    print(f"{A} เป็น เลขคู่ (Even)")`);
+              add(`else:`);
+              add(`    print(f"{A} เป็น เลขคี่ (Odd)")`);
+            } else if (block.code === 'var_bmi_check') {
+              add(`height_m = B / 100`);
+              add(`bmi = round(A / (height_m ** 2), 1)`);
+              add(`if bmi < 18.5:`);
+              add(`    status = "ผอม (ควรเพิ่มสารอาหาร)"`);
+              add(`elif bmi < 23:`);
+              add(`    status = "สมส่วนดีมาก!"`);
+              add(`else:`);
+              add(`    status = "น้ำหนักเกินเกณฑ์"`);
+              add(`print("BMI =", bmi, "->", status)`);
+            } else if (block.code === 'var_lcm_loop') {
+              add(`lcm = max(A, B)`);
+              add(`while not (lcm % A == 0 and lcm % B == 0):`);
+              add(`    lcm += 1`);
+              add(`print("ค.ร.น. (LCM) =", lcm)`);
+            } else if (block.code.startsWith('broadcast:')) {
+              const msg = (block.code.slice(10) || 'ภารกิจสำเร็จ!').replace(/"/g, '\\"');
+              add(`def on_receive_broadcast(message):`);
+              add(`    print("🤖 หุ่นยนต์ได้รับสาร:", message)`);
+              add(`on_receive_broadcast("${msg}")`);
+            }
+            return out;
+          };
+
+          for (let i = 0; i < scriptBlocks.length; i++) {
+            const block = scriptBlocks[i];
+            const id = block.id;
+
+            if (block.code.startsWith('repeat_walk:')) {
+              const parts = block.code.split(':');
+              const count = parseInt(parts[1], 10) || 5;
+              const steps = parseInt(parts[2], 10) || 10;
+              lines.push({ text: `for i in range(${count}):`, blockId: id });
+              lines.push({ text: `    t.forward(${steps})`, blockId: id });
+            } else if (block.code === 'repeat_square:4') {
+              lines.push({ text: `for i in range(4):`, blockId: id });
+              lines.push({ text: `    t.forward(80)`, blockId: id });
+              lines.push({ text: `    t.right(90)`, blockId: id });
+            } else if (block.code === 'repeat_triangle:3') {
+              lines.push({ text: `for i in range(3):`, blockId: id });
+              lines.push({ text: `    t.forward(90)`, blockId: id });
+              lines.push({ text: `    t.right(120)`, blockId: id });
+            } else if (block.code === 'repeat_star:5') {
+              lines.push({ text: `for i in range(5):`, blockId: id });
+              lines.push({ text: `    t.forward(75)`, blockId: id });
+              lines.push({ text: `    t.right(144)`, blockId: id });
+            } else if (block.code === 'repeat_circle:36') {
+              lines.push({ text: `for i in range(36):`, blockId: id });
+              lines.push({ text: `    t.forward(7)`, blockId: id });
+              lines.push({ text: `    t.right(10)`, blockId: id });
+            } else if (block.code === 'repeat_pinwheel:8') {
+              lines.push({ text: `for i in range(8):`, blockId: id });
+              lines.push({ text: `    t.forward(55)`, blockId: id });
+              lines.push({ text: `    t.right(135)`, blockId: id });
+            } else if (block.code === 'repeat_spiral:18') {
+              lines.push({
+                text: `colors = ["#2563eb", "#dc2626", "#16a34a", "#ea580c", "#9333ea", "#eab308", "#ec4899", "#06b6d4"]`,
+                blockId: id,
+              });
+              lines.push({ text: `for s in range(18):`, blockId: id });
+              lines.push({ text: `    t.pencolor(colors[s % len(colors)])`, blockId: id });
+              lines.push({ text: `    t.forward(10 + s * 4)`, blockId: id });
+              lines.push({ text: `    t.right(60)`, blockId: id });
+            } else if (block.code.startsWith('repeat:')) {
+              const count = parseInt(block.code.split(':')[1], 10) || 4;
+              const remaining = scriptBlocks.slice(i + 1);
+              const loopActions: ProgramBlock[] = [];
+              for (const sub of remaining) {
+                const isLoopable =
+                  sub.code.startsWith('move:') ||
+                  sub.code.startsWith('turn:') ||
+                  sub.code.startsWith('point:') ||
+                  sub.code.startsWith('wait:') ||
+                  sub.code === 'next_costume' ||
+                  sub.code === 'random_color' ||
+                  sub.code.startsWith('set_size:');
+                if (!isLoopable) break;
+                loopActions.push(sub);
+                if (loopActions.length >= 5) break;
+              }
+
+              lines.push({
+                text: showPythonComments
+                  ? `for i in range(${count}):  # ทำซ้ำ ${count} รอบ`
+                  : `for i in range(${count}):`,
+                blockId: id,
+              });
+
+              if (loopActions.length > 0) {
+                for (const subBlock of loopActions) {
+                  lines.push(...formatSingleBlock(subBlock, '    '));
+                }
+                i += loopActions.length;
+              } else {
+                const turnAngle = Number((360 / Math.max(1, count)).toFixed(1));
+                const sideLength =
+                  count === 4 ? 80 : count >= 20 ? 12 : count >= 10 ? 25 : count >= 6 ? 50 : 75;
+                lines.push({ text: `    t.forward(${sideLength})`, blockId: id });
+                lines.push({ text: `    t.right(${turnAngle})`, blockId: id });
+              }
+            } else {
+              lines.push(...formatSingleBlock(block, ''));
+            }
+          }
+
+          if (usesTurtle) {
+            lines.push({ text: '' });
+            lines.push({
+              text: showPythonComments
+                ? 'turtle.done()  # เปิดหน้าต่างแสดงภาพค้างไว้'
+                : 'turtle.done()',
+            });
+          }
+
+          return lines;
+        };
+
+        const pythonLines = buildPythonLines();
+        const plainPythonCode = pythonLines.map((l) => l.text).join('\n');
+
+        const handleCopyPython = async () => {
+          let ok = false;
+          if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            try {
+              await navigator.clipboard.writeText(plainPythonCode);
+              ok = true;
+            } catch {
+              ok = false;
+            }
+          }
+          if (!ok) {
+            const ta = document.createElement('textarea');
+            ta.value = plainPythonCode;
+            ta.setAttribute('readonly', '');
+            ta.className = 'fixed -left-[9999px] top-0 opacity-0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+              ok = document.execCommand('copy');
+            } catch {
+              ok = false;
+            }
+            document.body.removeChild(ta);
+          }
+          if (ok) {
+            setPythonCopied(true);
+            setTimeout(() => setPythonCopied(false), 2000);
+          }
+        };
+
+        const highlightPythonLine = (line: string) => {
+          const tokens = line.split(
+            /(f?"[^"]*"|#.*$|\b(?:import|for|in|range|if|elif|else|while|not|and|or|def|print|round|max|len)\b)/g
+          );
+
+          return (
+            <>
+              {tokens.map((tok, tIdx) => {
+                if (!tok) return null;
+                if (tok.startsWith('#')) {
+                  return (
+                    <span key={tIdx} className="text-slate-400 italic">
+                      {tok}
+                    </span>
+                  );
+                }
+                if (
+                  /^(import|for|in|if|elif|else|while|not|and|or|def)$/.test(tok)
+                ) {
+                  return (
+                    <span key={tIdx} className="text-purple-400 font-semibold">
+                      {tok}
+                    </span>
+                  );
+                }
+                if (/^(range|print|round|max|len)$/.test(tok)) {
+                  return (
+                    <span key={tIdx} className="text-sky-300 font-semibold">
+                      {tok}
+                    </span>
+                  );
+                }
+                if (/^(f?"[^"]*")$/.test(tok)) {
+                  return (
+                    <span key={tIdx} className="text-emerald-300">
+                      {tok}
+                    </span>
+                  );
+                }
+                return (
+                  <span key={tIdx} className="text-slate-100">
+                    {tok}
+                  </span>
+                );
+              })}
+            </>
+          );
+        };
+
+        return (
+          <div className="mt-6 rounded-2xl bg-slate-900 border border-slate-700 shadow-lg overflow-hidden">
+            {/* Header Bar */}
+            <div className="px-4 sm:px-5 py-3 bg-slate-950/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-400/30 text-sky-300 text-xs font-bold">
+                  <Code2 className="w-4 h-4" />
+                  <span>โค้ดภาษาไพทอน (Python 3)</span>
+                </div>
+                <span className="text-xs text-slate-300 font-medium">
+                  แปลงจากบล็อกคำสั่ง Scratch ด้านบนแบบเรียลไทม์ ({pythonLines.length} บรรทัด)
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPythonComments((prev) => !prev)}
+                  className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors cursor-pointer ${
+                    showPythonComments
+                      ? 'bg-slate-800 border-slate-600 text-amber-300'
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {showPythonComments ? '💬 ซ่อนคำอธิบาย #' : '💬 แสดงคำอธิบาย #'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopyPython}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    pythonCopied
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                  }`}
+                >
+                  {pythonCopied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>คัดลอกโค้ดแล้ว!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>คัดลอกโค้ด Python</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Code Body */}
+            <div className="p-3 sm:p-4 max-h-[300px] overflow-auto font-mono text-xs leading-relaxed">
+              {pythonLines.map((lineObj, lineIdx) => {
+                const isActiveLine =
+                  Boolean(activeBlockId) && lineObj.blockId === activeBlockId;
+                return (
+                  <div
+                    key={lineIdx}
+                    className={`flex items-start gap-3 px-2 py-0.5 rounded transition-colors ${
+                      isActiveLine
+                        ? 'bg-indigo-500/25 ring-1 ring-indigo-400/50'
+                        : 'hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span className="w-7 text-right select-none text-slate-500 shrink-0 tabular-nums">
+                      {lineIdx + 1}
+                    </span>
+                    <pre className="whitespace-pre font-mono flex-1 overflow-x-auto">
+                      {lineObj.text ? highlightPythonLine(lineObj.text) : ' '}
+                    </pre>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Educational Mapping Footer */}
+            <div className="px-4 sm:px-5 py-2.5 bg-slate-950/60 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400">
+              <span>
+                💡 เทียบคำสั่ง: <code className="text-sky-300">ทำซ้ำ (N) รอบ</code> ➔{' '}
+                <code className="text-purple-300">for i in range(N):</code> ·{' '}
+                <code className="text-sky-300">mod</code> ➔{' '}
+                <code className="text-purple-300">%</code> ·{' '}
+                <code className="text-sky-300">พูดว่า</code> ➔{' '}
+                <code className="text-purple-300">print()</code>
+              </span>
+              <span className="text-emerald-400 font-semibold">
+                นำไปรันในโปรแกรม Python (IDLE / Thonny / Google Colab) ได้ทันที
+              </span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

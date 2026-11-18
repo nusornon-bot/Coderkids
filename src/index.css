@@ -486,5 +486,37 @@ html.theme-transitioning *::after {
   animation: spin-slow 20s linear infinite;
 }
 
+@keyframes flowchart-dash-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
 
+@keyframes flowchart-dot-travel {
+  0% {
+    transform: translateY(-2px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(22px);
+    opacity: 0;
+  }
+}
 
+.animate-flowchart-dash {
+  stroke-dasharray: 6 6;
+  animation: flowchart-dash-flow 0.55s linear infinite;
+}
+
+.animate-flowchart-dot {
+  animation: flowchart-dot-travel 0.7s ease-in-out infinite;
+}
