@@ -261,8 +261,9 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          {/* Desktop Categorized Navigation Menus */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 text-sm font-medium shrink-0">
+          {/* Desktop Categorized Navigation Menus + Mobile Toggle */}
+          <div className="flex items-center gap-2 shrink-0">
+            <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 text-sm font-medium shrink-0">
             
             {/* 1. หน้าหลัก (Direct Link) */}
             <button
@@ -1143,7 +1144,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <>
                         <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-purple-600 dark:text-purple-400 flex items-center justify-between">
                           <span>ส่วนที่ 3 · เครื่องมือคุณครู &amp; จัดการชั้นเรียน (13–19)</span>
-                          {onChangeViewRoleMode && !isAdmin && (
+                          {isTeacherAuthorized && onChangeViewRoleMode && !isAdmin && (
                             <button
                               type="button"
                               onClick={() => onChangeViewRoleMode('student')}
@@ -1280,6 +1281,7 @@ export const Header: React.FC<HeaderProps> = ({
                         )}
                       </>
                     ) : (
+                      isTeacherAuthorized &&
                       onChangeViewRoleMode && (
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                           <button
@@ -1298,336 +1300,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-          </nav>
-
-          {/* Right Action Utilities Bar */}
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-            
-            {/* PWA Install Button */}
-            <PWAInstallButton />
-
-            {/* AI Tutor Button */}
-            {onOpenAITutor && (
-              <button
-                onClick={onOpenAITutor}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
-                title="ปรึกษาครูพี่โค้ดดิ้ง (AI Tutor ด้วย Gemini API)"
-              >
-                <Bot className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden xl:inline">AI Tutor</span>
-              </button>
-            )}
-
-            {/* Points Badge (Clickable) */}
-            {isLoggedIn && (
-              <button
-                onClick={() => handleSelectTab('rewards')}
-                className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100/90 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
-                title="แต้มสะสม Coder Coins (คลิกเพื่อแลกรางวัล)"
-              >
-                <Coins className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                <span className="font-mono tabular-nums">{completedPoints}</span>
-                <span className="hidden 2xl:inline text-[11px] font-normal text-amber-700 dark:text-amber-400">แต้ม</span>
-              </button>
-            )}
-
-            {/* Student or Admin Profile Trigger */}
-            {isLoggedIn ? (
-              <button
-                onClick={onOpenProfile}
-                className={`flex items-center gap-1 p-1 sm:px-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-all border cursor-pointer shadow-xs shrink-0 whitespace-nowrap ${
-                  isAdmin
-                    ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/60 dark:hover:bg-amber-900/60 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200'
-                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700'
-                }`}
-                title={isAdmin ? "โปรไฟล์ผู้ดูแลระบบ (คลิกเพื่อจัดการโปรไฟล์)" : "ดูและแก้ไขโปรไฟล์ผู้เรียน"}
-              >
-                <span className="text-base leading-none shrink-0">{profile.avatarEmoji || (isAdmin ? '👨‍🏫' : '🐱')}</span>
-                <span className="hidden xl:inline truncate max-w-[72px]">
-                  {isAdmin ? (profile.nickname || 'ครูนุสรณ์') : (profile.nickname || profile.name.split(' ')[0])}
-                </span>
-                {isAdmin ? (
-                  <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[10px] font-bold leading-none">
-                    ADMIN
-                  </span>
-                ) : (
-                  <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[10px] font-mono font-bold leading-none">
-                    LV.{userLevel}
-                  </span>
-                )}
-              </button>
-            ) : (
-              onOpenLogin && (
-                <button
-                  onClick={onOpenLogin}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
-                >
-                  <LogIn className="w-3.5 h-3.5 shrink-0" />
-                  <span>เข้าสู่ระบบ</span>
-                </button>
-              )
-            )}
-
-            {/* Admin Toggle & Role Status (เฉพาะคุณครู/แอดมินที่มีสิทธิ์ในแท็บ Teachers เท่านั้น) */}
-            {isLoggedIn && isTeacherAuthorized && onToggleAdmin && (
-              <button
-                onClick={() => onToggleAdmin(!isAdmin)}
-                className={`p-2 sm:px-2 sm:py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap ${
-                  isAdmin
-                    ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/20'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
-                }`}
-                title={
-                  isAdmin
-                    ? 'กำลังอยู่ในโหมดผู้ดูแลระบบ (คลิกเพื่อสลับไปมุมมองนักเรียน)'
-                    : 'สลับไปโหมดผู้ดูแลระบบ (Admin Mode)'
-                }
-              >
-                {isAdmin ? (
-                  <div className="flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                    <span className="hidden 2xl:inline text-[11px]">แอดมิน</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1">
-                    <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="hidden 2xl:inline text-[11px]">มุมมองนักเรียน</span>
-                  </div>
-                )}
-              </button>
-            )}
-
-            {/* Student / Teacher Progressive Disclosure View Toggle */}
-            {onChangeViewRoleMode && (
-              <button
-                type="button"
-                onClick={() => {
-                  soundEffects.play('click');
-                  onChangeViewRoleMode(viewRoleMode === 'teacher' ? 'student' : 'teacher');
-                }}
-                className={`hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap ${
-                  viewRoleMode === 'teacher'
-                    ? 'bg-purple-600 text-white border-purple-700 shadow-purple-500/20'
-                    : 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/50'
-                }`}
-                title={
-                  viewRoleMode === 'teacher'
-                    ? 'กำลังแสดงโหมดคุณครู (แสดงเครื่องมือครูครบ) คลิกเพื่อสลับเป็นโหมดผู้เรียน'
-                    : 'กำลังแสดงโหมดผู้เรียน (หน้าจอสะอาดตา) คลิกเพื่อสลับเป็นโหมดคุณครู'
-                }
-              >
-                <span>{viewRoleMode === 'teacher' ? '👩‍🏫' : '🎒'}</span>
-                <span className="hidden 2xl:inline">
-                  {viewRoleMode === 'teacher' ? 'โหมดคุณครู' : 'โหมดผู้เรียน'}
-                </span>
-              </button>
-            )}
-
-            {/* Quick Search Button (Ctrl+K) */}
-            {onOpenQuickSearch && (
-              <button
-                type="button"
-                onClick={onOpenQuickSearch}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
-                title="ค้นหาบทเรียน & เครื่องมือด่วน (Ctrl+K)"
-              >
-                <Search className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                <span className="hidden xl:inline">ค้นหา</span>
-                <kbd className="hidden 2xl:inline-flex text-[10px] font-mono px-1 py-0.2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-slate-400">
-                  Ctrl+K
-                </kbd>
-              </button>
-            )}
-
-            {/* Google Sheets Live Sync Status Pill */}
-            {onTriggerSync && (
-              <button
-                type="button"
-                onClick={onTriggerSync}
-                disabled={isSyncing}
-                className="hidden xl:flex items-center gap-1 px-2 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all text-[11px] font-bold cursor-pointer disabled:opacity-50 shadow-xs shrink-0 whitespace-nowrap"
-                title={`ซิงค์กับ Google Sheets เรียบร้อย (คลิกเพื่อบันทึกข้อมูลล่าสุด)`}
-              >
-                <span className={`w-2 h-2 rounded-full bg-emerald-500 shrink-0 ${isSyncing ? 'animate-ping' : ''}`} />
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="hidden 2xl:inline">{isSyncing ? 'กำลังซิงค์...' : 'Sheets'}</span>
-                <RotateCw className={`w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
-              </button>
-            )}
-
-            {/* Classroom Projector Mode Toggle */}
-            {onToggleProjectorMode && (
-              <button
-                type="button"
-                onClick={onToggleProjectorMode}
-                className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer shadow-xs ${
-                  isProjectorMode
-                    ? 'bg-amber-500 text-white border-amber-600 ring-2 ring-amber-400/50 shadow-md animate-pulse'
-                    : 'text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
-                }`}
-                title={
-                  isProjectorMode
-                    ? 'ปิดโหมดฉายจอห้องเรียน (Projector Mode)'
-                    : 'เปิดโหมดฉายจอห้องเรียน (Projector Mode: ขยายตัวอักษรให้อ่านง่ายสำหรับโปรเจกเตอร์)'
-                }
-              >
-                <Tv className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Sound FX Toggle (Web Audio API & Thai TTS) */}
-            <button
-              onClick={handleToggleSound}
-              className={`p-2 rounded-xl transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
-                isSoundMuted
-                  ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:text-slate-600'
-                  : 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
-              }`}
-              title={isSoundMuted ? 'เปิดเสียงเอฟเฟกต์และเสียงอ่านภาษาไทย (Unmute)' : 'ปิดเสียงเอฟเฟกต์ (Mute)'}
-              aria-label="เปิด/ปิดเสียงเอฟเฟกต์"
-            >
-              {isSoundMuted ? (
-                <VolumeX className="w-4 h-4" />
-              ) : (
-                <Volume2 className="w-4 h-4 animate-pulse" />
-              )}
-            </button>
-
-            {/* Accessibility & Focus Mode Controls */}
-            <AccessibilityControls
-              isFocusMode={isFocusMode}
-              onToggleFocusMode={onToggleFocusMode || (() => {})}
-            />
-
-            {/* Day / Night Cycle & Theme Controller */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'daynight' ? null : 'daynight')}
-                className={`p-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border ${
-                  theme === 'dark'
-                    ? 'text-amber-300 hover:text-amber-200 bg-slate-800 hover:bg-slate-750 border-slate-700'
-                    : 'text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border-slate-200'
-                }`}
-                title={
-                  themeMode === 'auto'
-                    ? `วัฏจักรตามเวลาจริง (Day/Night Auto): ${theme === 'dark' ? 'โหมดมืด (กลางคืน)' : 'โหมดสว่าง (กลางวัน)'} - คลิกเพื่อตั้งค่า`
-                    : `โหมดธีม: ${theme === 'dark' ? 'โหมดมืดคงที่' : 'โหมดสว่างคงที่'} - คลิกเพื่อตั้งค่า`
-                }
-                aria-label="ตั้งค่าวัฏจักรกลางวัน/กลางคืนและธีม"
-                aria-expanded={openDropdown === 'daynight'}
-              >
-                {theme === 'dark' ? (
-                  <Moon className="w-4 h-4 text-amber-400" />
-                ) : (
-                  <Sun className="w-4 h-4 text-amber-500" />
-                )}
-                {themeMode === 'auto' && (
-                  <span
-                    className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-400/40 animate-pulse shrink-0"
-                    title="โหมดสลับอัตโนมัติตามเวลาเปิดใช้งานอยู่"
-                  />
-                )}
-              </button>
-
-              {openDropdown === 'daynight' && (
-                <div className="absolute right-0 mt-2 z-50">
-                  <DayNightCycleMenu
-                    theme={theme}
-                    themeMode={themeMode}
-                    onSelectThemeMode={(mode) => {
-                      if (onSelectThemeMode) onSelectThemeMode(mode);
-                    }}
-                    onPreviewTransition={() => {
-                      if (onPreviewTransition) onPreviewTransition();
-                    }}
-                    onClose={() => setOpenDropdown(null)}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* App Color Tone Picker (ฟีเจอร์เปลี่ยนโทนสีของแอป) */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === 'tone' ? null : 'tone')}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs"
-                title={`เปลี่ยนโทนสีของแอป (ปัจจุบัน: ${activeToneOption.name})`}
-                aria-label="เปลี่ยนโทนสีของแอป"
-                aria-expanded={openDropdown === 'tone'}
-              >
-                <Palette className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-                <span
-                  className="w-2.5 h-2.5 rounded-full border border-white dark:border-slate-800 shadow-xs"
-                  style={{ backgroundColor: activeToneOption.dotColor }}
-                />
-              </button>
-
-              {openDropdown === 'tone' && (
-                <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800/80">
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                        <Palette className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                        <span>โทนสีของแอป (Color Tone)</span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        เลือกบรรยากาศสีสันที่คุณชื่นชอบ
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {COLOR_TONES.map((t) => {
-                      const isSelected = (colorTone || 'indigo') === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => {
-                            if (onChangeColorTone) onChangeColorTone(t.id);
-                            soundEffects.play('click');
-                            setOpenDropdown(null);
-                          }}
-                          className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                            isSelected
-                              ? 'border-indigo-600 bg-indigo-50/80 dark:bg-indigo-950/60 shadow-xs ring-1 ring-indigo-500/40'
-                              : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                          }`}
-                        >
-                          <span
-                            className="w-4 h-4 rounded-full shrink-0 shadow-xs flex items-center justify-center text-white text-[9px]"
-                            style={{ backgroundColor: t.dotColor }}
-                          >
-                            {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate">
-                              {t.name.split(' ')[0]}
-                            </div>
-                            <div className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
-                              {t.nameEn}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Logout shortcut (desktop) */}
-            {isLoggedIn && onLogout && (
-              <button
-                onClick={onLogout}
-                className="hidden xl:flex p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors cursor-pointer"
-                title="ออกจากระบบ"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            )}
+            </nav>
 
             {/* Mobile Hamburger Menu Button */}
             <button
@@ -1639,6 +1312,349 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
+          {/* Row 2: Left Tools & Right Prominent Account / Mode Bar */}
+          <div className="w-full flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100/90 dark:border-slate-800/80">
+            {/* Left Group: App Tools & Preferences */}
+            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
+              {/* PWA Install Button */}
+              <PWAInstallButton />
+
+              {/* AI Tutor Button */}
+              {onOpenAITutor && (
+                <button
+                  onClick={onOpenAITutor}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:to-pink-700 text-white text-xs font-bold shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
+                  title="ปรึกษาครูพี่โค้ดดิ้ง (AI Tutor ด้วย Gemini API)"
+                >
+                  <Bot className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden xl:inline">AI Tutor</span>
+                </button>
+              )}
+
+              {/* Quick Search Button (Ctrl+K) */}
+              {onOpenQuickSearch && (
+                <button
+                  type="button"
+                  onClick={onOpenQuickSearch}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap"
+                  title="ค้นหาบทเรียน & เครื่องมือด่วน (Ctrl+K)"
+                >
+                  <Search className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <span className="hidden xl:inline">ค้นหา</span>
+                  <kbd className="hidden 2xl:inline-flex text-[10px] font-mono px-1 py-0.2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded text-slate-400">
+                    Ctrl+K
+                  </kbd>
+                </button>
+              )}
+
+              {/* Google Sheets Live Sync Status Pill */}
+              {onTriggerSync && (
+                <button
+                  type="button"
+                  onClick={onTriggerSync}
+                  disabled={isSyncing}
+                  className="hidden xl:flex items-center gap-1 px-2 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all text-[11px] font-bold cursor-pointer disabled:opacity-50 shadow-xs shrink-0 whitespace-nowrap"
+                  title={`ซิงค์กับ Google Sheets เรียบร้อย (คลิกเพื่อบันทึกข้อมูลล่าสุด)`}
+                >
+                  <span className={`w-2 h-2 rounded-full bg-emerald-500 shrink-0 ${isSyncing ? 'animate-ping' : ''}`} />
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="hidden 2xl:inline">{isSyncing ? 'กำลังซิงค์...' : 'Sheets'}</span>
+                  <RotateCw className={`w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                </button>
+              )}
+
+              {/* Admin Toggle & Role Status (เฉพาะคุณครู/แอดมินที่มีสิทธิ์ในแท็บ Teachers เท่านั้น) */}
+              {isLoggedIn && isTeacherAuthorized && onToggleAdmin && (
+                <button
+                  onClick={() => onToggleAdmin(!isAdmin)}
+                  className={`p-2 sm:px-2 sm:py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap ${
+                    isAdmin
+                      ? 'bg-amber-500 text-white border-amber-600 shadow-amber-500/20'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                  title={
+                    isAdmin
+                      ? 'กำลังอยู่ในโหมดผู้ดูแลระบบ (คลิกเพื่อสลับไปมุมมองนักเรียน)'
+                      : 'สลับไปโหมดผู้ดูแลระบบ (Admin Mode)'
+                  }
+                >
+                  {isAdmin ? (
+                    <div className="flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                      <span className="hidden 2xl:inline text-[11px]">แอดมิน</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="hidden 2xl:inline text-[11px]">มุมมองนักเรียน</span>
+                    </div>
+                  )}
+                </button>
+              )}
+
+              {/* Classroom Projector Mode Toggle */}
+              {onToggleProjectorMode && (
+                <button
+                  type="button"
+                  onClick={onToggleProjectorMode}
+                  className={`p-2 rounded-xl border transition-all flex items-center justify-center cursor-pointer shadow-xs ${
+                    isProjectorMode
+                      ? 'bg-amber-500 text-white border-amber-600 ring-2 ring-amber-400/50 shadow-md animate-pulse'
+                      : 'text-slate-500 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
+                  }`}
+                  title={
+                    isProjectorMode
+                      ? 'ปิดโหมดฉายจอห้องเรียน (Projector Mode)'
+                      : 'เปิดโหมดฉายจอห้องเรียน (Projector Mode: ขยายตัวอักษรให้อ่านง่ายสำหรับโปรเจกเตอร์)'
+                  }
+                >
+                  <Tv className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Sound FX Toggle (Web Audio API & Thai TTS) */}
+              <button
+                onClick={handleToggleSound}
+                className={`p-2 rounded-xl transition-all flex items-center justify-center cursor-pointer shadow-xs border ${
+                  isSoundMuted
+                    ? 'text-slate-400 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:text-slate-600'
+                    : 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100'
+                }`}
+                title={isSoundMuted ? 'เปิดเสียงเอฟเฟกต์และเสียงอ่านภาษาไทย (Unmute)' : 'ปิดเสียงเอฟเฟกต์ (Mute)'}
+                aria-label="เปิด/ปิดเสียงเอฟเฟกต์"
+              >
+                {isSoundMuted ? (
+                  <VolumeX className="w-4 h-4" />
+                ) : (
+                  <Volume2 className="w-4 h-4 animate-pulse" />
+                )}
+              </button>
+
+              {/* Accessibility & Focus Mode Controls */}
+              <AccessibilityControls
+                isFocusMode={isFocusMode}
+                onToggleFocusMode={onToggleFocusMode || (() => {})}
+              />
+
+              {/* Day / Night Cycle & Theme Controller */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'daynight' ? null : 'daynight')}
+                  className={`p-2 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-xs border ${
+                    theme === 'dark'
+                      ? 'text-amber-300 hover:text-amber-200 bg-slate-800 hover:bg-slate-750 border-slate-700'
+                      : 'text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border-slate-200'
+                  }`}
+                  title={
+                    themeMode === 'auto'
+                      ? `วัฏจักรตามเวลาจริง (Day/Night Auto): ${theme === 'dark' ? 'โหมดมืด (กลางคืน)' : 'โหมดสว่าง (กลางวัน)'} - คลิกเพื่อตั้งค่า`
+                      : `โหมดธีม: ${theme === 'dark' ? 'โหมดมืดคงที่' : 'โหมดสว่างคงที่'} - คลิกเพื่อตั้งค่า`
+                  }
+                  aria-label="ตั้งค่าวัฏจักรกลางวัน/กลางคืนและธีม"
+                  aria-expanded={openDropdown === 'daynight'}
+                >
+                  {theme === 'dark' ? (
+                    <Moon className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <Sun className="w-4 h-4 text-amber-500" />
+                  )}
+                  {themeMode === 'auto' && (
+                    <span
+                      className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-400/40 animate-pulse shrink-0"
+                      title="โหมดสลับอัตโนมัติตามเวลาเปิดใช้งานอยู่"
+                    />
+                  )}
+                </button>
+
+                {openDropdown === 'daynight' && (
+                  <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 z-50">
+                    <DayNightCycleMenu
+                      theme={theme}
+                      themeMode={themeMode}
+                      onSelectThemeMode={(mode) => {
+                        if (onSelectThemeMode) onSelectThemeMode(mode);
+                      }}
+                      onPreviewTransition={() => {
+                        if (onPreviewTransition) onPreviewTransition();
+                      }}
+                      onClose={() => setOpenDropdown(null)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* App Color Tone Picker (ฟีเจอร์เปลี่ยนโทนสีของแอป) */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenDropdown(openDropdown === 'tone' ? null : 'tone')}
+                  className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-1 cursor-pointer shadow-xs"
+                  title={`เปลี่ยนโทนสีของแอป (ปัจจุบัน: ${activeToneOption.name})`}
+                  aria-label="เปลี่ยนโทนสีของแอป"
+                  aria-expanded={openDropdown === 'tone'}
+                >
+                  <Palette className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                  <span
+                    className="w-2.5 h-2.5 rounded-full border border-white dark:border-slate-800 shadow-xs"
+                    style={{ backgroundColor: activeToneOption.dotColor }}
+                  />
+                </button>
+
+                {openDropdown === 'tone' && (
+                  <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-3 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800/80">
+                      <div>
+                        <div className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <Palette className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                          <span>โทนสีของแอป (Color Tone)</span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          เลือกบรรยากาศสีสันที่คุณชื่นชอบ
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {COLOR_TONES.map((t) => {
+                        const isSelected = (colorTone || 'indigo') === t.id;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => {
+                              if (onChangeColorTone) onChangeColorTone(t.id);
+                              soundEffects.play('click');
+                              setOpenDropdown(null);
+                            }}
+                            className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                              isSelected
+                                ? 'border-indigo-600 bg-indigo-50/80 dark:bg-indigo-950/60 shadow-xs ring-1 ring-indigo-500/40'
+                                : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                            }`}
+                          >
+                            <span
+                              className="w-4 h-4 rounded-full shrink-0 shadow-xs flex items-center justify-center text-white text-[9px]"
+                              style={{ backgroundColor: t.dotColor }}
+                            >
+                              {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate">
+                                {t.name.split(' ')[0]}
+                              </div>
+                              <div className="text-[9px] text-slate-500 dark:text-slate-400 truncate">
+                                {t.nameEn}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Group (Highlighted & Pinned Right): แต้มสะสม, ดูและแก้ไขโปรไฟล์, โหมด, เข้าสู่ระบบ / ออกจากระบบ */}
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 p-1 rounded-2xl bg-gradient-to-r from-indigo-50/90 via-white to-amber-50/90 dark:from-slate-800/95 dark:via-slate-900 dark:to-slate-800/95 border border-indigo-200/80 dark:border-indigo-700/60 shadow-sm">
+              {/* 1. แต้มสะสม */}
+              {isLoggedIn && (
+                <button
+                  onClick={() => handleSelectTab('rewards')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-500 hover:to-orange-500 text-slate-950 text-xs font-black transition-all active:scale-95 cursor-pointer shadow-md shadow-amber-500/20 ring-1 ring-amber-300 shrink-0 whitespace-nowrap"
+                  title="แต้มสะสม Coder Coins (คลิกเพื่อแลกรางวัล)"
+                >
+                  <Coins className="w-4 h-4 text-slate-900 shrink-0" />
+                  <span className="font-mono tabular-nums text-xs sm:text-sm">{completedPoints}</span>
+                  <span className="text-[11px] font-extrabold">แต้ม</span>
+                </button>
+              )}
+
+              {/* 2. ดูและแก้ไขโปรไฟล์ */}
+              {isLoggedIn && (
+                <button
+                  onClick={onOpenProfile}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all active:scale-95 border-2 cursor-pointer shadow-md shrink-0 whitespace-nowrap ${
+                    isAdmin
+                      ? 'bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/80 dark:hover:bg-amber-900/80 border-amber-400 text-amber-950 dark:text-amber-100 shadow-amber-500/15'
+                      : 'bg-white hover:bg-indigo-50 dark:bg-slate-900 dark:hover:bg-indigo-950/70 text-slate-900 dark:text-white border-indigo-400/80 dark:border-indigo-500 shadow-indigo-500/15'
+                  }`}
+                  title={isAdmin ? 'โปรไฟล์ผู้ดูแลระบบ (คลิกเพื่อดูและแก้ไขโปรไฟล์)' : 'ดูและแก้ไขโปรไฟล์ผู้เรียน'}
+                >
+                  <span className="text-base leading-none shrink-0">{profile.avatarEmoji || (isAdmin ? '👨‍🏫' : '🐱')}</span>
+                  <span className="truncate max-w-[90px] sm:max-w-[120px]">
+                    {isAdmin ? (profile.nickname || 'ครูนุสรณ์') : (profile.nickname || profile.name.split(' ')[0])}
+                  </span>
+                  {isAdmin ? (
+                    <span className="px-1.5 py-0.5 rounded-md bg-amber-500 text-white text-[10px] font-black leading-none shadow-xs">
+                      ADMIN
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 rounded-md bg-indigo-600 text-white text-[10px] font-mono font-black leading-none shadow-xs">
+                      LV.{userLevel}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {/* 3. โหมด (ครูสามารถกดสลับโหมดได้ แต่นักเรียนแสดงสถานะอย่างเดียวไม่สามารถกดสลับได้) */}
+              {isTeacherAuthorized && onChangeViewRoleMode ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.play('click');
+                    onChangeViewRoleMode(viewRoleMode === 'teacher' ? 'student' : 'teacher');
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-extrabold transition-all active:scale-95 cursor-pointer shadow-md shrink-0 whitespace-nowrap ${
+                    viewRoleMode === 'teacher'
+                      ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 text-white border-purple-400 shadow-purple-500/25'
+                      : 'bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white border-sky-400 shadow-sky-500/25'
+                  }`}
+                  title={
+                    viewRoleMode === 'teacher'
+                      ? 'กำลังแสดงโหมดคุณครู (แสดงเครื่องมือครูครบ) คลิกเพื่อสลับเป็นโหมดผู้เรียน'
+                      : 'กำลังแสดงโหมดผู้เรียน (หน้าจอสะอาดตา) คลิกเพื่อสลับเป็นโหมดคุณครู'
+                  }
+                >
+                  <span>{viewRoleMode === 'teacher' ? '👩‍🏫' : '🎒'}</span>
+                  <span>{viewRoleMode === 'teacher' ? 'โหมดคุณครู' : 'โหมดผู้เรียน'}</span>
+                </button>
+              ) : (
+                <div
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-extrabold bg-gradient-to-r from-sky-500 to-blue-600 text-white border-sky-400 shadow-md shadow-sky-500/20 shrink-0 whitespace-nowrap select-none cursor-default"
+                  title="โหมดผู้เรียน (เฉพาะคุณครูที่ได้รับสิทธิ์เท่านั้นที่สามารถสลับโหมดได้)"
+                >
+                  <span>🎒</span>
+                  <span>โหมดผู้เรียน</span>
+                </div>
+              )}
+
+              {/* 4. เข้าสู่ระบบ (เมื่อยังไม่ได้ล็อกอิน) */}
+              {!isLoggedIn && onOpenLogin && (
+                <button
+                  onClick={onOpenLogin}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-emerald-500/25 ring-2 ring-emerald-300/60 transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
+                >
+                  <LogIn className="w-4 h-4 shrink-0" />
+                  <span>เข้าสู่ระบบ</span>
+                </button>
+              )}
+
+              {/* 5. ออกจากระบบ (เมื่อเข้าสู่ระบบแล้ว) */}
+              {isLoggedIn && onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white border border-rose-500 rounded-xl text-xs font-extrabold shadow-md shadow-rose-500/20 transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
+                  title="ออกจากระบบ"
+                >
+                  <LogOut className="w-3.5 h-3.5 shrink-0" />
+                  <span>ออกจากระบบ</span>
+                </button>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1647,8 +1663,8 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="lg:hidden fixed inset-x-0 top-16 bottom-0 bg-slate-900/40 backdrop-blur-xs z-50 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 space-y-4 shadow-2xl max-h-[calc(100vh-4rem)] overflow-y-auto animate-in slide-in-from-top duration-200">
             
-            {/* Mobile View Role Mode Toggle */}
-            {onChangeViewRoleMode && (
+            {/* Mobile View Role Mode Toggle (เฉพาะคุณครูเท่านั้นที่กดสลับโหมดได้) */}
+            {isTeacherAuthorized && onChangeViewRoleMode ? (
               <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   มุมมองการใช้งาน
@@ -1683,6 +1699,15 @@ export const Header: React.FC<HeaderProps> = ({
                     👩‍🏫 คุณครู
                   </button>
                 </div>
+              </div>
+            ) : (
+              <div className="p-2.5 bg-sky-50/70 dark:bg-sky-950/40 rounded-2xl border border-sky-200/80 dark:border-sky-800 flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  มุมมองการใช้งาน
+                </span>
+                <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-sky-600 text-white shadow-xs select-none">
+                  🎒 โหมดผู้เรียน
+                </span>
               </div>
             )}
 
@@ -2154,6 +2179,7 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
                   </>
                 ) : (
+                  isTeacherAuthorized &&
                   onChangeViewRoleMode && (
                     <button
                       type="button"

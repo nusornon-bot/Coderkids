@@ -1550,8 +1550,18 @@ export default function App() {
   useEffect(() => {
     if (isTeacherAuthorized) {
       setViewRoleMode('teacher');
+    } else {
+      setViewRoleMode('student');
     }
   }, [isTeacherAuthorized]);
+
+  const handleChangeViewRoleMode = (mode: 'student' | 'teacher') => {
+    if (!isTeacherAuthorized) {
+      setViewRoleMode('student');
+      return;
+    }
+    setViewRoleMode(mode);
+  };
 
   useEffect(() => {
     if (!isLoggedIn || !auth.currentUser?.emailVerified) return;
@@ -1686,7 +1696,7 @@ export default function App() {
         isSyncing={isSyncing}
         lastSyncTime={lastSyncTime}
         viewRoleMode={viewRoleMode}
-        onChangeViewRoleMode={setViewRoleMode}
+        onChangeViewRoleMode={handleChangeViewRoleMode}
       />
 
       {/* Main Container */}
@@ -1765,8 +1775,9 @@ export default function App() {
             onOpenCodeTracer={() => setIsCodeTracerOpen(true)}
             onOpenStudentQRPass={() => setIsStudentQRPassOpen(true)}
             addPoints={addPoints}
+            isTeacherAuthorized={isTeacherAuthorized}
             viewRoleMode={viewRoleMode}
-            onChangeViewRoleMode={setViewRoleMode}
+            onChangeViewRoleMode={handleChangeViewRoleMode}
           />
         )}
 

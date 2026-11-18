@@ -13,8 +13,16 @@ import {
   Clock,
   ArrowRight,
   Radio,
+  Shuffle,
+  Eraser,
 } from 'lucide-react';
 import { soundEffects } from '../../utils/soundEffects.ts';
+import {
+  SUDOKU_DIFFICULTY_META,
+  SUDOKU_PUZZLES,
+  SudokuDifficulty,
+  validateSudokuBoard,
+} from '../../utils/sudokuPuzzles.ts';
 
 interface LogicAndStoryboardLabProps {
   addPoints: (points: number, reason?: string) => void;
@@ -67,19 +75,7 @@ const DEFAULT_SCENES: StoryScene[] = [
   },
 ];
 
-// 4x4 Sudoku preset (0 = blank)
-const SUDOKU_INITIAL = [
-  [1, 0, 3, 4],
-  [3, 4, 0, 2],
-  [2, 1, 4, 0],
-  [0, 3, 2, 1],
-];
-const SUDOKU_SOLUTION = [
-  [1, 2, 3, 4],
-  [3, 4, 1, 2],
-  [2, 1, 4, 3],
-  [4, 3, 2, 1],
-];
+// Sudoku presets and validation moved to src/utils/sudokuPuzzles.ts
 
 const CHECKPOINT_COMPLEX = {
   question:
@@ -219,24 +215,69 @@ export const LogicAndStoryboardLab: React.FC<LogicAndStoryboardLabProps> = ({ ad
     setOxBoard(preset);
   };
 
-  // Mini Sudoku 4x4 state
-  const [sudokuGrid, setSudokuGrid] = useState<number[][]>(() => SUDOKU_INITIAL.map((r) => [...r]));
+  // Mini Sudoku state (Multi-difficulty: Easy 4x4, Medium 4x4, Hard 6x6)
+  const [sudokuDifficulty, setSudokuDifficulty] = useState<SudokuDifficulty>('easy');
+  const [sudokuPuzzleIdx, setSudokuPuzzleIdx] = useState<number>(0);
+  const currentSudoku =
+    SUDOKU_PUZZLES[sudokuDifficulty][sudokuPuzzleIdx % SUDOKU_PUZZLES[sudokuDifficulty].length];
+  const [sudokuGrid, setSudokuGrid] = useState<number[][]>(() =>
+    SUDOKU_PUZZLES.easy[0].initial.map((r) => [...r])
+  );
+  const [sudokuSelected, setSudokuSelected] = useState<{ r: number; c: number } | null>(null);
   const [sudokuChecked, setSudokuChecked] = useState<boolean>(false);
+  const [solvedSudokuIds, setSolvedSudokuIds] = useState<Set<string>>(() => new Set());
+
+  const loadSudokuPuzzle = (difficulty: SudokuDifficulty, puzzleIdx: number) => {
+    const list = SUDOKU_PUZZLES[difficulty];
+    const nextPuzzle = list[puzzleIdx % list.length];
+    setSudokuDifficulty(difficulty);
+    setSudokuPuzzleIdx(puzzleIdx % list.length);
+    setSudokuGrid(nextPuzzle.initial.map((r) => [...r]));
+    setSudokuSelected(null);
+    setSudokuChecked(false);
+  };
+
+  const handleChangeSudokuDifficulty = (difficulty: SudokuDifficulty) => {
+    soundEffects.play('click');
+    loadSudokuPuzzle(difficulty, 0);
+  };
+
+  const handleNextSudokuPuzzle = () => {
+    soundEffects.play('click');
+    const list = SUDOKU_PUZZLES[sudokuDifficulty];
+    const nextIdx = (sudokuPuzzleIdx + 1) % list.length;
+    loadSudokuPuzzle(sudokuDifficulty, nextIdx);
+  };
 
   const handleSudokuCellClick = (r: number, c: number) => {
-    if (SUDOKU_INITIAL[r][c] !== 0) return;
+    if (currentSudoku.initial[r][c] !== 0) return;
     soundEffects.play('click');
+    setSudokuSelected({ r, c });
     setSudokuChecked(false);
     setSudokuGrid((prev) =>
       prev.map((row, ri) =>
-        ri === r ? row.map((val, ci) => (ci === c ? (val % 4) + 1 : val)) : row
+        ri === r ? row.map((val, ci) => (ci === c ? (val + 1) % (currentSudoku.size + 1) : val)) : row
       )
     );
   };
 
-  const isSudokuComplete = sudokuGrid.every((row, r) =>
-    row.every((val, c) => val === SUDOKU_SOLUTION[r][c])
+  const handleSudokuSetNumber = (num: number) => {
+    if (!sudokuSelected) return;
+    const { r, c } = sudokuSelected;
+    if (currentSudoku.initial[r][c] !== 0) return;
+    soundEffects.play('click');
+    setSudokuChecked(false);
+    setSudokuGrid((prev) =>
+      prev.map((row, ri) => (ri === r ? row.map((val, ci) => (ci === c ? num : val)) : row))
+    );
+  };
+
+  const sudokuValidation = validateSudokuBoard(
+    sudokuGrid,
+    currentSudoku.boxRows,
+    currentSudoku.boxCols
   );
+  const isSudokuComplete = sudokuValidation.isValid;
 
   // --- TAB 3: Storyboard Builder & Broadcast Preview (ป.4/1, ป.4/2) ---
   const [scenes, setScenes] = useState<StoryScene[]>(DEFAULT_SCENES);
@@ -275,64 +316,119 @@ export const LogicAndStoryboardLab: React.FC<LogicAndStoryboardLabProps> = ({ ad
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 shadow-sm space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100 dark:border-slate-800">
-        <div>
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-sky-700 dark:text-sky-400">
-            <Brain className="w-4 h-4" />
-            <span>มาตรฐาน ว 4.2 ป.4/1 (Must-know) · ป.4/2 · ป.5/1 · ป.6/1 (Must-know)</span>
+      <div className="flex flex-col gap-5 pb-6 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-sm flex items-center justify-center shrink-0">
+            <Brain className="w-6 h-6" />
           </div>
-          <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
-            ห้องทดลองตรรกะ เกมคิดวิเคราะห์ &amp; ออกแบบสตอรีบอร์ด
-          </h3>
-          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-3xl">
-            ฝึกทำนายผลลัพธ์เมื่อเงื่อนไขเริ่มต้นต่างกัน ทดลอง Binary Search ทายเลข 1–1,000,000 เล่นเกม OX / Sudoku และออกแบบ Storyboard นิทานโต้ตอบ
-          </p>
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="inline-flex flex-wrap items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200/80 dark:border-sky-800/80 text-[11px] font-bold text-sky-700 dark:text-sky-300">
+              <span>มาตรฐาน ว 4.2 ป.4/1 (Must-know) · ป.4/2 · ป.5/1 · ป.6/1 (Must-know)</span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+              ห้องทดลองตรรกะ เกมคิดวิเคราะห์ &amp; ออกแบบสตอรีบอร์ด
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-4xl">
+              ฝึกทำนายผลลัพธ์เมื่อเงื่อนไขเริ่มต้นต่างกัน ทดลอง Binary Search ทายเลข 1–1,000,000 เล่นเกม OX / Sudoku และออกแบบ Storyboard นิทานโต้ตอบ
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-800 rounded-2xl shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl border border-slate-200/70 dark:border-slate-700/70">
           <button
             type="button"
             onClick={() => setActiveTab('binary')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer flex items-center gap-2.5 ${
               activeTab === 'binary'
-                ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
+                ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-400 shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-900/40'
             }`}
           >
-            1. Binary Search &amp; เวลาเดินทาง (ป.6/1)
+            <span
+              className={`w-6 h-6 rounded-lg text-[11px] font-black flex items-center justify-center shrink-0 ${
+                activeTab === 'binary'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              1
+            </span>
+            <div className="min-w-0">
+              <div className="text-xs font-bold truncate">Binary Search &amp; เวลาเดินทาง</div>
+              <div className="text-[10px] opacity-75 font-semibold">มาตรฐาน ป.6/1</div>
+            </div>
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('games')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer flex items-center gap-2.5 ${
               activeTab === 'games'
-                ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
+                ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-400 shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-900/40'
             }`}
           >
-            2. เกม OX · Sudoku · สถานะเริ่มต้น (ป.4/1, ป.5/1)
+            <span
+              className={`w-6 h-6 rounded-lg text-[11px] font-black flex items-center justify-center shrink-0 ${
+                activeTab === 'games'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              2
+            </span>
+            <div className="min-w-0">
+              <div className="text-xs font-bold truncate">เกม OX · Sudoku · สถานะเริ่มต้น</div>
+              <div className="text-[10px] opacity-75 font-semibold">มาตรฐาน ป.4/1, ป.5/1</div>
+            </div>
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('storyboard')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer flex items-center gap-2.5 ${
               activeTab === 'storyboard'
-                ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
+                ? 'bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-400 shadow-sm ring-1 ring-slate-200/80 dark:ring-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-900/40'
             }`}
           >
-            3. ออกแบบ Storyboard &amp; Logo (ป.4/2)
+            <span
+              className={`w-6 h-6 rounded-lg text-[11px] font-black flex items-center justify-center shrink-0 ${
+                activeTab === 'storyboard'
+                  ? 'bg-sky-600 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              3
+            </span>
+            <div className="min-w-0">
+              <div className="text-xs font-bold truncate">ออกแบบ Storyboard &amp; Logo</div>
+              <div className="text-[10px] opacity-75 font-semibold">มาตรฐาน ป.4/2</div>
+            </div>
           </button>
+
           <button
             type="button"
             onClick={() => setActiveTab('checkpoint')}
-            className={`px-3 py-2 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer flex items-center gap-2.5 ${
               activeTab === 'checkpoint'
-                ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400'
+                ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-sm ring-1 ring-indigo-200 dark:ring-indigo-800'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-900/40'
             }`}
           >
-            4. โจทย์ O-NET เชิงซ้อน
+            <span
+              className={`w-6 h-6 rounded-lg text-[11px] font-black flex items-center justify-center shrink-0 ${
+                activeTab === 'checkpoint'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              4
+            </span>
+            <div className="min-w-0">
+              <div className="text-xs font-bold truncate">โจทย์ O-NET เชิงซ้อน</div>
+              <div className="text-[10px] opacity-75 font-semibold">แบบทดสอบรวม ป.4–ป.6</div>
+            </div>
           </button>
         </div>
       </div>
@@ -588,44 +684,121 @@ export const LogicAndStoryboardLab: React.FC<LogicAndStoryboardLabProps> = ({ ad
             </div>
           </div>
 
-          {/* Mini Sudoku 4x4 (ป.5/1) */}
+          {/* Mini Sudoku Multi-Difficulty (ป.5/1) */}
           <div className="lg:col-span-6 p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-4">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <span className="text-xs font-bold text-emerald-600">ป.5/1 · เหตุผลเชิงตรรกะ &amp; เงื่อนไข</span>
+                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                  ป.5/1 · เหตุผลเชิงตรรกะ &amp; เงื่อนไข
+                </span>
                 <h4 className="text-base font-black text-slate-900 dark:text-white">
-                  Mini Sudoku 4×4 (เติมเลข 1–4 ห้ามซ้ำแถว/หลัก/กลุ่ม)
+                  Sudoku {currentSudoku.size}×{currentSudoku.size} ({currentSudoku.title})
                 </h4>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  เติมเลข 1–{currentSudoku.size} ห้ามซ้ำแถว / หลัก / กลุ่ม {currentSudoku.boxRows}×{currentSudoku.boxCols}
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSudokuGrid(SUDOKU_INITIAL.map((r) => [...r]));
-                  setSudokuChecked(false);
-                }}
-                className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-              >
-                รีเซ็ตโจทย์
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleNextSudokuPuzzle}
+                  className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:border-emerald-400 cursor-pointer flex items-center gap-1"
+                  title="เปลี่ยนโจทย์ชุดถัดไปในระดับเดียวกัน"
+                >
+                  <Shuffle className="w-3.5 h-3.5" />
+                  <span>เปลี่ยนโจทย์</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.play('click');
+                    loadSudokuPuzzle(sudokuDifficulty, sudokuPuzzleIdx);
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 hover:border-slate-400 cursor-pointer flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>รีเซ็ต</span>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-1.5 max-w-[240px] mx-auto p-2 rounded-2xl bg-slate-200 dark:bg-slate-700">
+            {/* Difficulty Selector */}
+            <div className="grid grid-cols-3 gap-2">
+              {(['easy', 'medium', 'hard'] as SudokuDifficulty[]).map((diff) => {
+                const meta = SUDOKU_DIFFICULTY_META[diff];
+                const isSelected = sudokuDifficulty === diff;
+                return (
+                  <button
+                    key={diff}
+                    type="button"
+                    onClick={() => handleChangeSudokuDifficulty(diff)}
+                    className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-emerald-400'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-xs font-black">{meta.label}</span>
+                      <span
+                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
+                          isSelected
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {meta.badge}
+                      </span>
+                    </div>
+                    <div
+                      className={`text-[10px] mt-0.5 font-semibold ${
+                        isSelected ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'
+                      }`}
+                    >
+                      +{meta.rewardExp} EXP
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Board */}
+            <div
+              className={`grid gap-1.5 mx-auto p-2.5 rounded-2xl bg-slate-200/90 dark:bg-slate-700/90 ${
+                currentSudoku.size === 6 ? 'grid-cols-6 max-w-[310px]' : 'grid-cols-4 max-w-[248px]'
+              }`}
+            >
               {sudokuGrid.map((row, r) =>
                 row.map((val, c) => {
-                  const isFixed = SUDOKU_INITIAL[r][c] !== 0;
-                  const isWrong = sudokuChecked && val !== 0 && val !== SUDOKU_SOLUTION[r][c];
+                  const isFixed = currentSudoku.initial[r][c] !== 0;
+                  const cellKey = `${r}-${c}`;
+                  const isSelected = sudokuSelected?.r === r && sudokuSelected?.c === c;
+                  const isConflict = sudokuChecked && sudokuValidation.conflictKeys.has(cellKey);
+                  const isBoxTinted =
+                    (Math.floor(r / currentSudoku.boxRows) + Math.floor(c / currentSudoku.boxCols)) %
+                      2 ===
+                    0;
+
                   return (
                     <button
-                      key={`${r}-${c}`}
+                      key={cellKey}
                       type="button"
                       disabled={isFixed}
                       onClick={() => handleSudokuCellClick(r, c)}
-                      className={`aspect-square rounded-xl font-mono font-black text-base flex items-center justify-center transition-all ${
+                      className={`aspect-square rounded-xl font-mono font-black flex items-center justify-center transition-all ${
+                        currentSudoku.size === 6 ? 'text-sm' : 'text-base'
+                      } ${
                         isFixed
-                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white cursor-default'
-                          : isWrong
-                          ? 'bg-rose-100 text-rose-700 border-2 border-rose-400 cursor-pointer'
-                          : 'bg-white dark:bg-slate-900 text-indigo-600 border-2 border-indigo-200 hover:border-indigo-500 cursor-pointer'
+                          ? isBoxTinted
+                            ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white cursor-default'
+                            : 'bg-slate-50 dark:bg-slate-800/70 text-slate-900 dark:text-white cursor-default'
+                          : isConflict
+                          ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-700 dark:text-rose-300 border-2 border-rose-400 cursor-pointer'
+                          : isSelected
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-2 border-indigo-500 ring-2 ring-indigo-300/60 cursor-pointer'
+                          : isBoxTinted
+                          ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 border-2 border-indigo-200 dark:border-indigo-800 hover:border-indigo-500 cursor-pointer'
+                          : 'bg-sky-50/70 dark:bg-slate-900/90 text-indigo-600 dark:text-indigo-400 border-2 border-sky-200 dark:border-sky-800 hover:border-indigo-500 cursor-pointer'
                       }`}
                     >
                       {val === 0 ? '?' : val}
@@ -635,20 +808,58 @@ export const LogicAndStoryboardLab: React.FC<LogicAndStoryboardLabProps> = ({ ad
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-              <span className="text-slate-500">คลิกที่ช่องสีขาวเพื่อสลับตัวเลข 1 → 2 → 3 → 4</span>
+            {/* Quick Number Pad for Selected Cell */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5">
+              {Array.from({ length: currentSudoku.size }, (_, idx) => idx + 1).map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  disabled={!sudokuSelected}
+                  onClick={() => handleSudokuSetNumber(num)}
+                  className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-indigo-500 disabled:opacity-45 font-mono font-black text-xs text-indigo-600 dark:text-indigo-400 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {num}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={!sudokuSelected}
+                onClick={() => handleSudokuSetNumber(0)}
+                className="px-2.5 h-8 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-rose-400 disabled:opacity-45 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer disabled:cursor-not-allowed flex items-center gap-1"
+                title="ล้างค่าในช่องที่เลือก"
+              >
+                <Eraser className="w-3.5 h-3.5" />
+                <span>ล้าง</span>
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
+              <div className="text-slate-500 dark:text-slate-400">
+                <span>
+                  คลิกช่องว่างเพื่อวนเลข 1–{currentSudoku.size} หรือเลือกช่องแล้วจิ้มปุ่มตัวเลข
+                </span>
+                <span className="ml-2 font-mono font-bold text-slate-700 dark:text-slate-300">
+                  (เหลือ {sudokuValidation.emptyCount} ช่อง)
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() => {
                   setSudokuChecked(true);
                   if (isSudokuComplete) {
                     soundEffects.play('correct');
-                    addPoints(15, 'ไขปริศนา Mini Sudoku 4×4 สำเร็จ (ป.5/1)');
+                    if (!solvedSudokuIds.has(currentSudoku.id)) {
+                      setSolvedSudokuIds((prev) => new Set(prev).add(currentSudoku.id));
+                      addPoints(
+                        currentSudoku.rewardExp,
+                        `ไขปริศนา Sudoku ${SUDOKU_DIFFICULTY_META[sudokuDifficulty].label} (${currentSudoku.size}×${currentSudoku.size}) สำเร็จ (ป.5/1)`
+                      );
+                    }
                   } else {
                     soundEffects.play('error');
                   }
                 }}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold cursor-pointer shadow-xs"
               >
                 ตรวจ Sudoku
               </button>
@@ -658,13 +869,15 @@ export const LogicAndStoryboardLab: React.FC<LogicAndStoryboardLabProps> = ({ ad
               <div
                 className={`p-3 rounded-xl text-xs border font-semibold ${
                   isSudokuComplete
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                    : 'bg-amber-50 border-amber-200 text-amber-900'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                    : 'bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
                 }`}
               >
                 {isSudokuComplete
-                  ? 'ถูกต้องครบทุกแถว ทุกหลัก และทุกกล่อง 2×2!'
-                  : 'ยังมีช่องที่เลขซ้ำกันในแถว/หลัก/กลุ่มย่อย ลองคลิกปรับช่องสีแดงดูนะ'}
+                  ? `ยอดเยี่ยม! ถูกต้องครบทุกแถว ทุกหลัก และทุกกลุ่ม ${currentSudoku.boxRows}×${currentSudoku.boxCols} แล้ว!`
+                  : sudokuValidation.conflictKeys.size > 0
+                  ? 'พบตัวเลขซ้ำกันในแถว หลัก หรือกลุ่มย่อย (ช่องสีแดง) ลองปรับดูนะ'
+                  : `ยังเติมตัวเลขไม่ครบทุกช่อง (เหลืออีก ${sudokuValidation.emptyCount} ช่อง)`}
               </div>
             )}
           </div>

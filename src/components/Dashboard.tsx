@@ -99,6 +99,7 @@ interface DashboardProps {
   onOpenCodeTracer?: () => void;
   onOpenStudentQRPass?: () => void;
   addPoints?: (amount: number, reason: string, category?: any) => void;
+  isTeacherAuthorized?: boolean;
   viewRoleMode?: 'student' | 'teacher';
   onChangeViewRoleMode?: (mode: 'student' | 'teacher') => void;
 }
@@ -237,6 +238,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenCodeTracer,
   onOpenStudentQRPass,
   addPoints,
+  isTeacherAuthorized = false,
   viewRoleMode = 'student',
   onChangeViewRoleMode,
 }) => {
@@ -523,7 +525,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </button>
             ))}
 
-            {onChangeViewRoleMode && (
+            {isTeacherAuthorized && onChangeViewRoleMode && (
               <button
                 type="button"
                 onClick={() => {
@@ -2623,7 +2625,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       {/* ----------------- ส่วนที่ 6: ห้องเรียน & วัดผล · ศูนย์เครื่องมือคุณครู & ผู้ปกครอง (Progressive Disclosure) ----------------- */}
-      {!(viewRoleMode === 'teacher' || isAdmin || activeCategory === 'teacher') && activeCategory === 'all' && onChangeViewRoleMode && (
+      {isTeacherAuthorized && !(viewRoleMode === 'teacher' || isAdmin || activeCategory === 'teacher') && activeCategory === 'all' && onChangeViewRoleMode && (
         <section className="rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/70 p-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 text-xs text-purple-900 dark:text-purple-200">
             <GraduationCap className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
