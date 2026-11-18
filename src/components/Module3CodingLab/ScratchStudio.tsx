@@ -20,12 +20,19 @@ import {
   Code2,
   Copy,
   Check,
+  FileCode2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { PythonExportModal } from './PythonExportModal.tsx';
+import {
+  exportScratchBlocksToPython,
+  ScratchPythonExportMode,
+} from '../../utils/pythonExport.ts';
 
 interface ScratchStudioProps {
   onComplete: () => void;
   addPoints: (points: number) => void;
+  onOpenPythonLab?: (code: string, title: string) => void;
 }
 
 type BlockCategory = 'all' | 'events' | 'motion' | 'pen' | 'control' | 'looks' | 'variables';
@@ -63,7 +70,11 @@ const PRESET_COLORS = [
   { label: 'ฟ้าไซแอน', hex: '#06b6d4' },
 ];
 
-export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoints }) => {
+export const ScratchStudio: React.FC<ScratchStudioProps> = ({
+  onComplete,
+  addPoints,
+  onOpenPythonLab,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const penTrailsRef = useRef<PenTrail[]>([]);
   const spritePosRef = useRef({ x: -40, y: 40, dir: 90, costume: 0 });
@@ -104,6 +115,9 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
   const [broadcastMessage, setBroadcastMessage] = useState<string | null>(null);
   const [showPythonComments, setShowPythonComments] = useState<boolean>(true);
   const [pythonCopied, setPythonCopied] = useState<boolean>(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [exportMode, setExportMode] = useState<ScratchPythonExportMode>('playground');
+  const [exportIncludeComments, setExportIncludeComments] = useState<boolean>(false);
 
   const SCRATCH_PRESET_EXPLANATIONS: Record<string, { title: string; concept: string; explanation: string; tip: string }> = {
     square: {
@@ -2551,13 +2565,13 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
             </div>
           </div>
 
-          {/* Execution Button */}
-          <div className="flex items-center gap-3">
+          {/* Execution & Export Buttons */}
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={runScript}
               disabled={isRunning || scriptBlocks.length === 0}
-              className={`flex-1 inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-bold text-xs sm:text-sm text-white shadow-lg transition-all active:scale-95 cursor-pointer ${
+              className={`flex-1 min-w-[200px] inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-bold text-xs sm:text-sm text-white shadow-lg transition-all active:scale-95 cursor-pointer ${
                 isRunning || scriptBlocks.length === 0
                   ? 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed'
                   : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/25'
@@ -2565,6 +2579,17 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
             >
               <Play className="w-4 h-4 fill-white" />
               <span>{isRunning ? 'กำลังรันสคริปต์ทีละขั้น...' : 'รันสคริปต์ (คลิกธงเขียว)'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsExportModalOpen(true)}
+              disabled={scriptBlocks.length === 0}
+              className="inline-flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl font-bold text-xs sm:text-sm bg-slate-900 hover:bg-slate-800 text-sky-300 border border-slate-700 shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              title="ส่งออกบล็อกคำสั่ง Scratch เป็นสคริปต์ Python 3 แบบสะอาดสำหรับ Junior Code Playground"
+            >
+              <FileCode2 className="w-4 h-4" />
+              <span>Export to Python</span>
             </button>
           </div>
         </div>
@@ -2928,7 +2953,7 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowPythonComments((prev) => !prev)}
@@ -2939,6 +2964,14 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
                   }`}
                 >
                   {showPythonComments ? '💬 ซ่อนคำอธิบาย #' : '💬 แสดงคำอธิบาย #'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsExportModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer"
+                >
+                  <FileCode2 className="w-3.5 h-3.5" />
+                  <span>ดูสคริปต์ Raw &amp; ส่งออก .py</span>
                 </button>
                 <button
                   type="button"
@@ -2961,6 +2994,26 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
                     </>
                   )}
                 </button>
+                {onOpenPythonLab && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanPlaygroundCode = exportScratchBlocksToPython(scriptBlocks, {
+                        mode: 'playground',
+                        includeComments: false,
+                        inputValA,
+                        inputValB,
+                      });
+                      const presetTitle =
+                        SCRATCH_PRESET_EXPLANATIONS[activePreset]?.title || 'สคริปต์ Scratch';
+                      onOpenPythonLab(cleanPlaygroundCode, `Scratch: ${presetTitle}`);
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-white" />
+                    <span>รันใน Python Lab</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -3006,6 +3059,41 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({ onComplete, addPoi
           </div>
         );
       })()}
+
+      {/* Automated Raw Python Export Modal */}
+      <PythonExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        sourceName="Scratch Studio"
+        projectTitle={SCRATCH_PRESET_EXPLANATIONS[activePreset]?.title || 'สคริปต์ Scratch'}
+        fileName={`scratch_${activePreset}.py`}
+        modes={[
+          {
+            value: 'playground',
+            label: 'Python 3 (Junior Code Playground)',
+            description:
+              'สคริปต์ Python 3 มาตรฐานที่ตัดไลบรารีกราฟิกออก เพื่อให้รันทดสอบผลลัพธ์ใน Junior Code Playground ได้ทันที',
+          },
+          {
+            value: 'turtle',
+            label: 'Python Turtle (IDLE / Thonny)',
+            description:
+              'สคริปต์ Python 3 พร้อมโมดูล turtle สำหรับเปิดวาดกราฟิกในโปรแกรม IDLE, Thonny หรือ Google Colab',
+          },
+        ]}
+        activeMode={exportMode}
+        onChangeMode={(mode) => setExportMode(mode as ScratchPythonExportMode)}
+        includeComments={exportIncludeComments}
+        onToggleComments={setExportIncludeComments}
+        rawCode={exportScratchBlocksToPython(scriptBlocks, {
+          mode: exportMode,
+          includeComments: exportIncludeComments,
+          inputValA,
+          inputValB,
+        })}
+        onOpenPythonLab={onOpenPythonLab}
+        canRunInPlayground={exportMode === 'playground'}
+      />
     </div>
   );
 };

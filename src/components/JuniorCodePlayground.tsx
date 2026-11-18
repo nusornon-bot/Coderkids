@@ -110,7 +110,7 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
   const [userCode, setUserCode] = useState<string>(initialCode || TEMPLATES[0].code);
   const [terminalOutput, setTerminalOutput] = useState<string>(
     initialCode
-      ? `🚀 นำเข้าโค้ด Python จากผังงาน "${initialTitle || 'Flowchart'}" แล้ว! กด "รันโค้ด (Run Code)" เพื่อทดสอบจริงได้เลย`
+      ? `🚀 นำเข้าโค้ด Python จาก "${initialTitle || 'บล็อกคำสั่ง'}" แล้ว! กด "รันโค้ด (Run Code)" เพื่อทดสอบจริงได้เลย`
       : 'พร้อมรันโค้ด คลิกปุ่ม "รันโค้ด (Run Code)" เพื่อดูผลลัพธ์...'
   );
   const [isRunning, setIsRunning] = useState<boolean>(false);
@@ -119,10 +119,10 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
   useEffect(() => {
     if (initialCode && initialCode.trim()) {
       setIsFlowchartHandoff(true);
-      setHandoffTitle(initialTitle || 'โค้ดจากผังงาน Flowchart');
+      setHandoffTitle(initialTitle || 'โค้ดจากบล็อกคำสั่ง');
       setUserCode(initialCode);
       setTerminalOutput(
-        `🚀 นำเข้าโค้ด Python จากผังงาน "${initialTitle || 'Flowchart'}" เรียบร้อยแล้ว!\nกดปุ่ม "รันโค้ด (Run Code)" เพื่อประมวลผลจริง...`
+        `🚀 นำเข้าโค้ด Python จาก "${initialTitle || 'บล็อกคำสั่ง'}" เรียบร้อยแล้ว!\nกดปุ่ม "รันโค้ด (Run Code)" เพื่อประมวลผลจริง...`
       );
     }
   }, [initialCode, initialTitle, initialCodeKey]);
@@ -229,7 +229,7 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-900">
           <div className="flex items-center gap-2 font-bold">
             <GitBranch className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>ส่งต่อโค้ดอัตโนมัติจากผังงาน: {handoffTitle}</span>
+            <span>ส่งต่อโค้ดอัตโนมัติ: {handoffTitle}</span>
           </div>
           <span className="text-[11px] text-emerald-700 font-semibold">
             แก้ไขค่าตัวแปรด้านล่างแล้วกด "รันโค้ด (Run Code)" ได้เลย
@@ -347,7 +347,7 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
             </h4>
             <p className="text-xs text-indigo-950/80 dark:text-indigo-300/90 leading-relaxed">
               {isFlowchartHandoff
-                ? `ฝึกแปลงผังงาน "${handoffTitle}" เป็นคำสั่ง Python 3 จริง พร้อมทดลองปรับค่าตัวแปรและตรวจสอบผลลัพธ์`
+                ? `ฝึกแปลง "${handoffTitle}" เป็นคำสั่ง Python 3 จริง พร้อมทดลองปรับค่าตัวแปรและตรวจสอบผลลัพธ์`
                 : selectedTemplate.description}
             </p>
             <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-900/60 flex items-center justify-between text-xs font-semibold text-emerald-700 dark:text-emerald-300">

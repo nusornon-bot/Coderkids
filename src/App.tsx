@@ -2103,6 +2103,11 @@ export default function App() {
               <ScratchStudio
                 onComplete={() => markModuleComplete('codingLab')}
                 addPoints={(pts) => addPoints(pts, 'รันสคริปต์บล็อก Scratch สำเร็จ', 'coding')}
+                onOpenPythonLab={(code, title) => {
+                  setPythonHandoff({ code, title, key: Date.now() });
+                  setActiveTab('juniorPlayground');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
               />
             )}
             {codingSubTab === 'microbit' && (
@@ -2110,6 +2115,11 @@ export default function App() {
                 onComplete={() => markModuleComplete('codingLab')}
                 addPoints={(pts) => addPoints(pts, 'ทดลองเล่นบอร์ด Micro:bit V2 และเซ็นเซอร์', 'coding')}
                 onOpenMusicLab={() => setCodingSubTab('musicLab')}
+                onOpenPythonLab={(code, title) => {
+                  setPythonHandoff({ code, title, key: Date.now() });
+                  setActiveTab('juniorPlayground');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
               />
             )}
             {codingSubTab === 'musicLab' && (

@@ -78,22 +78,75 @@ function stripInlineComment(line: string): string {
   return line;
 }
 
+function countBracketDelta(segment: string): number {
+  let delta = 0;
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+  for (let i = 0; i < segment.length; i++) {
+    const ch = segment[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (ch === "'" && !inDouble) inSingle = !inSingle;
+    else if (ch === '"' && !inSingle) inDouble = !inDouble;
+    else if (!inSingle && !inDouble) {
+      if (ch === '(' || ch === '[') delta++;
+      else if (ch === ')' || ch === ']') delta--;
+    }
+  }
+  return delta;
+}
+
 function preprocessLines(code: string): ParsedLine[] {
   const rawLines = code.replace(/\r\n/g, '\n').split('\n');
   const result: ParsedLine[] = [];
+  let pending: { lineNumber: number; indent: number; raw: string } | null = null;
+  let bracketDepth = 0;
 
   for (let idx = 0; idx < rawLines.length; idx++) {
     const rawWithoutComment = stripInlineComment(rawLines[idx]);
     const trimmed = rawWithoutComment.trim();
     if (!trimmed) continue;
 
+    if (pending) {
+      pending.raw = `${pending.raw} ${trimmed}`;
+      bracketDepth += countBracketDelta(trimmed);
+      if (bracketDepth <= 0) {
+        result.push(pending);
+        pending = null;
+        bracketDepth = 0;
+      }
+      continue;
+    }
+
     const leadingMatch = rawWithoutComment.match(/^([ \t]*)/);
     const leading = leadingMatch ? leadingMatch[1].replace(/\t/g, '    ') : '';
-    result.push({
-      lineNumber: idx + 1,
-      indent: leading.length,
-      raw: trimmed,
-    });
+    const delta = countBracketDelta(trimmed);
+
+    if (delta > 0) {
+      pending = {
+        lineNumber: idx + 1,
+        indent: leading.length,
+        raw: trimmed,
+      };
+      bracketDepth = delta;
+    } else {
+      result.push({
+        lineNumber: idx + 1,
+        indent: leading.length,
+        raw: trimmed,
+      });
+    }
+  }
+
+  if (pending) {
+    result.push(pending);
   }
 
   return result;
@@ -715,6 +768,16 @@ function evalExpression(expr: string, ctx: EvalContext, line: number): PyValue {
         const max = Math.floor(Number(positional[1]));
         return Math.floor(Math.random() * (max - min + 1)) + min;
       }
+      if (fnName === 'choice' && positional.length >= 1) {
+        const seq = positional[0];
+        if (Array.isArray(seq) && seq.length > 0) {
+          return seq[Math.floor(Math.random() * seq.length)];
+        }
+        if (typeof seq === 'string' && seq.length > 0) {
+          return seq[Math.floor(Math.random() * seq.length)];
+        }
+        throw new PythonRuntimeError(`random.choice() ต้องรับลิสต์หรือข้อความที่ไม่ว่าง (บรรทัด ${line})`, line);
+      }
       throw new PythonRuntimeError(`ไม่รู้จักเมธอด .${fnName}() ในบรรทัด ${line}`, line);
     }
 
@@ -765,8 +828,33 @@ function evalExpression(expr: string, ctx: EvalContext, line: number): PyValue {
       }
       case 'abs':
         return Math.abs(Number(positional[0] ?? 0));
-      case 'round':
-        return Math.round(Number(positional[0] ?? 0));
+      case 'round': {
+        const num = Number(positional[0] ?? 0);
+        const digits = positional.length >= 2 ? Math.max(0, Math.min(10, Math.trunc(Number(positional[1])))) : 0;
+        if (digits === 0) return Math.round(num);
+        const factor = Math.pow(10, digits);
+        return Math.round(num * factor) / factor;
+      }
+      case 'max': {
+        const items =
+          positional.length === 1 && Array.isArray(positional[0])
+            ? positional[0]
+            : positional;
+        if (items.length === 0) {
+          throw new PythonRuntimeError(`max() ต้องมีค่าอย่างน้อย 1 ค่า (บรรทัด ${line})`, line);
+        }
+        return Math.max(...items.map((x) => Number(x)));
+      }
+      case 'min': {
+        const items =
+          positional.length === 1 && Array.isArray(positional[0])
+            ? positional[0]
+            : positional;
+        if (items.length === 0) {
+          throw new PythonRuntimeError(`min() ต้องมีค่าอย่างน้อย 1 ค่า (บรรทัด ${line})`, line);
+        }
+        return Math.min(...items.map((x) => Number(x)));
+      }
       case 'bin': {
         const n = Math.trunc(Number(positional[0] ?? 0));
         return n < 0 ? `-0b${Math.abs(n).toString(2)}` : `0b${n.toString(2)}`;

@@ -17,10 +17,16 @@ import {
   Layers,
   Info,
   Download,
+  FileCode2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { downloadMicrobitHexFile } from '../../utils/hexExporter.ts';
 import { soundEffects } from '../../utils/soundEffects.ts';
+import { PythonExportModal } from './PythonExportModal.tsx';
+import {
+  exportMicrobitToPython,
+  MicrobitPythonExportMode,
+} from '../../utils/pythonExport.ts';
 
 interface PresetExplanationData {
   id: string;
@@ -285,9 +291,15 @@ interface MicrobitSimulatorProps {
   onComplete: () => void;
   addPoints: (points: number) => void;
   onOpenMusicLab?: () => void;
+  onOpenPythonLab?: (code: string, title: string) => void;
 }
 
-export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({ onComplete, addPoints, onOpenMusicLab }) => {
+export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({
+  onComplete,
+  addPoints,
+  onOpenMusicLab,
+  onOpenPythonLab,
+}) => {
   // 5x5 LED matrix state
   const [leds, setLeds] = useState<boolean[][]>([
     [false, true, false, true, false],
@@ -306,6 +318,10 @@ export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({ onComplete
   const [hasCompleted, setHasCompleted] = useState(false);
   const [codeViewTab, setCodeViewTab] = useState<'code' | 'ipo'>('code');
   const [copied, setCopied] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportMode, setExportMode] = useState<MicrobitPythonExportMode>('playground');
+  const [exportIncludeComments, setExportIncludeComments] = useState(false);
+  const [useCustomLedExport, setUseCustomLedExport] = useState(false);
 
   const handleCopyCode = (code: string) => {
     try {
@@ -850,7 +866,18 @@ export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({ onComplete
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    {/* Export to Python button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsExportModalOpen(true)}
+                      className="self-start sm:self-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition-colors text-[11px] font-sans font-bold cursor-pointer shadow-sm"
+                      title="ส่งออกโค้ด Micro:bit เป็นสคริปต์ Python 3 สำหรับ Junior Code Playground"
+                    >
+                      <FileCode2 className="w-3.5 h-3.5" />
+                      <span>Export to Python</span>
+                    </button>
+
                     {/* Download HEX file button */}
                     <button
                       type="button"
@@ -1003,6 +1030,31 @@ export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({ onComplete
                   💡 <strong>ข้อคิดการเรียนรู้:</strong> {exp.computationalTakeaway}
                 </div>
 
+                {onOpenPythonLab && (
+                  <div className="pt-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rawPy = exportMicrobitToPython({
+                          presetId: activePresetId,
+                          mode: 'playground',
+                          includeComments: false,
+                          temperature,
+                          lightLevel,
+                          counterValue,
+                          leds,
+                          useCustomLedMatrix: false,
+                        });
+                        onOpenPythonLab(rawPy, `Micro:bit: ${exp.name}`);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer font-sans"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-white" />
+                      <span>ส่งโค้ด Python ไปรันใน Junior Code Playground</span>
+                    </button>
+                  </div>
+                )}
+
                 {onOpenMusicLab && (
                   <div className="pt-2 border-t border-slate-800">
                     <button
@@ -1020,6 +1072,54 @@ export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({ onComplete
           })()}
         </div>
       </div>
+
+      {/* Automated Raw Python Export Modal */}
+      {(() => {
+        const exp = PRESET_EXPLANATIONS[activePresetId] || PRESET_EXPLANATIONS.heart;
+        const rawCode = exportMicrobitToPython({
+          presetId: activePresetId,
+          mode: exportMode,
+          includeComments: exportIncludeComments,
+          temperature,
+          lightLevel,
+          counterValue,
+          leds,
+          useCustomLedMatrix: useCustomLedExport,
+        });
+        return (
+          <PythonExportModal
+            isOpen={isExportModalOpen}
+            onClose={() => setIsExportModalOpen(false)}
+            sourceName="Micro:bit V2 Simulator"
+            projectTitle={useCustomLedExport ? 'ลายไฟ LED 5x5 ปัจจุบันบนบอร์ด' : exp.name}
+            fileName={useCustomLedExport ? 'microbit_custom_led.py' : `microbit_${activePresetId}.py`}
+            modes={[
+              {
+                value: 'playground',
+                label: 'Python 3 (Junior Code Playground)',
+                description:
+                  'สคริปต์ Python 3 มาตรฐานที่จำลองค่าเซ็นเซอร์และตรรกะบอร์ด เพื่อให้รันจริงใน Junior Code Playground ได้ทันที',
+              },
+              {
+                value: 'micropython',
+                label: 'MicroPython (บอร์ด Micro:bit จริง)',
+                description:
+                  'โค้ด MicroPython มาตรฐาน (from microbit import *) สำหรับนำไปใช้กับบอร์ด Micro:bit V2 จริงหรือ Python Editor',
+              },
+            ]}
+            activeMode={exportMode}
+            onChangeMode={(mode) => setExportMode(mode as MicrobitPythonExportMode)}
+            includeComments={exportIncludeComments}
+            onToggleComments={setExportIncludeComments}
+            extraToggleLabel="ส่งออกเฉพาะภาพไฟ LED 5x5 ที่วาดบนบอร์ด"
+            extraToggleChecked={useCustomLedExport}
+            onChangeExtraToggle={setUseCustomLedExport}
+            rawCode={rawCode}
+            onOpenPythonLab={onOpenPythonLab}
+            canRunInPlayground={exportMode === 'playground'}
+          />
+        );
+      })()}
     </div>
   );
 };
