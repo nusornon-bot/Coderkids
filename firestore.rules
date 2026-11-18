@@ -1,0 +1,502 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // -------------------------------------------------------------------------
+    // Global Safety Net (Default-Deny Catch-All)
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Shared Hardened Security Primitives
+    // -------------------------------------------------------------------------
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(userId) {
+      return isEmailVerified() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdminEmail() {
+      return isEmailVerified() &&
+        request.auth.token.email in [
+          'webmaster@anubalnara.ac.th',
+          'nusorn.not@anubalnara.ac.th',
+          'nusornon@gmail.com'
+        ];
+    }
+
+    function isAdmin() {
+      return isEmailVerified() && (
+        isBootstrappedAdminEmail() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // Entity Validation Blueprints (Anti-Update-Gap)
+    // -------------------------------------------------------------------------
+    function isValidUserPublicProfile(data, userId) {
+      return data.keys().hasAll([
+          'uid',
+          'displayName',
+          'avatarEmoji',
+          'grade',
+          'school',
+          'points',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'nickname',
+          'avatarEmoji',
+          'grade',
+          'school',
+          'points',
+          'codingLevel',
+          'selectedTitle',
+          'streakDays',
+          'completedModulesCount',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.uid is string && isValidId(data.uid) && data.uid == userId &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+        (!('nickname' in data) || (data.nickname is string && data.nickname.size() <= 60)) &&
+        data.avatarEmoji is string && data.avatarEmoji.size() >= 1 && data.avatarEmoji.size() <= 16 &&
+        data.grade is string && data.grade.size() >= 1 && data.grade.size() <= 60 &&
+        data.school is string && data.school.size() >= 1 && data.school.size() <= 120 &&
+        data.points is int && data.points >= 0 && data.points <= 1000000 &&
+        (!('codingLevel' in data) || (data.codingLevel is string && data.codingLevel in ['Beginner', 'Intermediate', 'Advanced'])) &&
+        (!('selectedTitle' in data) || (data.selectedTitle is string && data.selectedTitle.size() <= 100)) &&
+        (!('streakDays' in data) || (data.streakDays is int && data.streakDays >= 0 && data.streakDays <= 3650)) &&
+        (!('completedModulesCount' in data) || (data.completedModulesCount is int && data.completedModulesCount >= 0 && data.completedModulesCount <= 20)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserPrivateInfo(data, userId) {
+      return data.keys().hasAll(['uid', 'role', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'uid',
+          'studentId',
+          'contactEmail',
+          'bio',
+          'motto',
+          'role',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.uid is string && isValidId(data.uid) && data.uid == userId &&
+        (!('studentId' in data) || (data.studentId is string && data.studentId.size() <= 64)) &&
+        (!('contactEmail' in data) || (data.contactEmail is string && data.contactEmail.size() <= 160)) &&
+        (!('bio' in data) || (data.bio is string && data.bio.size() <= 400)) &&
+        (!('motto' in data) || (data.motto is string && data.motto.size() <= 200)) &&
+        data.role is string && data.role in ['student', 'teacher'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSavedFlowchart(data, userId) {
+      return data.keys().hasAll([
+          'ownerId',
+          'title',
+          'displayMode',
+          'snapToGrid',
+          'nodes',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'title',
+          'missionId',
+          'templateId',
+          'displayMode',
+          'snapToGrid',
+          'nodes',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.ownerId is string && isValidId(data.ownerId) && data.ownerId == userId &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        (!('missionId' in data) || (data.missionId is string && data.missionId.size() <= 64)) &&
+        (!('templateId' in data) || (data.templateId is string && data.templateId.size() <= 64)) &&
+        data.displayMode is string && data.displayMode in ['visual', 'text'] &&
+        data.snapToGrid is bool &&
+        data.nodes is list && data.nodes.size() >= 1 && data.nodes.size() <= 100 &&
+        data.nodes[0] is map &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidShowcaseProject(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'authorName',
+          'category',
+          'title',
+          'description',
+          'likesCount',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'authorName',
+          'authorAvatar',
+          'grade',
+          'category',
+          'title',
+          'description',
+          'projectUrl',
+          'likesCount',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.ownerId is string && isValidId(data.ownerId) &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 120 &&
+        (!('authorAvatar' in data) || (data.authorAvatar is string && data.authorAvatar.size() <= 16)) &&
+        (!('grade' in data) || (data.grade is string && data.grade.size() <= 40)) &&
+        data.category is string && data.category in ['Scratch', 'Micro:bit', 'Python', 'Flowchart'] &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 1000 &&
+        (!('projectUrl' in data) || (data.projectUrl is string && data.projectUrl.size() <= 400)) &&
+        data.likesCount is int && data.likesCount >= 0 && data.likesCount <= 1000000 &&
+        data.status is string && data.status in ['published', 'archived'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPeerReview(data, projectId) {
+      return data.keys().hasAll([
+          'projectId',
+          'reviewerId',
+          'reviewerName',
+          'star1',
+          'wish',
+          'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'projectId',
+          'reviewerId',
+          'reviewerName',
+          'star1',
+          'star2',
+          'wish',
+          'createdAt'
+        ]) &&
+        data.projectId is string && isValidId(data.projectId) && data.projectId == projectId &&
+        data.reviewerId is string && isValidId(data.reviewerId) &&
+        data.reviewerName is string && data.reviewerName.size() >= 1 && data.reviewerName.size() <= 120 &&
+        data.star1 is string && data.star1.size() >= 1 && data.star1.size() <= 300 &&
+        (!('star2' in data) || (data.star2 is string && data.star2.size() <= 300)) &&
+        data.wish is string && data.wish.size() >= 1 && data.wish.size() <= 300 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidPorPor5Record(data) {
+      return data.keys().hasAll([
+          'studentId',
+          'name',
+          'gradeRoom',
+          'pdpaScore',
+          'logicScore',
+          'codingScore',
+          'showcaseScore',
+          'totalScore',
+          'status',
+          'teacherUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'studentId',
+          'name',
+          'gradeRoom',
+          'pdpaScore',
+          'logicScore',
+          'codingScore',
+          'showcaseScore',
+          'totalScore',
+          'gradeLevel',
+          'status',
+          'teacherUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.studentId is string && data.studentId.size() >= 1 && data.studentId.size() <= 64 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.gradeRoom is string && data.gradeRoom.size() >= 1 && data.gradeRoom.size() <= 40 &&
+        data.pdpaScore is int && data.pdpaScore >= 0 && data.pdpaScore <= 100 &&
+        data.logicScore is int && data.logicScore >= 0 && data.logicScore <= 100 &&
+        data.codingScore is int && data.codingScore >= 0 && data.codingScore <= 100 &&
+        data.showcaseScore is int && data.showcaseScore >= 0 && data.showcaseScore <= 100 &&
+        data.totalScore is int && data.totalScore >= 0 && data.totalScore <= 100 &&
+        (!('gradeLevel' in data) || (data.gradeLevel is string && data.gradeLevel.size() <= 40)) &&
+        data.status is string && data.status in ['ผ่านเกณฑ์', 'รอพัฒนา', 'ดีเยี่ยม'] &&
+        data.teacherUid is string && isValidId(data.teacherUid) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRole(data, adminUid) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'role', 'createdAt']) &&
+        data.uid is string && isValidId(data.uid) && data.uid == adminUid &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.role is string && data.role in ['admin', 'teacher'] &&
+        data.createdAt is timestamp;
+    }
+
+    // -------------------------------------------------------------------------
+    // Admins Collection (Trusted RBAC Registry)
+    // -------------------------------------------------------------------------
+    match /admins/{adminUid} {
+      allow get: if isValidId(adminUid) && (isOwner(adminUid) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(adminUid) &&
+        isAdmin() &&
+        isValidAdminRole(incoming(), adminUid) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(adminUid) &&
+        isAdmin() &&
+        isValidAdminRole(incoming(), adminUid) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['email', 'role']);
+      allow delete: if isValidId(adminUid) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // Users Split Collections: Public Profile vs Private PII
+    // -------------------------------------------------------------------------
+    match /users/{userId}/public/{profileDocId} {
+      allow get: if isValidId(userId) && isValidId(profileDocId) && (isOwner(userId) || isAdmin());
+      allow list: if isValidId(userId) && isOwner(userId);
+      allow create: if isValidId(userId) &&
+        profileDocId == 'profile' &&
+        isOwner(userId) &&
+        isValidUserPublicProfile(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) &&
+        profileDocId == 'profile' &&
+        isValidUserPublicProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName',
+              'nickname',
+              'avatarEmoji',
+              'grade',
+              'school',
+              'points',
+              'codingLevel',
+              'selectedTitle',
+              'streakDays',
+              'completedModulesCount',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /users/{userId}/private/{privateDocId} {
+      allow get: if isValidId(userId) && isValidId(privateDocId) && (isOwner(userId) || isAdmin());
+      allow list: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow create: if isValidId(userId) &&
+        privateDocId == 'info' &&
+        isOwner(userId) &&
+        isValidUserPrivateInfo(incoming(), userId) &&
+        incoming().role == 'student' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) &&
+        privateDocId == 'info' &&
+        isValidUserPrivateInfo(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().role == existing().role &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'studentId',
+              'contactEmail',
+              'bio',
+              'motto',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // Saved Flowcharts Subcollection
+    // -------------------------------------------------------------------------
+    match /users/{userId}/flowcharts/{flowchartId} {
+      allow get: if isValidId(userId) && isValidId(flowchartId) && (isOwner(userId) || isAdmin());
+      allow list: if isValidId(userId) && isEmailVerified() && resource.data.ownerId == request.auth.uid;
+      allow create: if isValidId(userId) &&
+        isValidId(flowchartId) &&
+        isOwner(userId) &&
+        isValidSavedFlowchart(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) &&
+        isValidId(flowchartId) &&
+        isValidSavedFlowchart(incoming(), userId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'title',
+              'missionId',
+              'templateId',
+              'displayMode',
+              'snapToGrid',
+              'nodes',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && isValidId(flowchartId) && (isOwner(userId) || isAdmin());
+    }
+
+    // -------------------------------------------------------------------------
+    // Showcase Projects & Peer Reviews
+    // -------------------------------------------------------------------------
+    match /showcaseProjects/{projectId} {
+      allow get: if isValidId(projectId) && isEmailVerified() && (
+        existing().status == 'published' ||
+        existing().ownerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isEmailVerified() && resource.data.status == 'published';
+      allow create: if isValidId(projectId) &&
+        isEmailVerified() &&
+        isValidShowcaseProject(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().likesCount == 0 &&
+        incoming().status == 'published' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(projectId) &&
+        isEmailVerified() &&
+        isValidShowcaseProject(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().status != 'archived' &&
+            existing().ownerId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'title',
+              'description',
+              'projectUrl',
+              'category',
+              'status',
+              'updatedAt'
+            ])
+          ) ||
+          (
+            existing().status == 'published' &&
+            incoming().status == 'published' &&
+            incoming().likesCount == existing().likesCount + 1 &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'updatedAt'])
+          )
+        );
+      allow delete: if isValidId(projectId) && (
+        (isEmailVerified() && existing().ownerId == request.auth.uid) ||
+        isAdmin()
+      );
+
+      match /reviews/{reviewId} {
+        allow get: if isValidId(projectId) && isValidId(reviewId) && isEmailVerified() &&
+          exists(/databases/$(database)/documents/showcaseProjects/$(projectId));
+        allow list: if isEmailVerified() && resource.data.projectId == projectId;
+        allow create: if isValidId(projectId) &&
+          isValidId(reviewId) &&
+          isEmailVerified() &&
+          isValidPeerReview(incoming(), projectId) &&
+          incoming().reviewerId == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          exists(/databases/$(database)/documents/showcaseProjects/$(projectId));
+        allow update: if false;
+        allow delete: if isValidId(projectId) && isValidId(reviewId) && (
+          (isEmailVerified() && existing().reviewerId == request.auth.uid) ||
+          isAdmin()
+        );
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Teacher PorPor 5 (ปพ.5) Assessment Records (Admin / Verified Teacher Only)
+    // -------------------------------------------------------------------------
+    match /porpor5Records/{recordId} {
+      allow get: if isValidId(recordId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(recordId) &&
+        isAdmin() &&
+        isValidPorPor5Record(incoming()) &&
+        incoming().teacherUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(recordId) &&
+        isAdmin() &&
+        isValidPorPor5Record(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'studentId',
+          'name',
+          'gradeRoom',
+          'pdpaScore',
+          'logicScore',
+          'codingScore',
+          'showcaseScore',
+          'totalScore',
+          'gradeLevel',
+          'status',
+          'teacherUid',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(recordId) && isAdmin();
+    }
+  }
+}

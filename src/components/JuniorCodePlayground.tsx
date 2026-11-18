@@ -1,19 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Terminal,
   Play,
   RotateCcw,
   Sparkles,
-  Code2,
   CheckCircle2,
   Copy,
   Check,
   BookOpen,
-  ArrowRight,
   Lightbulb,
+  GitBranch,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AudioNarratorButton } from './AudioNarratorButton.tsx';
+import { runPythonCode } from '../utils/pythonRunner.ts';
 
 interface CodeTemplate {
   id: string;
@@ -29,7 +29,7 @@ const TEMPLATES: CodeTemplate[] = [
     id: 'py_mult',
     lang: 'python',
     title: 'Python: ตารางสูตรคูณด้วยลูป for',
-    description: 'ฝึกใช้คำสั่ง for loop และ range() คำนวณสูตรคูณแม่ 2 ถึงแม่ 5',
+    description: 'ฝึกใช้คำสั่ง for loop และ range() คำนวณสูตรคูณแม่ 2 ถึงแม่ 12',
     code: `# ตารางสูตรคูณหรรษาด้วย Python\nnumber = 5\nprint(f"=== เริ่มต้นสูตรคูณแม่ {number} ===")\nfor i in range(1, 13):\n    result = number * i\n    print(f"{number} x {i} = {result}")\nprint("ฝึกคิดเป็นขั้นตอนสำเร็จ!")`,
     expectedOutput: `=== เริ่มต้นสูตรคูณแม่ 5 ===\n5 x 1 = 5\n5 x 2 = 10\n5 x 3 = 15\n5 x 4 = 20\n5 x 5 = 25\n5 x 6 = 30\n5 x 7 = 35\n5 x 8 = 40\n5 x 9 = 45\n5 x 10 = 50\n5 x 11 = 55\n5 x 12 = 60\nฝึกคิดเป็นขั้นตอนสำเร็จ!`,
   },
@@ -39,7 +39,7 @@ const TEMPLATES: CodeTemplate[] = [
     title: 'Python: โปรแกรมตัดเกรดอัตโนมัติ (If-Elif-Else)',
     description: 'ตรวจสอบเงื่อนไขคะแนนตามเกณฑ์ สพฐ. เพื่อหาเกรด 4, 3, 2, 1',
     code: `# โปรแกรมคำนวณระดับผลการเรียน สพฐ.\nscore = 85\n\nif score >= 80:\n    grade = "4 (ดีเยี่ยม)"\nelif score >= 70:\n    grade = "3 (ดีมาก)"\nelif score >= 60:\n    grade = "2 (ผ่านเกณฑ์)"\nelse:\n    grade = "1 (ควรปรับปรุง)"\n\nprint(f"คะแนนที่ได้: {score} คะแนน")\nprint(f"ผลการประเมิน: เกรด {grade}")`,
-    expectedOutput: `คะแนนที่ได้: 85 คะแนน\nผลการประเมิน: เกรด 4 (ดีเยี่ยม)\n[System] ประเมินผลสมรรถนะผู้เรียนเรียบร้อย`,
+    expectedOutput: `คะแนนที่ได้: 85 คะแนน\nผลการประเมิน: เกรด 4 (ดีเยี่ยม)`,
   },
   {
     id: 'js_microbit',
@@ -63,7 +63,7 @@ const TEMPLATES: CodeTemplate[] = [
     title: 'Python: คำนวณราคารวมในตะกร้าด้วย List',
     description: 'ฝึกสร้างลิสต์ราคาสินค้าและใช้ลูป for หาผลรวมและราคาเฉลี่ย',
     code: `cart = [25, 40, 15, 60, 20]\ntotal = 0\nfor price in cart:\n    total += price\navg = total / len(cart)\nprint("จำนวนสินค้า:", len(cart), "ชิ้น")\nprint("ราคารวมทั้งหมด:", total, "บาท")\nprint("ราคาเฉลี่ยต่อชิ้น:", avg, "บาท")`,
-    expectedOutput: `จำนวนสินค้า: 5 ชิ้น\nราคารวมทั้งหมด: 160 บาท\nราคาเฉลี่ยต่อชิ้น: 32.0 บาท`,
+    expectedOutput: `จำนวนสินค้า: 5 ชิ้น\nราคารวมทั้งหมด: 160 บาท\nราคาเฉลี่ยต่อชิ้น: 32 บาท`,
   },
   {
     id: 'py_binary_convert',
@@ -71,7 +71,7 @@ const TEMPLATES: CodeTemplate[] = [
     title: 'Python: ตัวแปลงเลขฐานสิบเป็นฐานสอง (Binary)',
     description: 'แปลงตัวเลขอายุหรือคะแนนสอบเป็นรหัสไบนารี 8 บิตด้วยฟังก์ชัน bin()',
     code: `decimal_num = 25\nbinary_str = bin(decimal_num)[2:].zfill(8)\nprint(f"เลขฐานสิบ: {decimal_num}")\nprint(f"รหัสเลขฐานสอง (8-bit): {binary_str}")`,
-    expectedOutput: `เลขฐานสิบ: 25\nรหัสเลขฐานสอง (8-bit): 00011001\n[Info] 25 = 16 + 8 + 1`,
+    expectedOutput: `เลขฐานสิบ: 25\nรหัสเลขฐานสอง (8-bit): 00011001`,
   },
   {
     id: 'js_step_counter',
@@ -93,50 +93,103 @@ const TEMPLATES: CodeTemplate[] = [
 
 interface JuniorCodePlaygroundProps {
   onAwardPoints?: (pts: number) => void;
+  initialCode?: string;
+  initialTitle?: string;
+  initialCodeKey?: number;
 }
 
 export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
   onAwardPoints,
+  initialCode,
+  initialTitle,
+  initialCodeKey,
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<CodeTemplate>(TEMPLATES[0]);
-  const [userCode, setUserCode] = useState<string>(TEMPLATES[0].code);
-  const [terminalOutput, setTerminalOutput] = useState<string>('พร้อมรันโค้ด คลิกปุ่ม "รันโค้ด (Run Code)" เพื่อดูผลลัพธ์...');
+  const [isFlowchartHandoff, setIsFlowchartHandoff] = useState<boolean>(Boolean(initialCode));
+  const [handoffTitle, setHandoffTitle] = useState<string>(initialTitle || 'โค้ดจากผังงาน Flowchart');
+  const [userCode, setUserCode] = useState<string>(initialCode || TEMPLATES[0].code);
+  const [terminalOutput, setTerminalOutput] = useState<string>(
+    initialCode
+      ? `🚀 นำเข้าโค้ด Python จากผังงาน "${initialTitle || 'Flowchart'}" แล้ว! กด "รันโค้ด (Run Code)" เพื่อทดสอบจริงได้เลย`
+      : 'พร้อมรันโค้ด คลิกปุ่ม "รันโค้ด (Run Code)" เพื่อดูผลลัพธ์...'
+  );
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isCopied, setIsCopied] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (initialCode && initialCode.trim()) {
+      setIsFlowchartHandoff(true);
+      setHandoffTitle(initialTitle || 'โค้ดจากผังงาน Flowchart');
+      setUserCode(initialCode);
+      setTerminalOutput(
+        `🚀 นำเข้าโค้ด Python จากผังงาน "${initialTitle || 'Flowchart'}" เรียบร้อยแล้ว!\nกดปุ่ม "รันโค้ด (Run Code)" เพื่อประมวลผลจริง...`
+      );
+    }
+  }, [initialCode, initialTitle, initialCodeKey]);
+
+  const activeLang: 'python' | 'javascript' = isFlowchartHandoff
+    ? 'python'
+    : selectedTemplate.lang;
+
   const handleSelectTemplate = (template: CodeTemplate) => {
+    setIsFlowchartHandoff(false);
     setSelectedTemplate(template);
     setUserCode(template.code);
     setTerminalOutput(`โหลดแม่แบบ: ${template.title}\nพร้อมประมวลผล...`);
   };
 
   const handleResetCode = () => {
+    if (isFlowchartHandoff && initialCode) {
+      setUserCode(initialCode);
+      setTerminalOutput('รีเซ็ตโค้ดกลับเป็นต้นฉบับจากผังงานแล้ว');
+      return;
+    }
     setUserCode(selectedTemplate.code);
     setTerminalOutput('รีเซ็ตโค้ดกลับสู่ค่าเริ่มต้นแล้ว');
   };
 
   const handleRunCode = () => {
     setIsRunning(true);
-    setTerminalOutput('⏳ กำลังคอมไพล์และประมวลผลสคริปต์...');
+    setTerminalOutput('⏳ กำลังประมวลผลสคริปต์...');
 
     setTimeout(() => {
       setIsRunning(false);
-      setTerminalOutput(selectedTemplate.expectedOutput);
 
+      if (activeLang === 'python') {
+        const res = runPythonCode(userCode);
+        setTerminalOutput(
+          res.ok
+            ? `${res.output}\n\n✅ [Python Sandbox สำเร็จ · ${res.stepsExecuted} ขั้นตอน]`
+            : res.output
+        );
+        if (res.ok) {
+          confetti({
+            particleCount: 55,
+            spread: 55,
+            origin: { y: 0.7 },
+          });
+          if (onAwardPoints) {
+            onAwardPoints(10);
+          }
+        }
+        return;
+      }
+
+      // Micro:bit JavaScript simulation preview
+      setTerminalOutput(selectedTemplate.expectedOutput);
       confetti({
-        particleCount: 60,
-        spread: 60,
+        particleCount: 55,
+        spread: 55,
         origin: { y: 0.7 },
       });
-
       if (onAwardPoints) {
         onAwardPoints(10);
       }
-    }, 600);
+    }, 280);
   };
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(userCode);
+    navigator.clipboard?.writeText(userCode).catch(() => {});
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   };
@@ -163,14 +216,26 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
             </div>
           </div>
           <AudioNarratorButton
-            textToRead="ยินดีต้อนรับสู่ห้องทดลองเขียนโค้ด Junior Code Playground เรียนรู้การเปลี่ยนผ่านจากบล็อกคำสั่งสู่การเขียนโค้ดจริงด้วยภาษา Python และ JavaScript"
+            textToRead="ยินดีต้อนรับสู่ห้องทดลองเขียนโค้ด Junior Code Playground สามารถแก้ไขตัวเลขหรือคำสั่ง Python แล้วกดรันเพื่อดูผลลัพธ์จริงได้ทันที"
             label="ฟังคำอธิบาย"
           />
         </div>
         <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-          ฝึกทักษะการพิมพ์คำสั่งไวยากรณ์ (Syntax), การใช้ตัวแปร, ฟังก์ชัน, และลูปวนซ้ำ สอดคล้องกับหลักสูตรวิทยาการคำนวณระดับประถมปลายและมัธยมศึกษาตอนต้น
+          ฝึกพิมพ์คำสั่งไวยากรณ์ (Syntax), ตัวแปร, เงื่อนไข <code className="text-amber-300">if/elif/else</code> และลูป <code className="text-sky-300">for/while</code> — ลองเปลี่ยนตัวเลขหรือข้อความในโค้ดแล้วกดรันเพื่อเห็นผลลัพธ์จริง!
         </p>
       </div>
+
+      {isFlowchartHandoff && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-900">
+          <div className="flex items-center gap-2 font-bold">
+            <GitBranch className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>ส่งต่อโค้ดอัตโนมัติจากผังงาน: {handoffTitle}</span>
+          </div>
+          <span className="text-[11px] text-emerald-700 font-semibold">
+            แก้ไขค่าตัวแปรด้านล่างแล้วกด "รันโค้ด (Run Code)" ได้เลย
+          </span>
+        </div>
+      )}
 
       {/* Template Selector Bar */}
       <div className="flex flex-wrap items-center gap-2 p-2 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
@@ -183,7 +248,7 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
             key={tmpl.id}
             onClick={() => handleSelectTemplate(tmpl)}
             className={`px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-              selectedTemplate.id === tmpl.id
+              !isFlowchartHandoff && selectedTemplate.id === tmpl.id
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'bg-white dark:bg-slate-700/60 text-slate-700 dark:text-slate-200 hover:text-indigo-600'
             }`}
@@ -195,7 +260,6 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
 
       {/* Editor & Terminal 2-Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
         {/* Left Column: Code Editor */}
         <div className="lg:col-span-7 space-y-3">
           <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-800 text-slate-200 border border-slate-700">
@@ -206,7 +270,7 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
                 <span className="w-3 h-3 rounded-full bg-emerald-500" />
               </div>
               <span className="text-xs font-mono font-bold text-slate-300 ml-2">
-                main.{selectedTemplate.lang === 'python' ? 'py' : 'js'}
+                main.{activeLang === 'python' ? 'py' : 'js'}
               </span>
             </div>
 
@@ -257,9 +321,8 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Simulated Terminal & Concept Card */}
+        {/* Right Column: Terminal & Concept Card */}
         <div className="lg:col-span-5 space-y-4">
-          
           {/* Terminal Console */}
           <div className="rounded-2xl border border-slate-800 bg-black text-slate-200 overflow-hidden shadow-xl flex flex-col h-[280px]">
             <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
@@ -267,7 +330,9 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
                 <Terminal className="w-4 h-4 text-emerald-400" />
                 <span>Output Console / Terminal</span>
               </span>
-              <span className="text-[10px] text-slate-500">Node.js / Python 3.11</span>
+              <span className="text-[10px] text-slate-500">
+                {activeLang === 'python' ? 'Python 3 Sandbox' : 'Micro:bit JS Sim'}
+              </span>
             </div>
             <div className="p-4 font-mono text-xs text-emerald-400 overflow-y-auto flex-1 whitespace-pre-wrap leading-relaxed">
               {terminalOutput}
@@ -281,7 +346,9 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
               <span>ความรู้หลักการคิดเชิงคำนวณที่ใช้:</span>
             </h4>
             <p className="text-xs text-indigo-950/80 dark:text-indigo-300/90 leading-relaxed">
-              {selectedTemplate.description}
+              {isFlowchartHandoff
+                ? `ฝึกแปลงผังงาน "${handoffTitle}" เป็นคำสั่ง Python 3 จริง พร้อมทดลองปรับค่าตัวแปรและตรวจสอบผลลัพธ์`
+                : selectedTemplate.description}
             </p>
             <div className="pt-2 border-t border-indigo-200/60 dark:border-indigo-900/60 flex items-center justify-between text-xs font-semibold text-emerald-700 dark:text-emerald-300">
               <span className="flex items-center gap-1">

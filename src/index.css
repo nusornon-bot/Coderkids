@@ -169,262 +169,106 @@ html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
 }
 
 /* ========================================================
-   APP COLOR TONES (ฟีเจอร์เปลี่ยนโทนสีของแอป)
+   APP COLOR TONES (ฟีเจอร์เปลี่ยนโทนสีของแอปด้วย CSS Variables)
    ======================================================== */
-
-/* EMERALD TONE (เขียวมรกต) */
 html[data-color-tone="emerald"] {
   --theme-primary: #059669;
   --theme-hover: #047857;
   --theme-light: #ecfdf5;
+  --theme-light-100: #d1fae5;
   --theme-border: #a7f3d0;
+  --theme-text-dark: #065f46;
+  --theme-dark-text: #34d399;
+  --theme-dark-bg: rgba(6, 78, 59, 0.45);
+  --theme-dark-border: #065f46;
 }
-html[data-color-tone="emerald"] .bg-indigo-600 {
-  background-color: #059669 !important;
-}
-html[data-color-tone="emerald"] .hover\:bg-indigo-700:hover {
-  background-color: #047857 !important;
-}
-html[data-color-tone="emerald"] .hover\:bg-indigo-600:hover {
-  background-color: #059669 !important;
-}
-html[data-color-tone="emerald"] .text-indigo-600,
-html[data-color-tone="emerald"] .text-indigo-700 {
-  color: #059669 !important;
-}
-html[data-color-tone="emerald"] .border-indigo-600,
-html[data-color-tone="emerald"] .border-indigo-500 {
-  border-color: #059669 !important;
-}
-html[data-color-tone="emerald"] .border-indigo-200,
-html[data-color-tone="emerald"] .border-indigo-300 {
-  border-color: #a7f3d0 !important;
-}
-html[data-color-tone="emerald"] .bg-indigo-50 {
-  background-color: #ecfdf5 !important;
-}
-html[data-color-tone="emerald"] .bg-indigo-100 {
-  background-color: #d1fae5 !important;
-}
-html[data-color-tone="emerald"] .text-indigo-800,
-html[data-color-tone="emerald"] .text-indigo-900 {
-  color: #065f46 !important;
-}
-html.dark[data-color-tone="emerald"] .dark\:text-indigo-400,
-html.dark[data-color-tone="emerald"] .dark\:text-indigo-300 {
-  color: #34d399 !important;
-}
-html.dark[data-color-tone="emerald"] .dark\:bg-indigo-950,
-html.dark[data-color-tone="emerald"] .dark\:bg-indigo-900\/60 {
-  background-color: rgba(6, 78, 59, 0.45) !important;
-}
-html.dark[data-color-tone="emerald"] .dark\:border-indigo-800,
-html.dark[data-color-tone="emerald"] .dark\:border-indigo-900\/60 {
-  border-color: #065f46 !important;
-}
-
-/* PURPLE TONE (ม่วงคอสมิก) */
 html[data-color-tone="purple"] {
   --theme-primary: #9333ea;
   --theme-hover: #7e22ce;
   --theme-light: #faf5ff;
+  --theme-light-100: #f3e8ff;
   --theme-border: #e9d5ff;
+  --theme-text-dark: #581c87;
+  --theme-dark-text: #c084fc;
+  --theme-dark-bg: rgba(88, 28, 135, 0.45);
+  --theme-dark-border: #6b21a8;
 }
-html[data-color-tone="purple"] .bg-indigo-600 {
-  background-color: #9333ea !important;
-}
-html[data-color-tone="purple"] .hover\:bg-indigo-700:hover {
-  background-color: #7e22ce !important;
-}
-html[data-color-tone="purple"] .hover\:bg-indigo-600:hover {
-  background-color: #9333ea !important;
-}
-html[data-color-tone="purple"] .text-indigo-600,
-html[data-color-tone="purple"] .text-indigo-700 {
-  color: #9333ea !important;
-}
-html[data-color-tone="purple"] .border-indigo-600,
-html[data-color-tone="purple"] .border-indigo-500 {
-  border-color: #9333ea !important;
-}
-html[data-color-tone="purple"] .border-indigo-200,
-html[data-color-tone="purple"] .border-indigo-300 {
-  border-color: #e9d5ff !important;
-}
-html[data-color-tone="purple"] .bg-indigo-50 {
-  background-color: #faf5ff !important;
-}
-html[data-color-tone="purple"] .bg-indigo-100 {
-  background-color: #f3e8ff !important;
-}
-html[data-color-tone="purple"] .text-indigo-800,
-html[data-color-tone="purple"] .text-indigo-900 {
-  color: #581c87 !important;
-}
-html.dark[data-color-tone="purple"] .dark\:text-indigo-400,
-html.dark[data-color-tone="purple"] .dark\:text-indigo-300 {
-  color: #c084fc !important;
-}
-html.dark[data-color-tone="purple"] .dark\:bg-indigo-950,
-html.dark[data-color-tone="purple"] .dark\:bg-indigo-900\/60 {
-  background-color: rgba(88, 28, 135, 0.45) !important;
-}
-html.dark[data-color-tone="purple"] .dark\:border-indigo-800,
-html.dark[data-color-tone="purple"] .dark\:border-indigo-900\/60 {
-  border-color: #6b21a8 !important;
-}
-
-/* AMBER TONE (ส้มอำพัน) */
 html[data-color-tone="amber"] {
   --theme-primary: #d97706;
   --theme-hover: #b45309;
   --theme-light: #fffbeb;
+  --theme-light-100: #fef3c7;
   --theme-border: #fde68a;
+  --theme-text-dark: #78350f;
+  --theme-dark-text: #fbbf24;
+  --theme-dark-bg: rgba(120, 53, 15, 0.45);
+  --theme-dark-border: #92400e;
 }
-html[data-color-tone="amber"] .bg-indigo-600 {
-  background-color: #d97706 !important;
-}
-html[data-color-tone="amber"] .hover\:bg-indigo-700:hover {
-  background-color: #b45309 !important;
-}
-html[data-color-tone="amber"] .hover\:bg-indigo-600:hover {
-  background-color: #d97706 !important;
-}
-html[data-color-tone="amber"] .text-indigo-600,
-html[data-color-tone="amber"] .text-indigo-700 {
-  color: #d97706 !important;
-}
-html[data-color-tone="amber"] .border-indigo-600,
-html[data-color-tone="amber"] .border-indigo-500 {
-  border-color: #d97706 !important;
-}
-html[data-color-tone="amber"] .border-indigo-200,
-html[data-color-tone="amber"] .border-indigo-300 {
-  border-color: #fde68a !important;
-}
-html[data-color-tone="amber"] .bg-indigo-50 {
-  background-color: #fffbeb !important;
-}
-html[data-color-tone="amber"] .bg-indigo-100 {
-  background-color: #fef3c7 !important;
-}
-html[data-color-tone="amber"] .text-indigo-800,
-html[data-color-tone="amber"] .text-indigo-900 {
-  color: #78350f !important;
-}
-html.dark[data-color-tone="amber"] .dark\:text-indigo-400,
-html.dark[data-color-tone="amber"] .dark\:text-indigo-300 {
-  color: #fbbf24 !important;
-}
-html.dark[data-color-tone="amber"] .dark\:bg-indigo-950,
-html.dark[data-color-tone="amber"] .dark\:bg-indigo-900\/60 {
-  background-color: rgba(120, 53, 15, 0.45) !important;
-}
-html.dark[data-color-tone="amber"] .dark\:border-indigo-800,
-html.dark[data-color-tone="amber"] .dark\:border-indigo-900\/60 {
-  border-color: #92400e !important;
-}
-
-/* ROSE TONE (แดงทับทิม) */
 html[data-color-tone="rose"] {
   --theme-primary: #e11d48;
   --theme-hover: #be123c;
   --theme-light: #fff1f2;
+  --theme-light-100: #ffe4e6;
   --theme-border: #fecdd3;
+  --theme-text-dark: #881337;
+  --theme-dark-text: #fb7185;
+  --theme-dark-bg: rgba(136, 19, 55, 0.45);
+  --theme-dark-border: #9f1239;
 }
-html[data-color-tone="rose"] .bg-indigo-600 {
-  background-color: #e11d48 !important;
-}
-html[data-color-tone="rose"] .hover\:bg-indigo-700:hover {
-  background-color: #be123c !important;
-}
-html[data-color-tone="rose"] .hover\:bg-indigo-600:hover {
-  background-color: #e11d48 !important;
-}
-html[data-color-tone="rose"] .text-indigo-600,
-html[data-color-tone="rose"] .text-indigo-700 {
-  color: #e11d48 !important;
-}
-html[data-color-tone="rose"] .border-indigo-600,
-html[data-color-tone="rose"] .border-indigo-500 {
-  border-color: #e11d48 !important;
-}
-html[data-color-tone="rose"] .border-indigo-200,
-html[data-color-tone="rose"] .border-indigo-300 {
-  border-color: #fecdd3 !important;
-}
-html[data-color-tone="rose"] .bg-indigo-50 {
-  background-color: #fff1f2 !important;
-}
-html[data-color-tone="rose"] .bg-indigo-100 {
-  background-color: #ffe4e6 !important;
-}
-html[data-color-tone="rose"] .text-indigo-800,
-html[data-color-tone="rose"] .text-indigo-900 {
-  color: #881337 !important;
-}
-html.dark[data-color-tone="rose"] .dark\:text-indigo-400,
-html.dark[data-color-tone="rose"] .dark\:text-indigo-300 {
-  color: #fb7185 !important;
-}
-html.dark[data-color-tone="rose"] .dark\:bg-indigo-950,
-html.dark[data-color-tone="rose"] .dark\:bg-indigo-900\/60 {
-  background-color: rgba(136, 19, 55, 0.45) !important;
-}
-html.dark[data-color-tone="rose"] .dark\:border-indigo-800,
-html.dark[data-color-tone="rose"] .dark\:border-indigo-900\/60 {
-  border-color: #9f1239 !important;
-}
-
-/* TEAL TONE (ฟ้าน้ำทะเล) */
 html[data-color-tone="teal"] {
   --theme-primary: #0d9488;
   --theme-hover: #0f766e;
   --theme-light: #f0fdfa;
+  --theme-light-100: #ccfbf1;
   --theme-border: #99f6e4;
+  --theme-text-dark: #134e4a;
+  --theme-dark-text: #2dd4bf;
+  --theme-dark-bg: rgba(19, 78, 74, 0.45);
+  --theme-dark-border: #115e59;
 }
-html[data-color-tone="teal"] .bg-indigo-600 {
-  background-color: #0d9488 !important;
+
+html[data-color-tone]:not([data-color-tone="indigo"]) .bg-indigo-600 {
+  background-color: var(--theme-primary) !important;
 }
-html[data-color-tone="teal"] .hover\:bg-indigo-700:hover {
-  background-color: #0f766e !important;
+html[data-color-tone]:not([data-color-tone="indigo"]) .hover\:bg-indigo-700:hover {
+  background-color: var(--theme-hover) !important;
 }
-html[data-color-tone="teal"] .hover\:bg-indigo-600:hover {
-  background-color: #0d9488 !important;
+html[data-color-tone]:not([data-color-tone="indigo"]) .hover\:bg-indigo-600:hover {
+  background-color: var(--theme-primary) !important;
 }
-html[data-color-tone="teal"] .text-indigo-600,
-html[data-color-tone="teal"] .text-indigo-700 {
-  color: #0d9488 !important;
+html[data-color-tone]:not([data-color-tone="indigo"]) .text-indigo-600,
+html[data-color-tone]:not([data-color-tone="indigo"]) .text-indigo-700 {
+  color: var(--theme-primary) !important;
 }
-html[data-color-tone="teal"] .border-indigo-600,
-html[data-color-tone="teal"] .border-indigo-500 {
-  border-color: #0d9488 !important;
+html[data-color-tone]:not([data-color-tone="indigo"]) .border-indigo-600,
+html[data-color-tone]:not([data-color-tone="indigo"]) .border-indigo-500 {
+  border-color: var(--theme-primary) !important;
 }
-html[data-color-tone="teal"] .border-indigo-200,
-html[data-color-tone="teal"] .border-indigo-300 {
-  border-color: #99f6e4 !important;
+html[data-color-tone]:not([data-color-tone="indigo"]) .border-indigo-200,
+html[data-color-tone]:not([data-color-tone="indigo"]) .border-indigo-300 {
+  border-color: var(--theme-border) !important;
 }
-html[data-color-tone="teal"] .bg-indigo-50 {
-  background-color: #f0fdfa !important;
+html[data-color-tone]:not([data-color-tone="indigo"]) .bg-indigo-50 {
+  background-color: var(--theme-light) !important;
 }
-html[data-color-tone="teal"] .bg-indigo-100 {
-  background-color: #ccfbf1 !important;
+html[data-color-tone]:not([data-color-tone="indigo"]) .bg-indigo-100 {
+  background-color: var(--theme-light-100) !important;
 }
-html[data-color-tone="teal"] .text-indigo-800,
-html[data-color-tone="teal"] .text-indigo-900 {
-  color: #134e4a !important;
+html[data-color-tone]:not([data-color-tone="indigo"]) .text-indigo-800,
+html[data-color-tone]:not([data-color-tone="indigo"]) .text-indigo-900 {
+  color: var(--theme-text-dark) !important;
 }
-html.dark[data-color-tone="teal"] .dark\:text-indigo-400,
-html.dark[data-color-tone="teal"] .dark\:text-indigo-300 {
-  color: #2dd4bf !important;
+html.dark[data-color-tone]:not([data-color-tone="indigo"]) .dark\:text-indigo-400,
+html.dark[data-color-tone]:not([data-color-tone="indigo"]) .dark\:text-indigo-300 {
+  color: var(--theme-dark-text) !important;
 }
-html.dark[data-color-tone="teal"] .dark\:bg-indigo-950,
-html.dark[data-color-tone="teal"] .dark\:bg-indigo-900\/60 {
-  background-color: rgba(19, 78, 74, 0.45) !important;
+html.dark[data-color-tone]:not([data-color-tone="indigo"]) .dark\:bg-indigo-950,
+html.dark[data-color-tone]:not([data-color-tone="indigo"]) .dark\:bg-indigo-900\/60 {
+  background-color: var(--theme-dark-bg) !important;
 }
-html.dark[data-color-tone="teal"] .dark\:border-indigo-800,
-html.dark[data-color-tone="teal"] .dark\:border-indigo-900\/60 {
-  border-color: #115e59 !important;
+html.dark[data-color-tone]:not([data-color-tone="indigo"]) .dark\:border-indigo-800,
+html.dark[data-color-tone]:not([data-color-tone="indigo"]) .dark\:border-indigo-900\/60 {
+  border-color: var(--theme-dark-border) !important;
 }
 
 /* ========================================================

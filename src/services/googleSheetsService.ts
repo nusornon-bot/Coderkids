@@ -71,6 +71,18 @@ export const getGasWebAppUrl = (): string => {
   }
 };
 
+export const getFirebaseAuthHeaders = async (): Promise<Record<string, string>> => {
+  try {
+    if (auth.currentUser) {
+      const idToken = await auth.currentUser.getIdToken();
+      if (idToken) {
+        return { Authorization: `Bearer ${idToken}` };
+      }
+    }
+  } catch {}
+  return {};
+};
+
 export const setGasWebAppUrl = (url: string) => {
   try {
     const clean = url.trim();
@@ -79,11 +91,15 @@ export const setGasWebAppUrl = (url: string) => {
     } else {
       localStorage.removeItem('coderkids_gas_webapp_url');
     }
-    fetch('/api/sheets/bridge', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gasWebAppUrl: clean }),
-    }).catch(() => {});
+    void (async () => {
+      const authHeaders = await getFirebaseAuthHeaders();
+      if (!authHeaders.Authorization) return;
+      await fetch('/api/sheets/bridge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({ gasWebAppUrl: clean }),
+      });
+    })().catch(() => {});
   } catch {}
 };
 
@@ -182,9 +198,13 @@ export const googleSignIn = async (
       try {
         sessionStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
         localStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
+        const idToken = await result.user.getIdToken().catch(() => '');
         fetch('/api/sheets/bridge', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
           body: JSON.stringify({ accessToken: cachedAccessToken }),
         }).catch(() => {});
       } catch {}
@@ -677,7 +697,8 @@ export const fetchStudentsFromGoogleSheet = async (
 
     // Strategy C: If Google Sheet tab has no rows yet (only headers), merge students registered via server API & localStorage
     try {
-      const serverRes = await fetch('/api/students/list');
+      const authHeaders = await getFirebaseAuthHeaders();
+      const serverRes = await fetch('/api/students/list', { headers: authHeaders });
       if (serverRes.ok) {
         const sData = await serverRes.json();
         if (Array.isArray(sData.students) && sData.students.length > 0) {
@@ -865,9 +886,10 @@ export const saveProfileToGoogleSheet = async (
   // 1. ส่งข้อมูลไปจัดเก็บที่ Express/Worker Server API เสมอ (พร้อม Relay เขียนลง Google Sheet หากครูเชื่อมต่อ Bridge Token หรือ GAS URL ไว้แล้ว)
   let relayedByServer = false;
   try {
+    const authHeaders = await getFirebaseAuthHeaders();
     const sRes = await fetch('/api/students/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         id: profile.id,
         name: profile.name,
@@ -1165,7 +1187,8 @@ export const saveMultipleProfilesToGoogleSheet = async (
 
   // 4. Add students from backend API (/api/students/list)
   try {
-    const sRes = await fetch('/api/students/list');
+    const authHeaders = await getFirebaseAuthHeaders();
+    const sRes = await fetch('/api/students/list', { headers: authHeaders });
     if (sRes.ok) {
       const sData = await sRes.json();
       if (Array.isArray(sData.students)) {
@@ -1347,9 +1370,10 @@ export const recordStudentLoginToGoogleSheet = async (
   // 2. ส่งไปบันทึกที่ Express/Worker Server API (/api/logs/record) พร้อม Relay เขียนลง Google Sheet หากครูเชื่อมต่อไว้แล้ว
   let relayedLogByServer = false;
   try {
+    const authHeaders = await getFirebaseAuthHeaders();
     const lRes = await fetch('/api/logs/record', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({
         timestamp: nowThai,
         studentName: displayName,
@@ -1460,7 +1484,8 @@ export const batchSyncLogsToGoogleSheet = async (
 
   // 2. Fetch logs from Express/Worker server API if available
   try {
-    const sRes = await fetch('/api/logs/list');
+    const authHeaders = await getFirebaseAuthHeaders();
+    const sRes = await fetch('/api/logs/list', { headers: authHeaders });
     if (sRes.ok) {
       const sData = await sRes.json();
       if (Array.isArray(sData.logs) && sData.logs.length > 0) {
@@ -1625,11 +1650,12 @@ export const syncAllToGoogleSheet = async (
   // 1. สำรองข้อมูลนักเรียนลงเซิร์ฟเวอร์ API เสมอ
   let serverSavedCount = 0;
   try {
+    const authHeaders = await getFirebaseAuthHeaders();
     for (const p of profiles) {
       if (p && p.name && !['prof_1', 'prof_2', 'prof_3'].includes(String(p.id))) {
         await fetch('/api/students/register', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify({
             id: p.id,
             name: p.name,

@@ -110,6 +110,8 @@ interface HeaderProps {
   onTriggerSync?: () => void;
   isSyncing?: boolean;
   lastSyncTime?: string;
+  viewRoleMode?: 'student' | 'teacher';
+  onChangeViewRoleMode?: (mode: 'student' | 'teacher') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -163,6 +165,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenStudentQRPass,
   isFocusMode = false,
   onToggleFocusMode,
+  viewRoleMode = 'student',
+  onChangeViewRoleMode,
 }) => {
   const userLevel = Math.max(1, Math.floor(completedPoints / 75) + 1);
   const [isSoundMuted, setIsSoundMuted] = useState<boolean>(() => soundEffects.isSoundMuted());
@@ -1134,134 +1138,160 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                     </button>
 
-                    {/* หมวดย่อยที่ 3: เครื่องมือคุณครู & เอกสารชั้นเรียน */}
-                    <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-purple-600 dark:text-purple-400">
-                      ส่วนที่ 3 · เครื่องมือคุณครู &amp; จัดการชั้นเรียน (13–19)
-                    </div>
+                    {/* หมวดย่อยที่ 3: เครื่องมือคุณครู & เอกสารชั้นเรียน (Progressive Disclosure) */}
+                    {viewRoleMode === 'teacher' || isAdmin || isTeacherAuthorized ? (
+                      <>
+                        <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-purple-600 dark:text-purple-400 flex items-center justify-between">
+                          <span>ส่วนที่ 3 · เครื่องมือคุณครู &amp; จัดการชั้นเรียน (13–19)</span>
+                          {onChangeViewRoleMode && !isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => onChangeViewRoleMode('student')}
+                              className="text-[10px] font-semibold text-slate-400 hover:text-indigo-500 cursor-pointer"
+                            >
+                              ซ่อนมุมมองครู
+                            </button>
+                          )}
+                        </div>
 
-                    {onOpenLuckyWheel && (
-                      <button
-                        onClick={() => handleAction(onOpenLuckyWheel)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-amber-50 dark:hover:bg-amber-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0">
-                          <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
-                            <span className="truncate">13. วงล้อสุ่มชื่อ &amp; จัดกลุ่ม (Lucky Wheel)</span>
-                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">ห้องเรียน</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สุ่มชื่อตอบคำถาม &amp; แบ่งทีมสำหรับจอโปรเจกเตอร์</div>
-                        </div>
-                      </button>
-                    )}
+                        {onOpenLuckyWheel && (
+                          <button
+                            onClick={() => handleAction(onOpenLuckyWheel)}
+                            className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-amber-50 dark:hover:bg-amber-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0">
+                              <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
+                                <span className="truncate">13. วงล้อสุ่มชื่อ &amp; จัดกลุ่ม (Lucky Wheel)</span>
+                                <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">ห้องเรียน</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สุ่มชื่อตอบคำถาม &amp; แบ่งทีมสำหรับจอโปรเจกเตอร์</div>
+                            </div>
+                          </button>
+                        )}
 
-                    {onOpenHomeworkDropzone && (
-                      <button
-                        onClick={() => handleAction(onOpenHomeworkDropzone)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
-                          <FolderGit2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
-                            <span className="truncate">14. โต๊ะตรวจการบ้าน &amp; ผลงานนักเรียน</span>
-                            <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">ตรวจงาน</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ให้คะแนนดาว &amp; เขียนคำชม 2 Stars 1 Wish</div>
-                        </div>
-                      </button>
-                    )}
+                        {onOpenHomeworkDropzone && (
+                          <button
+                            onClick={() => handleAction(onOpenHomeworkDropzone)}
+                            className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
+                              <FolderGit2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
+                                <span className="truncate">14. โต๊ะตรวจการบ้าน &amp; ผลงานนักเรียน</span>
+                                <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">ตรวจงาน</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ให้คะแนนดาว &amp; เขียนคำชม 2 Stars 1 Wish</div>
+                            </div>
+                          </button>
+                        )}
 
-                    {onOpenTeacherMastery && (
-                      <button
-                        onClick={() => handleAction(onOpenTeacherMastery)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                          <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
-                            <span className="truncate">15. ศูนย์คุณครู ว 4.2 &amp; บันทึก ปพ.5</span>
-                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">สพฐ.</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">บันทึกคะแนนตัวชี้วัด ป.4–ป.6 + รูบริก ปพ.5</div>
-                        </div>
-                      </button>
-                    )}
+                        {onOpenTeacherMastery && (
+                          <button
+                            onClick={() => handleAction(onOpenTeacherMastery)}
+                            className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                              <GraduationCap className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
+                                <span className="truncate">15. ศูนย์คุณครู ว 4.2 &amp; บันทึก ปพ.5</span>
+                                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">สพฐ.</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">บันทึกคะแนนตัวชี้วัด ป.4–ป.6 + รูบริก ปพ.5</div>
+                            </div>
+                          </button>
+                        )}
 
-                    {onOpenAssessmentReport && (
-                      <button
-                        onClick={() => handleAction(onOpenAssessmentReport)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-purple-50 dark:hover:bg-purple-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
-                          <GraduationCap className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
-                            <span className="truncate">16. รายงานผลสัมฤทธิ์ ปพ.5 (CSV)</span>
-                            <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">ส่งออก</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สรุปคะแนนรายบุคคลและส่งออกไฟล์ตาราง</div>
-                        </div>
-                      </button>
-                    )}
+                        {onOpenAssessmentReport && (
+                          <button
+                            onClick={() => handleAction(onOpenAssessmentReport)}
+                            className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-purple-50 dark:hover:bg-purple-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center shrink-0">
+                              <GraduationCap className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
+                                <span className="truncate">16. รายงานผลสัมฤทธิ์ ปพ.5 (CSV)</span>
+                                <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">ส่งออก</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">สรุปคะแนนรายบุคคลและส่งออกไฟล์ตาราง</div>
+                            </div>
+                          </button>
+                        )}
 
-                    {onOpenTeacherPlans && (
-                      <button
-                        onClick={() => handleAction(onOpenTeacherPlans)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                          <FileCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
-                            <span className="truncate">17. แผนการจัดการเรียนรู้ (8 แผน ว 4.2)</span>
-                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">สไลด์สอน</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">มาตรฐาน K-P-A พร้อมโหมดเปิดสไลด์สอนสด</div>
-                        </div>
-                      </button>
-                    )}
+                        {onOpenTeacherPlans && (
+                          <button
+                            onClick={() => handleAction(onOpenTeacherPlans)}
+                            className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                              <FileCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
+                                <span className="truncate">17. แผนการจัดการเรียนรู้ (8 แผน ว 4.2)</span>
+                                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">สไลด์สอน</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">มาตรฐาน K-P-A พร้อมโหมดเปิดสไลด์สอนสด</div>
+                            </div>
+                          </button>
+                        )}
 
-                    {onOpenParentTeacherKit && (
-                      <button
-                        onClick={() => handleAction(onOpenParentTeacherKit)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
-                            <span className="truncate">18. ชุดพิมพ์ใบงาน QR &amp; คู่มือผู้ปกครอง</span>
-                            <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">A4</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ใบงาน Unplugged สแกนดูเฉลย &amp; คู่มือทางบ้าน</div>
-                        </div>
-                      </button>
-                    )}
+                        {onOpenParentTeacherKit && (
+                          <button
+                            onClick={() => handleAction(onOpenParentTeacherKit)}
+                            className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-teal-50 dark:hover:bg-teal-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
+                                <span className="truncate">18. ชุดพิมพ์ใบงาน QR &amp; คู่มือผู้ปกครอง</span>
+                                <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">A4</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ใบงาน Unplugged สแกนดูเฉลย &amp; คู่มือทางบ้าน</div>
+                            </div>
+                          </button>
+                        )}
 
-                    {onOpenGasExport && (
-                      <button
-                        onClick={() => handleAction(onOpenGasExport)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
-                      >
-                        <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
-                          <FileCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        {onOpenGasExport && (
+                          <button
+                            onClick={() => handleAction(onOpenGasExport)}
+                            className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center shrink-0">
+                              <FileCode className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold leading-tight text-emerald-700 dark:text-emerald-400 truncate">
+                                19. ส่งออกโค้ดสำหรับ Google Apps Script
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">เชื่อมต่อฐานข้อมูลห้องเรียนเข้ากับ Google Sheets</div>
+                            </div>
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      onChangeViewRoleMode && (
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <button
+                            type="button"
+                            onClick={() => onChangeViewRoleMode('teacher')}
+                            className="w-full flex items-center justify-between p-2 rounded-xl bg-purple-50/70 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 text-[11px] font-bold transition-all cursor-pointer"
+                          >
+                            <span>👩‍🏫 เปิดโหมดคุณครูเพื่อดูเครื่องมือครู (7 รายการ)</span>
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold leading-tight text-emerald-700 dark:text-emerald-400 truncate">
-                            19. ส่งออกโค้ดสำหรับ Google Apps Script
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">เชื่อมต่อฐานข้อมูลห้องเรียนเข้ากับ Google Sheets</div>
-                        </div>
-                      </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -1364,6 +1394,32 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="hidden 2xl:inline text-[11px]">มุมมองนักเรียน</span>
                   </div>
                 )}
+              </button>
+            )}
+
+            {/* Student / Teacher Progressive Disclosure View Toggle */}
+            {onChangeViewRoleMode && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.play('click');
+                  onChangeViewRoleMode(viewRoleMode === 'teacher' ? 'student' : 'teacher');
+                }}
+                className={`hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer shadow-xs shrink-0 whitespace-nowrap ${
+                  viewRoleMode === 'teacher'
+                    ? 'bg-purple-600 text-white border-purple-700 shadow-purple-500/20'
+                    : 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800 hover:bg-sky-100 dark:hover:bg-sky-900/50'
+                }`}
+                title={
+                  viewRoleMode === 'teacher'
+                    ? 'กำลังแสดงโหมดคุณครู (แสดงเครื่องมือครูครบ) คลิกเพื่อสลับเป็นโหมดผู้เรียน'
+                    : 'กำลังแสดงโหมดผู้เรียน (หน้าจอสะอาดตา) คลิกเพื่อสลับเป็นโหมดคุณครู'
+                }
+              >
+                <span>{viewRoleMode === 'teacher' ? '👩‍🏫' : '🎒'}</span>
+                <span className="hidden 2xl:inline">
+                  {viewRoleMode === 'teacher' ? 'โหมดคุณครู' : 'โหมดผู้เรียน'}
+                </span>
               </button>
             )}
 
@@ -1591,6 +1647,45 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="lg:hidden fixed inset-x-0 top-16 bottom-0 bg-slate-900/40 backdrop-blur-xs z-50 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 space-y-4 shadow-2xl max-h-[calc(100vh-4rem)] overflow-y-auto animate-in slide-in-from-top duration-200">
             
+            {/* Mobile View Role Mode Toggle */}
+            {onChangeViewRoleMode && (
+              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  มุมมองการใช้งาน
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEffects.play('click');
+                      onChangeViewRoleMode('student');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer ${
+                      viewRoleMode === 'student'
+                        ? 'bg-sky-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    🎒 ผู้เรียน
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEffects.play('click');
+                      onChangeViewRoleMode('teacher');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer ${
+                      viewRoleMode === 'teacher'
+                        ? 'bg-purple-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    👩‍🏫 คุณครู
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Mobile Color Tone Picker */}
             <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
@@ -1999,61 +2094,75 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   <span>12. 👤 จัดการโปรไฟล์ผู้เรียน</span>
                 </button>
-                {onOpenLuckyWheel && (
-                  <button
-                    onClick={() => handleAction(onOpenLuckyWheel)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
-                  >
-                    <span>13. 🎯 วงล้อสุ่มชื่อ &amp; จัดกลุ่ม (Lucky Wheel)</span>
-                  </button>
-                )}
-                {onOpenHomeworkDropzone && (
-                  <button
-                    onClick={() => handleAction(onOpenHomeworkDropzone)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
-                  >
-                    <span>14. 📂 โต๊ะตรวจการบ้าน &amp; ผลงานนักเรียน</span>
-                  </button>
-                )}
-                {onOpenTeacherMastery && (
-                  <button
-                    onClick={() => handleAction(onOpenTeacherMastery)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
-                  >
-                    <span>15. 🎓 ศูนย์คุณครู ว 4.2 &amp; บันทึก ปพ.5</span>
-                  </button>
-                )}
-                {onOpenAssessmentReport && (
-                  <button
-                    onClick={() => handleAction(onOpenAssessmentReport)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 flex items-center justify-between"
-                  >
-                    <span>16. 📈 รายงานผลสัมฤทธิ์ ปพ.5 (CSV)</span>
-                  </button>
-                )}
-                {onOpenTeacherPlans && (
-                  <button
-                    onClick={() => handleAction(onOpenTeacherPlans)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
-                  >
-                    <span>17. 👨‍🏫 แผนการจัดการเรียนรู้ (8 แผน ว 4.2)</span>
-                  </button>
-                )}
-                {onOpenParentTeacherKit && (
-                  <button
-                    onClick={() => handleAction(onOpenParentTeacherKit)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
-                  >
-                    <span>18. 🖨️ ชุดพิมพ์ใบงาน QR &amp; คู่มือผู้ปกครอง</span>
-                  </button>
-                )}
-                {onOpenGasExport && (
-                  <button
-                    onClick={() => handleAction(onOpenGasExport)}
-                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
-                  >
-                    <span>19. 📤 ส่งออกโค้ดสำหรับ GAS</span>
-                  </button>
+                {(viewRoleMode === 'teacher' || isAdmin || isTeacherAuthorized) ? (
+                  <>
+                    {onOpenLuckyWheel && (
+                      <button
+                        onClick={() => handleAction(onOpenLuckyWheel)}
+                        className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
+                      >
+                        <span>13. 🎯 วงล้อสุ่มชื่อ &amp; จัดกลุ่ม (Lucky Wheel)</span>
+                      </button>
+                    )}
+                    {onOpenHomeworkDropzone && (
+                      <button
+                        onClick={() => handleAction(onOpenHomeworkDropzone)}
+                        className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
+                      >
+                        <span>14. 📂 โต๊ะตรวจการบ้าน &amp; ผลงานนักเรียน</span>
+                      </button>
+                    )}
+                    {onOpenTeacherMastery && (
+                      <button
+                        onClick={() => handleAction(onOpenTeacherMastery)}
+                        className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
+                      >
+                        <span>15. 🎓 ศูนย์คุณครู ว 4.2 &amp; บันทึก ปพ.5</span>
+                      </button>
+                    )}
+                    {onOpenAssessmentReport && (
+                      <button
+                        onClick={() => handleAction(onOpenAssessmentReport)}
+                        className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 flex items-center justify-between"
+                      >
+                        <span>16. 📈 รายงานผลสัมฤทธิ์ ปพ.5 (CSV)</span>
+                      </button>
+                    )}
+                    {onOpenTeacherPlans && (
+                      <button
+                        onClick={() => handleAction(onOpenTeacherPlans)}
+                        className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
+                      >
+                        <span>17. 👨‍🏫 แผนการจัดการเรียนรู้ (8 แผน ว 4.2)</span>
+                      </button>
+                    )}
+                    {onOpenParentTeacherKit && (
+                      <button
+                        onClick={() => handleAction(onOpenParentTeacherKit)}
+                        className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
+                      >
+                        <span>18. 🖨️ ชุดพิมพ์ใบงาน QR &amp; คู่มือผู้ปกครอง</span>
+                      </button>
+                    )}
+                    {onOpenGasExport && (
+                      <button
+                        onClick={() => handleAction(onOpenGasExport)}
+                        className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
+                      >
+                        <span>19. 📤 ส่งออกโค้ดสำหรับ GAS</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  onChangeViewRoleMode && (
+                    <button
+                      type="button"
+                      onClick={() => onChangeViewRoleMode('teacher')}
+                      className="w-full text-left p-2.5 rounded-xl text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40"
+                    >
+                      👩‍🏫 เปิดโหมดคุณครูเพื่อดูเครื่องมือครู (7 รายการ)
+                    </button>
+                  )
                 )}
               </div>
             </div>

@@ -99,6 +99,8 @@ interface DashboardProps {
   onOpenCodeTracer?: () => void;
   onOpenStudentQRPass?: () => void;
   addPoints?: (amount: number, reason: string, category?: any) => void;
+  viewRoleMode?: 'student' | 'teacher';
+  onChangeViewRoleMode?: (mode: 'student' | 'teacher') => void;
 }
 
 export const getGoalDestination = (goalText: string, category?: string) => {
@@ -235,16 +237,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenCodeTracer,
   onOpenStudentQRPass,
   addPoints,
+  viewRoleMode = 'student',
+  onChangeViewRoleMode,
 }) => {
   const [activeCategory, setActiveCategory] = useState<
     'all' | 'curriculum' | 'labs' | 'onet' | 'stem' | 'progress' | 'teacher'
   >('all');
+  const [gradeFocusFilter, setGradeFocusFilter] = useState<'All' | 'ป.4' | 'ป.5' | 'ป.6'>('All');
   const [stemGradeFilter, setStemGradeFilter] = useState<'All' | 'ป.4' | 'ป.5' | 'ป.6'>('All');
   const [stemViewMode, setStemViewMode] = useState<'all' | 'hub' | 'stem5e'>('all');
   const [expandedStemProjectId, setExpandedStemProjectId] = useState<string | null>(null);
   const [expandedStemPackId, setExpandedStemPackId] = useState<string | null>(null);
   const [isSyncingSheet, setIsSyncingSheet] = useState(false);
   const [syncStatusMsg, setSyncStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const handleSelectGradeFocus = (grade: 'All' | 'ป.4' | 'ป.5' | 'ป.6') => {
+    soundEffects.play('click');
+    setGradeFocusFilter(grade);
+    setStemGradeFilter(grade);
+  };
 
   const handleSyncGoogleSheet = async () => {
     setIsSyncingSheet(true);
@@ -476,21 +487,64 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <span>5. ผลการเรียน &amp; อันดับ</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              soundEffects.play('click');
-              setActiveCategory('teacher');
-            }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
-              activeCategory === 'teacher'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
-            }`}
-          >
-            <GraduationCap className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span>6. ห้องเรียน &amp; วัดผล · ศูนย์ครู</span>
-          </button>
+          {(viewRoleMode === 'teacher' || isAdmin) && (
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.play('click');
+                setActiveCategory('teacher');
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
+                activeCategory === 'teacher'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+              <span>6. ห้องเรียน &amp; วัดผล · ศูนย์ครู</span>
+            </button>
+          )}
+
+          {/* แถบตัวกรองระดับชั้น ป.4–ป.6 & ปุ่มสลับโหมดผู้เรียน/คุณครู */}
+          <div className="ml-auto flex flex-wrap items-center gap-1.5 pl-1 border-l border-slate-200 dark:border-slate-800">
+            <span className="text-[11px] font-bold text-slate-400 hidden xl:inline">ชั้น:</span>
+            {(['All', 'ป.4', 'ป.5', 'ป.6'] as const).map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => handleSelectGradeFocus(g)}
+                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                  gradeFocusFilter === g
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                {g === 'All' ? 'ทุกระดับชั้น' : g}
+              </button>
+            ))}
+
+            {onChangeViewRoleMode && (
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.play('click');
+                  const next = viewRoleMode === 'teacher' ? 'student' : 'teacher';
+                  onChangeViewRoleMode(next);
+                  if (next === 'student' && activeCategory === 'teacher') {
+                    setActiveCategory('all');
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  viewRoleMode === 'teacher'
+                    ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-700'
+                    : 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800'
+                }`}
+                title="สลับมุมมองระหว่างผู้เรียน (ลดเมนูรบกวน) และคุณครู (แสดงศูนย์ครูและ ปพ.5)"
+              >
+                <span>{viewRoleMode === 'teacher' ? '👩‍🏫 โหมดคุณครู' : '🎒 โหมดผู้เรียน'}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -781,6 +835,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
               สอดคล้องตัวชี้วัด ว 4.2 ป.4 – ป.6 (สพฐ. &amp; สสวท.)
             </div>
           </div>
+
+          {gradeFocusFilter !== 'All' && (
+            <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 text-indigo-900 dark:text-indigo-200 font-semibold">
+                <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold">
+                  โฟกัสชั้น {gradeFocusFilter}
+                </span>
+                <span>
+                  {gradeFocusFilter === 'ป.4' &&
+                    'เน้น ว 4.2 ป.4/1–ป.4/5: เหตุผลเชิงตรรกะ อัลกอริทึมเบื้องต้น Scratch พื้นฐาน ตารางข้อมูล 5 วัน และความปลอดภัยข้อมูล'}
+                  {gradeFocusFilter === 'ป.5' &&
+                    'เน้น ว 4.2 ป.5/1–ป.5/5: อัลกอริทึมแบบมีเงื่อนไข-วนซ้ำ ผังงาน Flowchart ตรวจหาข้อผิดพลาด โพลสำรวจ และมารยาทดิจิทัล'}
+                  {gradeFocusFilter === 'ป.6' &&
+                    'เน้น ว 4.2 ป.6/1–ป.6/4: แก้ปัญหาชีวิตจริง Nested Loop การสืบค้น Operators กฎหมาย PDPA และเตรียมสอบ O-NET ป.6'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleSelectGradeFocus('All')}
+                className="text-[11px] font-bold text-indigo-600 dark:text-indigo-300 hover:underline cursor-pointer"
+              >
+                แสดงทุกระดับชั้น ✕
+              </button>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* ก้าวที่ 01 */}
@@ -2543,8 +2622,29 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </section>
       )}
 
-      {/* ----------------- ส่วนที่ 6: ห้องเรียน & วัดผล · ศูนย์เครื่องมือคุณครู & ผู้ปกครอง ----------------- */}
-      {(activeCategory === 'all' || activeCategory === 'teacher') && (
+      {/* ----------------- ส่วนที่ 6: ห้องเรียน & วัดผล · ศูนย์เครื่องมือคุณครู & ผู้ปกครอง (Progressive Disclosure) ----------------- */}
+      {!(viewRoleMode === 'teacher' || isAdmin || activeCategory === 'teacher') && activeCategory === 'all' && onChangeViewRoleMode && (
+        <section className="rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-800/70 p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-xs text-purple-900 dark:text-purple-200">
+            <GraduationCap className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+            <span>
+              <strong className="font-bold">โหมดผู้เรียน:</strong> ซ่อนเครื่องมือคุณครู (ปพ.5, แผนการสอน, ซิงค์ Google Sheet) เพื่อความสะอาดตา
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              soundEffects.play('click');
+              onChangeViewRoleMode('teacher');
+            }}
+            className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer"
+          >
+            👩‍🏫 เปิดมุมมองคุณครู &amp; ศูนย์ ปพ.5
+          </button>
+        </section>
+      )}
+
+      {(viewRoleMode === 'teacher' || isAdmin || activeCategory === 'teacher') && (activeCategory === 'all' || activeCategory === 'teacher') && (
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>

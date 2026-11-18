@@ -261,19 +261,23 @@ export const TeacherMasteryPortal: React.FC<TeacherMasteryPortalProps> = ({
     savePorPor5Records(updated);
 
     // Also register with server API so it persists across sessions
-    fetch('/api/students/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: newRec.id,
-        name: newRec.name,
-        nickname: newRec.nickname,
-        studentId: newRec.studentId,
-        grade: newRec.fullGradeText,
-        school: newRec.school,
-        points: newRec.points,
-      }),
-    }).catch(() => {});
+    void (async () => {
+      const { getFirebaseAuthHeaders } = await import('../services/googleSheetsService.ts');
+      const authHeaders = await getFirebaseAuthHeaders();
+      await fetch('/api/students/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        body: JSON.stringify({
+          id: newRec.id,
+          name: newRec.name,
+          nickname: newRec.nickname,
+          studentId: newRec.studentId,
+          grade: newRec.fullGradeText,
+          school: newRec.school,
+          points: newRec.points,
+        }),
+      });
+    })().catch(() => {});
 
     setNewStudentCode('');
     setNewStudentName('');

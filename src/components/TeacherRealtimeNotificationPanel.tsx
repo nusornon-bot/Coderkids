@@ -241,9 +241,13 @@ export const TeacherRealtimeNotificationPanel: React.FC<TeacherRealtimeNotificat
             rows: [] as string[][],
             sheetTitle: LOGS_SHEET_TITLE,
           })),
-          fetch('/api/logs/list')
-            .then((r) => (r.ok ? r.json() : { logs: [] }))
-            .catch(() => ({ logs: [] })),
+          (async () => {
+            const { getFirebaseAuthHeaders } = await import('../services/googleSheetsService.ts');
+            const authHeaders = await getFirebaseAuthHeaders();
+            if (!authHeaders.Authorization) return { logs: [] };
+            const r = await fetch('/api/logs/list', { headers: authHeaders });
+            return r.ok ? r.json() : { logs: [] };
+          })().catch(() => ({ logs: [] })),
         ]);
 
         const studentRows = studentsSheetRes.rows || [];

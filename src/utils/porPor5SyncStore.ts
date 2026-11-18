@@ -1,6 +1,7 @@
 import { UserProfile } from '../types/index.ts';
 import {
   fetchStudentsFromGoogleSheet,
+  getFirebaseAuthHeaders,
   readLogsFromGoogleSheet,
   saveProfileToGoogleSheet,
   TARGET_SPREADSHEET_ID,
@@ -319,12 +320,16 @@ export function savePorPor5Records(records: PorPor5StudentRecord[]) {
     window.dispatchEvent(new CustomEvent(PORPOR5_SYNC_EVENT, { detail: records }));
   } catch {}
 
-  // Also persist to server in background
-  fetch('/api/porpor5/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ records }),
-  }).catch(() => {});
+  // Also persist to server in background when verified Firebase teacher token is present
+  void (async () => {
+    const authHeaders = await getFirebaseAuthHeaders();
+    if (!authHeaders.Authorization) return;
+    await fetch('/api/porpor5/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
+      body: JSON.stringify({ records }),
+    });
+  })().catch(() => {});
 }
 
 /**
@@ -559,8 +564,11 @@ export async function syncPorPor5RosterWithCloud(options: {
 
   // 1. Fetch from Server API (/api/porpor5/list)
   try {
-    const sRes = await fetch('/api/porpor5/list');
-    if (sRes.ok) {
+    const authHeaders = await getFirebaseAuthHeaders();
+    const sRes = authHeaders.Authorization
+      ? await fetch('/api/porpor5/list', { headers: authHeaders })
+      : null;
+    if (sRes && sRes.ok) {
       const sData = await sRes.json();
       if (Array.isArray(sData.records)) {
         for (const rec of sData.records) {

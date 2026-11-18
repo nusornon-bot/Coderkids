@@ -1,92 +1,118 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Header } from './components/Header.tsx';
 import { Dashboard } from './components/Dashboard.tsx';
 import { Footer } from './components/Footer.tsx';
-
-// 4 Main Modules
-import { SafeSharingGame } from './components/Module1Safety/SafeSharingGame.tsx';
-import { PasswordLab } from './components/Module1Safety/PasswordLab.tsx';
-import { NetiquetteScenarios } from './components/Module1Safety/NetiquetteScenarios.tsx';
-import { SafetyQuiz } from './components/Module1Safety/SafetyQuiz.tsx';
-import { PDPALab } from './components/Module1Safety/PDPALab.tsx';
-import { PDPAPrivacyGenerator } from './components/Module1Safety/PDPAPrivacyGenerator.tsx';
-import { InternetSearchLab } from './components/Module1Safety/InternetSearchLab.tsx';
-
-import { PillarsView } from './components/Module2Thinking/PillarsView.tsx';
-import { FlowchartGuideView } from './components/Module2Thinking/FlowchartGuideView.tsx';
-import { ControlStructuresView } from './components/Module2Thinking/ControlStructuresView.tsx';
-import { AlgorithmPuzzleGame } from './components/Module2Thinking/AlgorithmPuzzleGame.tsx';
-import { LogicAndStoryboardLab } from './components/Module2Thinking/LogicAndStoryboardLab.tsx';
-
-import { ScratchStudio } from './components/Module3CodingLab/ScratchStudio.tsx';
-import { MicrobitSimulator } from './components/Module3CodingLab/MicrobitSimulator.tsx';
-import { CodeExamplesGallery } from './components/Module3CodingLab/CodeExamplesGallery.tsx';
-import { CodeDebuggingLab } from './components/Module3CodingLab/CodeDebuggingLab.tsx';
-
-import { ShowcaseGallery } from './components/Module4Showcase/ShowcaseGallery.tsx';
-import { SubmitProjectModal } from './components/Module4Showcase/SubmitProjectModal.tsx';
-import { PeerReviewWall } from './components/Module4Showcase/PeerReviewWall.tsx';
-import { ReflectionJournal } from './components/Module4Showcase/ReflectionJournal.tsx';
-import { DailyJournal } from './components/Module4Showcase/DailyJournal.tsx';
-import { CertificateModal } from './components/Module4Showcase/CertificateModal.tsx';
-import { DataProcessingLab } from './components/Module4Showcase/DataProcessingLab.tsx';
-
-// 4 New Systems
-import { ProfileModal } from './components/ProfileModal.tsx';
-import { ProfileManagementView } from './components/ProfileManagementView.tsx';
-import { PointsRewardCenter } from './components/PointsRewardCenter.tsx';
-import { VirtualClassroom } from './components/VirtualClassroom.tsx';
-import { DidYouKnowSection } from './components/DidYouKnowSection.tsx';
-import { LoginModal } from './components/LoginModal.tsx';
-import { Leaderboard } from './components/Leaderboard.tsx';
-import { ConfettiCelebration, CelebrationEvent, fireConfetti } from './components/ConfettiCelebration.tsx';
-import { LearningPathMap } from './components/LearningPathMap.tsx';
-import { AITutorChatbot } from './components/AITutorChatbot.tsx';
-import { GoogleAppsScriptExportModal } from './components/GoogleAppsScriptExportModal.tsx';
-import { TeacherAssessmentReportModal } from './components/TeacherAssessmentReportModal.tsx';
-import { UnpluggedWorksheetsModal } from './components/UnpluggedWorksheetsModal.tsx';
-import { DailyBugHunterModal } from './components/DailyBugHunterModal.tsx';
-import { JuniorCodePlayground } from './components/JuniorCodePlayground.tsx';
-import { KidsAILab } from './components/KidsAILab.tsx';
-import { BuddySystem } from './components/BuddySystem.tsx';
-import { ExamArenaModal } from './components/ExamArenaModal.tsx';
-import { TeamBattleArena } from './components/TeamBattleArena.tsx';
-import { DigitalPassportModal } from './components/DigitalPassportModal.tsx';
-import { TeacherLessonPlansModal } from './components/TeacherLessonPlansModal.tsx';
-import { DigitalLibrary } from './components/DigitalLibrary.tsx';
-import { StemProjectHub } from './components/StemProjectHub.tsx';
-import { BinaryPixelArtLab } from './components/BinaryPixelArtLab.tsx';
-import { RubricAssessmentModal } from './components/RubricAssessmentModal.tsx';
-import { ParentTeacherKitModal } from './components/ParentTeacherKitModal.tsx';
-import { BebrasArena } from './components/BebrasArena.tsx';
-import { AiPromptLab } from './components/AiPromptLab.tsx';
-import { MicrobitDataLogger } from './components/MicrobitDataLogger.tsx';
-import { ClassroomBattleModal } from './components/ClassroomBattleModal.tsx';
-import { CodeTyperModal } from './components/CodeTyperModal.tsx';
-import { PairProgrammingArena } from './components/PairProgrammingArena.tsx';
-import { TeacherMasteryPortal } from './components/TeacherMasteryPortal.tsx';
-import { StemPacksModal } from './components/StemPacksModal.tsx';
-import { CoderHeroCardsModal } from './components/CoderHeroCardsModal.tsx';
-import { SmartExamGeneratorModal } from './components/SmartExamGeneratorModal.tsx';
-import { VisualCodeTracerModal } from './components/VisualCodeTracerModal.tsx';
-import { StudentQRPassModal } from './components/StudentQRPassModal.tsx';
-import { MicrobitMusicLab } from './components/MicrobitMusicLab.tsx';
 import { OfflineIndicator } from './components/OfflineIndicator.tsx';
-import { QuickSearchModal } from './components/QuickSearchModal.tsx';
-import { ClassroomLuckyWheel } from './components/ClassroomLuckyWheel.tsx';
-import { BlockMazeRunner } from './components/BlockMazeRunner.tsx';
-import { HomeworkDropzone } from './components/HomeworkDropzone.tsx';
-import { AvatarShopModal } from './components/AvatarShopModal.tsx';
-import { LiveQuizBattleModal } from './components/LiveQuizBattleModal.tsx';
-import { CommunityRemixHubModal } from './components/CommunityRemixHubModal.tsx';
-import { DailyMicroChallengeModal } from './components/DailyMicroChallengeModal.tsx';
-import { BebrasSimulatorModal } from './components/BebrasSimulatorModal.tsx';
-import { SmartSocraticDebuggerModal } from './components/SmartSocraticDebuggerModal.tsx';
-import { StudentReportCardModal } from './components/StudentReportCardModal.tsx';
-import { ComputingGlossaryModal } from './components/ComputingGlossaryModal.tsx';
+import { ConfettiCelebration, CelebrationEvent, fireConfetti } from './components/ConfettiCelebration.tsx';
 import { soundEffects } from './utils/soundEffects.ts';
 import { ThemeMode, getTargetThemeFromTime } from './utils/dayNightCycle.ts';
 import { DayNightTransitionOverlay, TransitionPayload } from './components/DayNightTransitionOverlay.tsx';
+import {
+  testConnection,
+  syncUserProfileToFirestore,
+  publishShowcaseProjectToFirestore,
+} from './services/firestoreService.ts';
+
+function lazyNamed<
+  TModule extends Record<string, any>,
+  TKey extends keyof TModule
+>(
+  factory: () => Promise<TModule>,
+  exportName: TKey
+): React.LazyExoticComponent<TModule[TKey]> {
+  return lazy(() =>
+    factory().then((mod) => ({
+      default: mod[exportName],
+    }))
+  );
+}
+
+const ModuleLoadingFallback: React.FC = () => (
+  <div className="w-full py-16 flex flex-col items-center justify-center gap-3 text-slate-500 dark:text-slate-400">
+    <div className="w-9 h-9 rounded-full border-4 border-indigo-200 dark:border-indigo-900 border-t-indigo-600 dark:border-t-indigo-400 animate-spin" />
+    <span className="text-xs font-semibold">กำลังโหลดห้องเรียนและเครื่องมือ...</span>
+  </div>
+);
+
+// 4 Main Modules (Code-Split Lazy Chunks)
+const SafeSharingGame = lazyNamed(() => import('./components/Module1Safety/SafeSharingGame.tsx'), 'SafeSharingGame');
+const PasswordLab = lazyNamed(() => import('./components/Module1Safety/PasswordLab.tsx'), 'PasswordLab');
+const NetiquetteScenarios = lazyNamed(() => import('./components/Module1Safety/NetiquetteScenarios.tsx'), 'NetiquetteScenarios');
+const SafetyQuiz = lazyNamed(() => import('./components/Module1Safety/SafetyQuiz.tsx'), 'SafetyQuiz');
+const PDPALab = lazyNamed(() => import('./components/Module1Safety/PDPALab.tsx'), 'PDPALab');
+const PDPAPrivacyGenerator = lazyNamed(() => import('./components/Module1Safety/PDPAPrivacyGenerator.tsx'), 'PDPAPrivacyGenerator');
+const InternetSearchLab = lazyNamed(() => import('./components/Module1Safety/InternetSearchLab.tsx'), 'InternetSearchLab');
+
+const PillarsView = lazyNamed(() => import('./components/Module2Thinking/PillarsView.tsx'), 'PillarsView');
+const FlowchartGuideView = lazyNamed(() => import('./components/Module2Thinking/FlowchartGuideView.tsx'), 'FlowchartGuideView');
+const ControlStructuresView = lazyNamed(() => import('./components/Module2Thinking/ControlStructuresView.tsx'), 'ControlStructuresView');
+const AlgorithmPuzzleGame = lazyNamed(() => import('./components/Module2Thinking/AlgorithmPuzzleGame.tsx'), 'AlgorithmPuzzleGame');
+const LogicAndStoryboardLab = lazyNamed(() => import('./components/Module2Thinking/LogicAndStoryboardLab.tsx'), 'LogicAndStoryboardLab');
+
+const ScratchStudio = lazyNamed(() => import('./components/Module3CodingLab/ScratchStudio.tsx'), 'ScratchStudio');
+const MicrobitSimulator = lazyNamed(() => import('./components/Module3CodingLab/MicrobitSimulator.tsx'), 'MicrobitSimulator');
+const CodeExamplesGallery = lazyNamed(() => import('./components/Module3CodingLab/CodeExamplesGallery.tsx'), 'CodeExamplesGallery');
+const CodeDebuggingLab = lazyNamed(() => import('./components/Module3CodingLab/CodeDebuggingLab.tsx'), 'CodeDebuggingLab');
+
+const ShowcaseGallery = lazyNamed(() => import('./components/Module4Showcase/ShowcaseGallery.tsx'), 'ShowcaseGallery');
+const SubmitProjectModal = lazyNamed(() => import('./components/Module4Showcase/SubmitProjectModal.tsx'), 'SubmitProjectModal');
+const PeerReviewWall = lazyNamed(() => import('./components/Module4Showcase/PeerReviewWall.tsx'), 'PeerReviewWall');
+const ReflectionJournal = lazyNamed(() => import('./components/Module4Showcase/ReflectionJournal.tsx'), 'ReflectionJournal');
+const DailyJournal = lazyNamed(() => import('./components/Module4Showcase/DailyJournal.tsx'), 'DailyJournal');
+const CertificateModal = lazyNamed(() => import('./components/Module4Showcase/CertificateModal.tsx'), 'CertificateModal');
+const DataProcessingLab = lazyNamed(() => import('./components/Module4Showcase/DataProcessingLab.tsx'), 'DataProcessingLab');
+
+// Secondary Systems & Modals (Code-Split Lazy Chunks)
+const ProfileModal = lazyNamed(() => import('./components/ProfileModal.tsx'), 'ProfileModal');
+const ProfileManagementView = lazyNamed(() => import('./components/ProfileManagementView.tsx'), 'ProfileManagementView');
+const PointsRewardCenter = lazyNamed(() => import('./components/PointsRewardCenter.tsx'), 'PointsRewardCenter');
+const VirtualClassroom = lazyNamed(() => import('./components/VirtualClassroom.tsx'), 'VirtualClassroom');
+const DidYouKnowSection = lazyNamed(() => import('./components/DidYouKnowSection.tsx'), 'DidYouKnowSection');
+const LoginModal = lazyNamed(() => import('./components/LoginModal.tsx'), 'LoginModal');
+const Leaderboard = lazyNamed(() => import('./components/Leaderboard.tsx'), 'Leaderboard');
+const LearningPathMap = lazyNamed(() => import('./components/LearningPathMap.tsx'), 'LearningPathMap');
+const AITutorChatbot = lazyNamed(() => import('./components/AITutorChatbot.tsx'), 'AITutorChatbot');
+const GoogleAppsScriptExportModal = lazyNamed(() => import('./components/GoogleAppsScriptExportModal.tsx'), 'GoogleAppsScriptExportModal');
+const TeacherAssessmentReportModal = lazyNamed(() => import('./components/TeacherAssessmentReportModal.tsx'), 'TeacherAssessmentReportModal');
+const UnpluggedWorksheetsModal = lazyNamed(() => import('./components/UnpluggedWorksheetsModal.tsx'), 'UnpluggedWorksheetsModal');
+const DailyBugHunterModal = lazyNamed(() => import('./components/DailyBugHunterModal.tsx'), 'DailyBugHunterModal');
+const JuniorCodePlayground = lazyNamed(() => import('./components/JuniorCodePlayground.tsx'), 'JuniorCodePlayground');
+const KidsAILab = lazyNamed(() => import('./components/KidsAILab.tsx'), 'KidsAILab');
+const BuddySystem = lazyNamed(() => import('./components/BuddySystem.tsx'), 'BuddySystem');
+const ExamArenaModal = lazyNamed(() => import('./components/ExamArenaModal.tsx'), 'ExamArenaModal');
+const TeamBattleArena = lazyNamed(() => import('./components/TeamBattleArena.tsx'), 'TeamBattleArena');
+const DigitalPassportModal = lazyNamed(() => import('./components/DigitalPassportModal.tsx'), 'DigitalPassportModal');
+const TeacherLessonPlansModal = lazyNamed(() => import('./components/TeacherLessonPlansModal.tsx'), 'TeacherLessonPlansModal');
+const DigitalLibrary = lazyNamed(() => import('./components/DigitalLibrary.tsx'), 'DigitalLibrary');
+const StemProjectHub = lazyNamed(() => import('./components/StemProjectHub.tsx'), 'StemProjectHub');
+const BinaryPixelArtLab = lazyNamed(() => import('./components/BinaryPixelArtLab.tsx'), 'BinaryPixelArtLab');
+const RubricAssessmentModal = lazyNamed(() => import('./components/RubricAssessmentModal.tsx'), 'RubricAssessmentModal');
+const ParentTeacherKitModal = lazyNamed(() => import('./components/ParentTeacherKitModal.tsx'), 'ParentTeacherKitModal');
+const BebrasArena = lazyNamed(() => import('./components/BebrasArena.tsx'), 'BebrasArena');
+const AiPromptLab = lazyNamed(() => import('./components/AiPromptLab.tsx'), 'AiPromptLab');
+const MicrobitDataLogger = lazyNamed(() => import('./components/MicrobitDataLogger.tsx'), 'MicrobitDataLogger');
+const ClassroomBattleModal = lazyNamed(() => import('./components/ClassroomBattleModal.tsx'), 'ClassroomBattleModal');
+const CodeTyperModal = lazyNamed(() => import('./components/CodeTyperModal.tsx'), 'CodeTyperModal');
+const PairProgrammingArena = lazyNamed(() => import('./components/PairProgrammingArena.tsx'), 'PairProgrammingArena');
+const TeacherMasteryPortal = lazyNamed(() => import('./components/TeacherMasteryPortal.tsx'), 'TeacherMasteryPortal');
+const StemPacksModal = lazyNamed(() => import('./components/StemPacksModal.tsx'), 'StemPacksModal');
+const CoderHeroCardsModal = lazyNamed(() => import('./components/CoderHeroCardsModal.tsx'), 'CoderHeroCardsModal');
+const SmartExamGeneratorModal = lazyNamed(() => import('./components/SmartExamGeneratorModal.tsx'), 'SmartExamGeneratorModal');
+const VisualCodeTracerModal = lazyNamed(() => import('./components/VisualCodeTracerModal.tsx'), 'VisualCodeTracerModal');
+const StudentQRPassModal = lazyNamed(() => import('./components/StudentQRPassModal.tsx'), 'StudentQRPassModal');
+const MicrobitMusicLab = lazyNamed(() => import('./components/MicrobitMusicLab.tsx'), 'MicrobitMusicLab');
+const QuickSearchModal = lazyNamed(() => import('./components/QuickSearchModal.tsx'), 'QuickSearchModal');
+const ClassroomLuckyWheel = lazyNamed(() => import('./components/ClassroomLuckyWheel.tsx'), 'ClassroomLuckyWheel');
+const BlockMazeRunner = lazyNamed(() => import('./components/BlockMazeRunner.tsx'), 'BlockMazeRunner');
+const HomeworkDropzone = lazyNamed(() => import('./components/HomeworkDropzone.tsx'), 'HomeworkDropzone');
+const AvatarShopModal = lazyNamed(() => import('./components/AvatarShopModal.tsx'), 'AvatarShopModal');
+const LiveQuizBattleModal = lazyNamed(() => import('./components/LiveQuizBattleModal.tsx'), 'LiveQuizBattleModal');
+const CommunityRemixHubModal = lazyNamed(() => import('./components/CommunityRemixHubModal.tsx'), 'CommunityRemixHubModal');
+const DailyMicroChallengeModal = lazyNamed(() => import('./components/DailyMicroChallengeModal.tsx'), 'DailyMicroChallengeModal');
+const BebrasSimulatorModal = lazyNamed(() => import('./components/BebrasSimulatorModal.tsx'), 'BebrasSimulatorModal');
+const SmartSocraticDebuggerModal = lazyNamed(() => import('./components/SmartSocraticDebuggerModal.tsx'), 'SmartSocraticDebuggerModal');
+const StudentReportCardModal = lazyNamed(() => import('./components/StudentReportCardModal.tsx'), 'StudentReportCardModal');
+const ComputingGlossaryModal = lazyNamed(() => import('./components/ComputingGlossaryModal.tsx'), 'ComputingGlossaryModal');
 
 import {
   INITIAL_SHOWCASE_PROJECTS,
@@ -350,6 +376,18 @@ export default function App() {
   const [isComputingGlossaryOpen, setIsComputingGlossaryOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [selectedProjectForReview, setSelectedProjectForReview] = useState<ShowcaseProject | null>(null);
+  const [pythonHandoff, setPythonHandoff] = useState<{
+    code: string;
+    title: string;
+    key: number;
+  } | null>(null);
+  const [viewRoleMode, setViewRoleMode] = useState<'student' | 'teacher'>(() => {
+    try {
+      const saved = localStorage.getItem('coderkids_view_role_mode');
+      if (saved === 'teacher' || saved === 'student') return saved;
+    } catch {}
+    return 'student';
+  });
 
   // Member Login Gate State ("สมาชิกลงชื่อเข้าใช้งาน ก่อนเข้าบทเรียน")
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
@@ -1280,6 +1318,17 @@ export default function App() {
     addPoints(30, `ส่งและนำเสนอโครงงาน: ${newProject.title}`, 'showcase');
     markModuleComplete('showcase');
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+    publishShowcaseProjectToFirestore({
+      authorName: newProject.studentName || profile.name,
+      authorAvatar: profile.avatarEmoji,
+      grade: newProject.grade || profile.grade,
+      category:
+        newProject.tool === 'Micro:bit' ? 'Micro:bit' : 'Scratch',
+      title: newProject.title,
+      description: newProject.description,
+    }).catch((err) => {
+      console.warn('Firestore showcase sync skipped:', err);
+    });
   };
 
   const handleUpdateProjectStage = (projectId: string, newStage: ProjectStage) => {
@@ -1349,6 +1398,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    // 0. ทดสอบการเชื่อมต่อ Firestore Server ตั้งแต่เปิดแอป
+    testConnection().catch(() => {});
+
     // 1. ดึงข้อมูลสมาชิกอัตโนมัติทุกครั้งที่โหลดแอป จาก Google Sheet (แท็บ Students ID: 1tWcZ4OaGZKOcX1PEvVNadyf9mM_igaKcF3ZV_b3L7Ng)
     fetchStudentsFromGoogleSheet(TARGET_SPREADSHEET_ID)
       .then(({ students }) => {
@@ -1489,6 +1541,40 @@ export default function App() {
   const isTeacherAuthorized = Boolean(isLoggedIn && verifiedUserEmail && teacherCheck.isAdmin);
   const isAdmin = Boolean(isLoggedIn && isTeacherAuthorized && profile.role !== 'student');
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('coderkids_view_role_mode', viewRoleMode);
+    } catch {}
+  }, [viewRoleMode]);
+
+  useEffect(() => {
+    if (isTeacherAuthorized) {
+      setViewRoleMode('teacher');
+    }
+  }, [isTeacherAuthorized]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !auth.currentUser?.emailVerified) return;
+    const timer = window.setTimeout(() => {
+      syncUserProfileToFirestore(profile, points, completedCount).catch((err) => {
+        console.warn('Firestore profile sync skipped:', err);
+      });
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [
+    isLoggedIn,
+    firebaseUserEmail,
+    profile.id,
+    profile.name,
+    profile.nickname,
+    profile.avatarEmoji,
+    profile.grade,
+    profile.school,
+    profile.selectedTitle,
+    points,
+    completedCount,
+  ]);
+
   const handleToggleAdmin = (newAdminState: boolean) => {
     const currentEmail =
       firebaseUserEmail ||
@@ -1599,10 +1685,13 @@ export default function App() {
         onTriggerSync={handleTriggerSync}
         isSyncing={isSyncing}
         lastSyncTime={lastSyncTime}
+        viewRoleMode={viewRoleMode}
+        onChangeViewRoleMode={setViewRoleMode}
       />
 
       {/* Main Container */}
       <main className={`flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 ${isFocusMode ? 'pt-2 max-w-5xl' : 'pt-6 sm:pt-8'}`}>
+        <Suspense fallback={<ModuleLoadingFallback />}>
         {/* Breadcrumb / Back button when navigating away from dashboard */}
         {activeTab !== 'dashboard' && (
           <div className="mb-6 flex items-center justify-between">
@@ -1676,6 +1765,8 @@ export default function App() {
             onOpenCodeTracer={() => setIsCodeTracerOpen(true)}
             onOpenStudentQRPass={() => setIsStudentQRPassOpen(true)}
             addPoints={addPoints}
+            viewRoleMode={viewRoleMode}
+            onChangeViewRoleMode={setViewRoleMode}
           />
         )}
 
@@ -1936,6 +2027,11 @@ export default function App() {
             {thinkingSubTab === 'flowchart' && (
               <FlowchartGuideView
                 addPoints={(pts) => addPoints(pts, 'ทำแบบฝึกหัดผังงาน Flowchart ป.4-ป.6 ผ่าน', 'thinking')}
+                onOpenPythonLab={(code, title) => {
+                  setPythonHandoff({ code, title, key: Date.now() });
+                  setActiveTab('juniorPlayground');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
               />
             )}
             {thinkingSubTab === 'controls' && <ControlStructuresView />}
@@ -2145,6 +2241,9 @@ export default function App() {
         {/* ----------------- VIEW: JUNIOR TEXT-BASED CODE PLAYGROUND ----------------- */}
         {activeTab === 'juniorPlayground' && (
           <JuniorCodePlayground
+            initialCode={pythonHandoff?.code}
+            initialTitle={pythonHandoff?.title}
+            initialCodeKey={pythonHandoff?.key}
             onAwardPoints={(pts) => {
               addPoints(pts, 'เขียนและรันโค้ด Python / JS ใน Junior Playground', 'coding');
               setBadges((prev) =>
@@ -2252,86 +2351,358 @@ export default function App() {
             onBackToLab={() => setActiveTab('safety')}
           />
         )}
+        </Suspense>
       </main>
 
-      {/* Global Modals */}
-      <ProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        profile={profile}
-        onUpdateProfile={handleUpdateProfile}
-        badges={badges}
-        points={points}
-        completedModulesCount={completedCount}
-        onOpenProfileManagement={() => {
-          setIsProfileModalOpen(false);
-          setActiveTab('profileManage');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
+      {/* Global Modals (Code-Split Lazy Loading on Demand) */}
+      <Suspense fallback={null}>
+        {isProfileModalOpen && (
+          <ProfileModal
+            isOpen={isProfileModalOpen}
+            onClose={() => setIsProfileModalOpen(false)}
+            profile={profile}
+            onUpdateProfile={handleUpdateProfile}
+            badges={badges}
+            points={points}
+            completedModulesCount={completedCount}
+            onOpenProfileManagement={() => {
+              setIsProfileModalOpen(false);
+              setActiveTab('profileManage');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        )}
 
-      <SubmitProjectModal
-        isOpen={isSubmitModalOpen}
-        onClose={() => setIsSubmitModalOpen(false)}
-        onSubmit={handleAddProject}
-        defaultStudentName={profile.name}
-        defaultGrade={profile.grade}
-      />
+        {isSubmitModalOpen && (
+          <SubmitProjectModal
+            isOpen={isSubmitModalOpen}
+            onClose={() => setIsSubmitModalOpen(false)}
+            onSubmit={handleAddProject}
+            defaultStudentName={profile.name}
+            defaultGrade={profile.grade}
+          />
+        )}
 
-      <CertificateModal
-        isOpen={isCertificateModalOpen}
-        onClose={() => setIsCertificateModalOpen(false)}
-        studentName={profile.name}
-        schoolName={profile.school}
-        points={points}
-        completedCount={completedCount}
-      />
+        {isCertificateModalOpen && (
+          <CertificateModal
+            isOpen={isCertificateModalOpen}
+            onClose={() => setIsCertificateModalOpen(false)}
+            studentName={profile.name}
+            schoolName={profile.school}
+            points={points}
+            completedCount={completedCount}
+          />
+        )}
 
-      {/* Teacher Assessment Report Modal (ปพ.5) */}
-      <TeacherAssessmentReportModal
-        isOpen={isAssessmentReportOpen}
-        onClose={() => setIsAssessmentReportOpen(false)}
-        currentProfile={profile}
-        profiles={profiles}
-        currentPoints={points}
-        moduleProgress={moduleProgress}
-        onOpenTeacherMastery={() => setIsTeacherMasteryOpen(true)}
-      />
+        {isAssessmentReportOpen && (
+          <TeacherAssessmentReportModal
+            isOpen={isAssessmentReportOpen}
+            onClose={() => setIsAssessmentReportOpen(false)}
+            currentProfile={profile}
+            profiles={profiles}
+            currentPoints={points}
+            moduleProgress={moduleProgress}
+            onOpenTeacherMastery={() => setIsTeacherMasteryOpen(true)}
+          />
+        )}
 
-      {/* Printable Unplugged Worksheets Modal (A4) */}
-      <UnpluggedWorksheetsModal
-        isOpen={isUnpluggedWorksheetsOpen}
-        onClose={() => setIsUnpluggedWorksheetsOpen(false)}
-        onCompleteWorksheet={() => {
-          addPoints(15, 'ทำกิจกรรมใบงาน Unplugged Coding ตามมาตรฐาน สพฐ.', 'thinking');
-          setBadges((prev) =>
-            prev.map((b) => (b.id === 'badge_unplugged_champ' ? { ...b, unlocked: true } : b))
-          );
-        }}
-      />
+        {isUnpluggedWorksheetsOpen && (
+          <UnpluggedWorksheetsModal
+            isOpen={isUnpluggedWorksheetsOpen}
+            onClose={() => setIsUnpluggedWorksheetsOpen(false)}
+            onCompleteWorksheet={() => {
+              addPoints(15, 'ทำกิจกรรมใบงาน Unplugged Coding ตามมาตรฐาน สพฐ.', 'thinking');
+              setBadges((prev) =>
+                prev.map((b) => (b.id === 'badge_unplugged_champ' ? { ...b, unlocked: true } : b))
+              );
+            }}
+          />
+        )}
 
-      {/* Daily Bug Hunter Quest Modal */}
-      <DailyBugHunterModal
-        isOpen={isBugHunterOpen}
-        onClose={() => setIsBugHunterOpen(false)}
-        onSuccessBugHunter={(pts) => {
-          addPoints(pts, 'พิชิตภารกิจล่า Bug ประจำวัน (Daily Bug Hunter)', 'coding');
-          setBadges((prev) =>
-            prev.map((b) => (b.id === 'badge_bug_hunter' ? { ...b, unlocked: true } : b))
-          );
-        }}
-      />
+        {isBugHunterOpen && (
+          <DailyBugHunterModal
+            isOpen={isBugHunterOpen}
+            onClose={() => setIsBugHunterOpen(false)}
+            onSuccessBugHunter={(pts) => {
+              addPoints(pts, 'พิชิตภารกิจล่า Bug ประจำวัน (Daily Bug Hunter)', 'coding');
+              setBadges((prev) =>
+                prev.map((b) => (b.id === 'badge_bug_hunter' ? { ...b, unlocked: true } : b))
+              );
+            }}
+          />
+        )}
 
-      {/* Member Sign-In Gate Modal */}
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-        profiles={profiles}
-        currentProfile={profile}
-        onLoginSuccess={handleLoginSuccess}
-        pendingDestinationModule={pendingDestinationModule}
-        isAdmin={isAdmin}
-      />
+        {isLoginModalOpen && (
+          <LoginModal
+            isOpen={isLoginModalOpen}
+            onClose={() => setIsLoginModalOpen(false)}
+            profiles={profiles}
+            currentProfile={profile}
+            onLoginSuccess={handleLoginSuccess}
+            pendingDestinationModule={pendingDestinationModule}
+            isAdmin={isAdmin}
+          />
+        )}
+
+        {/* AI Tutor Chatbot Floating Assistant */}
+        <AITutorChatbot
+          profile={profile}
+          points={points}
+          activeModule={activeTab}
+          onNavigate={handleNavigate}
+          isOpenExternal={isAITutorOpen}
+          onCloseExternal={() => setIsAITutorOpen(false)}
+        />
+
+        {isGasExportModalOpen && (
+          <GoogleAppsScriptExportModal
+            isOpen={isGasExportModalOpen}
+            onClose={() => setIsGasExportModalOpen(false)}
+          />
+        )}
+
+        {isExamArenaOpen && (
+          <ExamArenaModal
+            isOpen={isExamArenaOpen}
+            onClose={() => setIsExamArenaOpen(false)}
+            studentName={profile.name}
+            onCompleteExam={(score) => {
+              const earned = score * 5;
+              addPoints(earned, `ทำข้อสอบวัดผลจำลอง O-NET / สสวท. ป.6 ได้ ${score}/10 คะแนน`, 'thinking');
+              soundEffects.playFanfare();
+            }}
+          />
+        )}
+
+        {isDigitalPassportOpen && (
+          <DigitalPassportModal
+            isOpen={isDigitalPassportOpen}
+            onClose={() => setIsDigitalPassportOpen(false)}
+            profile={profile}
+            points={points}
+            moduleProgress={moduleProgress}
+          />
+        )}
+
+        {isTeacherPlansOpen && (
+          <TeacherLessonPlansModal
+            isOpen={isTeacherPlansOpen}
+            onClose={() => setIsTeacherPlansOpen(false)}
+          />
+        )}
+
+        {isRubricModalOpen && (
+          <RubricAssessmentModal
+            isOpen={isRubricModalOpen}
+            onClose={() => setIsRubricModalOpen(false)}
+            profile={profile}
+            points={points}
+            completedModulesCount={completedCount}
+            addPoints={addPoints}
+            onCelebrate={handleTriggerManualCelebration}
+          />
+        )}
+
+        {isParentTeacherKitOpen && (
+          <ParentTeacherKitModal
+            isOpen={isParentTeacherKitOpen}
+            onClose={() => setIsParentTeacherKitOpen(false)}
+          />
+        )}
+
+        {isClassroomBattleOpen && (
+          <ClassroomBattleModal
+            isOpen={isClassroomBattleOpen}
+            onClose={() => setIsClassroomBattleOpen(false)}
+            studentName={profile.name}
+            addPoints={addPoints}
+            onCelebrate={handleTriggerManualCelebration}
+          />
+        )}
+
+        {isCodeTyperOpen && (
+          <CodeTyperModal
+            isOpen={isCodeTyperOpen}
+            onClose={() => setIsCodeTyperOpen(false)}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+          />
+        )}
+
+        {isPairArenaOpen && (
+          <PairProgrammingArena
+            isOpen={isPairArenaOpen}
+            onClose={() => setIsPairArenaOpen(false)}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+          />
+        )}
+
+        {isStemPacksOpen && (
+          <StemPacksModal
+            isOpen={isStemPacksOpen}
+            onClose={() => setIsStemPacksOpen(false)}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+          />
+        )}
+
+        {isTeacherMasteryOpen && (
+          <TeacherMasteryPortal
+            isOpen={isTeacherMasteryOpen}
+            onClose={() => setIsTeacherMasteryOpen(false)}
+            currentProfile={profile}
+            profiles={profiles}
+            currentPoints={points}
+            moduleProgress={moduleProgress}
+            onOpenAssessmentReport={() => setIsAssessmentReportOpen(true)}
+          />
+        )}
+
+        {isHeroCardsOpen && (
+          <CoderHeroCardsModal
+            isOpen={isHeroCardsOpen}
+            onClose={() => setIsHeroCardsOpen(false)}
+            studentName={profile.name}
+          />
+        )}
+
+        {isSmartExamOpen && (
+          <SmartExamGeneratorModal
+            isOpen={isSmartExamOpen}
+            onClose={() => setIsSmartExamOpen(false)}
+            studentName={profile.name}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
+          />
+        )}
+
+        {isCodeTracerOpen && (
+          <VisualCodeTracerModal
+            isOpen={isCodeTracerOpen}
+            onClose={() => setIsCodeTracerOpen(false)}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+          />
+        )}
+
+        {isStudentQRPassOpen && (
+          <StudentQRPassModal
+            isOpen={isStudentQRPassOpen}
+            onClose={() => setIsStudentQRPassOpen(false)}
+            currentStudentName={profile.name}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
+          />
+        )}
+
+        {isQuickSearchOpen && (
+          <QuickSearchModal
+            isOpen={isQuickSearchOpen}
+            onClose={() => setIsQuickSearchOpen(false)}
+            onNavigate={handleNavigate}
+            onOpenLuckyWheel={() => setIsLuckyWheelOpen(true)}
+            onOpenMazeRunner={() => setIsMazeRunnerOpen(true)}
+            onOpenHomeworkDropzone={() => setIsHomeworkDropzoneOpen(true)}
+            onOpenAvatarShop={() => setIsAvatarShopOpen(true)}
+            onOpenTeacherMastery={() => setIsTeacherMasteryOpen(true)}
+            onOpenRubricModal={() => setIsRubricModalOpen(true)}
+            onOpenSmartExam={() => setIsSmartExamOpen(true)}
+          />
+        )}
+
+        {isLuckyWheelOpen && (
+          <ClassroomLuckyWheel
+            isOpen={isLuckyWheelOpen}
+            onClose={() => setIsLuckyWheelOpen(false)}
+            profiles={profiles}
+            onAwardBonusPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
+          />
+        )}
+
+        {isMazeRunnerOpen && (
+          <BlockMazeRunner
+            isOpen={isMazeRunnerOpen}
+            onClose={() => setIsMazeRunnerOpen(false)}
+            onAwardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+          />
+        )}
+
+        {isHomeworkDropzoneOpen && (
+          <HomeworkDropzone
+            isOpen={isHomeworkDropzoneOpen}
+            onClose={() => setIsHomeworkDropzoneOpen(false)}
+            profile={profile}
+            onAwardPoints={(pts, reason) => addPoints(pts, reason, 'showcase')}
+          />
+        )}
+
+        {isAvatarShopOpen && (
+          <AvatarShopModal
+            isOpen={isAvatarShopOpen}
+            onClose={() => setIsAvatarShopOpen(false)}
+            points={points}
+            profile={profile}
+            onDeductPoints={(pts, reason) => spendPoints(pts, reason, 'avatar_shop')}
+            onUpdateProfile={handleUpdateProfile}
+          />
+        )}
+
+        {isLiveQuizBattleOpen && (
+          <LiveQuizBattleModal
+            isOpen={isLiveQuizBattleOpen}
+            onClose={() => setIsLiveQuizBattleOpen(false)}
+            currentStudentName={profile.name}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
+          />
+        )}
+
+        {isCommunityRemixOpen && (
+          <CommunityRemixHubModal
+            isOpen={isCommunityRemixOpen}
+            onClose={() => setIsCommunityRemixOpen(false)}
+            currentStudentName={profile.name}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'showcase')}
+          />
+        )}
+
+        {isDailyChallengeOpen && (
+          <DailyMicroChallengeModal
+            isOpen={isDailyChallengeOpen}
+            onClose={() => setIsDailyChallengeOpen(false)}
+            currentStudentName={profile.name}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
+          />
+        )}
+
+        {isBebrasSimulatorOpen && (
+          <BebrasSimulatorModal
+            isOpen={isBebrasSimulatorOpen}
+            onClose={() => setIsBebrasSimulatorOpen(false)}
+            currentStudentName={profile.name}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
+          />
+        )}
+
+        {isSocraticDebuggerOpen && (
+          <SmartSocraticDebuggerModal
+            isOpen={isSocraticDebuggerOpen}
+            onClose={() => setIsSocraticDebuggerOpen(false)}
+            currentStudentName={profile.name}
+            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+          />
+        )}
+
+        {isStudentReportCardOpen && (
+          <StudentReportCardModal
+            isOpen={isStudentReportCardOpen}
+            onClose={() => setIsStudentReportCardOpen(false)}
+            profile={profile}
+            points={points}
+          />
+        )}
+
+        {isComputingGlossaryOpen && (
+          <ComputingGlossaryModal
+            isOpen={isComputingGlossaryOpen}
+            onClose={() => setIsComputingGlossaryOpen(false)}
+          />
+        )}
+      </Suspense>
 
       {/* Milestone & Completion Confetti Celebration Modal */}
       <ConfettiCelebration
@@ -2339,238 +2710,6 @@ export default function App() {
         onClose={() => setCelebrationEvent(null)}
         onNavigate={handleNavigate}
         profile={profile}
-      />
-
-      {/* AI Tutor Chatbot Floating Assistant */}
-      <AITutorChatbot
-        profile={profile}
-        points={points}
-        activeModule={activeTab}
-        onNavigate={handleNavigate}
-        isOpenExternal={isAITutorOpen}
-        onCloseExternal={() => setIsAITutorOpen(false)}
-      />
-
-      {/* Google Apps Script & Google Sheets Exporter Modal */}
-      <GoogleAppsScriptExportModal
-        isOpen={isGasExportModalOpen}
-        onClose={() => setIsGasExportModalOpen(false)}
-      />
-
-      {/* Standardized O-NET Grade 6 & สสวท. Computing Science Exam Simulator Modal */}
-      <ExamArenaModal
-        isOpen={isExamArenaOpen}
-        onClose={() => setIsExamArenaOpen(false)}
-        studentName={profile.name}
-        onCompleteExam={(score) => {
-          const earned = score * 5;
-          addPoints(earned, `ทำข้อสอบวัดผลจำลอง O-NET / สสวท. ป.6 ได้ ${score}/10 คะแนน`, 'thinking');
-          soundEffects.playFanfare();
-        }}
-      />
-
-      {/* Official Digital Coding Passport & Competency Stamps Modal */}
-      <DigitalPassportModal
-        isOpen={isDigitalPassportOpen}
-        onClose={() => setIsDigitalPassportOpen(false)}
-        profile={profile}
-        points={points}
-        moduleProgress={moduleProgress}
-      />
-
-      {/* 8 Complete Teacher Lesson Plans & Teaching Slides Modal (ว 4.2 ป.4-6) */}
-      <TeacherLessonPlansModal
-        isOpen={isTeacherPlansOpen}
-        onClose={() => setIsTeacherPlansOpen(false)}
-      />
-
-      {/* Rubric Self & Peer Assessment & Growth Portfolio Modal (ว 4.2 สสวท.) */}
-      <RubricAssessmentModal
-        isOpen={isRubricModalOpen}
-        onClose={() => setIsRubricModalOpen(false)}
-        profile={profile}
-        points={points}
-        completedModulesCount={completedCount}
-        addPoints={addPoints}
-        onCelebrate={handleTriggerManualCelebration}
-      />
-
-      {/* Parent & Teacher Resource Kit (Worksheets with QR Code + Family Digital Guide) */}
-      <ParentTeacherKitModal
-        isOpen={isParentTeacherKitOpen}
-        onClose={() => setIsParentTeacherKitOpen(false)}
-      />
-
-      {/* Live Classroom Coding Battle & Bug Hunter Sprint Modal */}
-      <ClassroomBattleModal
-        isOpen={isClassroomBattleOpen}
-        onClose={() => setIsClassroomBattleOpen(false)}
-        studentName={profile.name}
-        addPoints={addPoints}
-        onCelebrate={handleTriggerManualCelebration}
-      />
-
-      {/* Kids Code Typer Arcade Modal (WPM & Code Symbols) */}
-      <CodeTyperModal
-        isOpen={isCodeTyperOpen}
-        onClose={() => setIsCodeTyperOpen(false)}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
-      />
-
-      {/* Pair Programming Arena Modal (1v1 Split-Screen Duel & Driver-Navigator) */}
-      <PairProgrammingArena
-        isOpen={isPairArenaOpen}
-        onClose={() => setIsPairArenaOpen(false)}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
-      />
-
-      {/* Cross-Curricular STEM Project Packs Modal (Smart Farm, Pedometer, Alarm + 5E) */}
-      <StemPacksModal
-        isOpen={isStemPacksOpen}
-        onClose={() => setIsStemPacksOpen(false)}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
-      />
-
-      {/* Teacher Mastery & Por-Por-5 Assessment Portal Modal (ว 4.2 สพฐ./สสวท.) */}
-      <TeacherMasteryPortal
-        isOpen={isTeacherMasteryOpen}
-        onClose={() => setIsTeacherMasteryOpen(false)}
-        currentProfile={profile}
-        profiles={profiles}
-        currentPoints={points}
-        moduleProgress={moduleProgress}
-        onOpenAssessmentReport={() => setIsAssessmentReportOpen(true)}
-      />
-
-      {/* Coder Hero Trading Cards Album Modal (3D Hologram & Print A4) */}
-      <CoderHeroCardsModal
-        isOpen={isHeroCardsOpen}
-        onClose={() => setIsHeroCardsOpen(false)}
-        studentName={profile.name}
-      />
-
-      {/* Smart Exam Paper Generator & Live Quiz Modal (สุ่มข้อสอบ ป.4-ป.6 + กระดาษคำตอบ A4) */}
-      <SmartExamGeneratorModal
-        isOpen={isSmartExamOpen}
-        onClose={() => setIsSmartExamOpen(false)}
-        studentName={profile.name}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
-      />
-
-      {/* Visual Step-by-Step Code Tracer & Debugger Modal (จำลอง RAM & Loop) */}
-      <VisualCodeTracerModal
-        isOpen={isCodeTracerOpen}
-        onClose={() => setIsCodeTracerOpen(false)}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
-      />
-
-      {/* Student QR Pass & Teacher Classroom Attendance Scanner Modal */}
-      <StudentQRPassModal
-        isOpen={isStudentQRPassOpen}
-        onClose={() => setIsStudentQRPassOpen(false)}
-        currentStudentName={profile.name}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
-      />
-
-      {/* Quick Search Spotlight Modal (Ctrl+K) */}
-      <QuickSearchModal
-        isOpen={isQuickSearchOpen}
-        onClose={() => setIsQuickSearchOpen(false)}
-        onNavigate={handleNavigate}
-        onOpenLuckyWheel={() => setIsLuckyWheelOpen(true)}
-        onOpenMazeRunner={() => setIsMazeRunnerOpen(true)}
-        onOpenHomeworkDropzone={() => setIsHomeworkDropzoneOpen(true)}
-        onOpenAvatarShop={() => setIsAvatarShopOpen(true)}
-        onOpenTeacherMastery={() => setIsTeacherMasteryOpen(true)}
-        onOpenRubricModal={() => setIsRubricModalOpen(true)}
-        onOpenSmartExam={() => setIsSmartExamOpen(true)}
-      />
-
-      {/* Classroom Lucky Wheel & Team Randomizer Modal */}
-      <ClassroomLuckyWheel
-        isOpen={isLuckyWheelOpen}
-        onClose={() => setIsLuckyWheelOpen(false)}
-        profiles={profiles}
-        onAwardBonusPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
-      />
-
-      {/* Block Maze Runner Logic Game (10 Progressive Levels) */}
-      <BlockMazeRunner
-        isOpen={isMazeRunnerOpen}
-        onClose={() => setIsMazeRunnerOpen(false)}
-        onAwardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
-      />
-
-      {/* Homework Dropzone & Digital Student Portfolio */}
-      <HomeworkDropzone
-        isOpen={isHomeworkDropzoneOpen}
-        onClose={() => setIsHomeworkDropzoneOpen(false)}
-        profile={profile}
-        onAwardPoints={(pts, reason) => addPoints(pts, reason, 'showcase')}
-      />
-
-      {/* Avatar Shop & Coder Fashion Customizer */}
-      <AvatarShopModal
-        isOpen={isAvatarShopOpen}
-        onClose={() => setIsAvatarShopOpen(false)}
-        points={points}
-        profile={profile}
-        onDeductPoints={(pts, reason) => spendPoints(pts, reason, 'avatar_shop')}
-        onUpdateProfile={handleUpdateProfile}
-      />
-
-      {/* กลุ่มที่ 1: Live Classroom Quiz Battle Modal (Kahoot-Style) */}
-      <LiveQuizBattleModal
-        isOpen={isLiveQuizBattleOpen}
-        onClose={() => setIsLiveQuizBattleOpen(false)}
-        currentStudentName={profile.name}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
-      />
-
-      {/* กลุ่มที่ 2: Community Remix Hub Modal */}
-      <CommunityRemixHubModal
-        isOpen={isCommunityRemixOpen}
-        onClose={() => setIsCommunityRemixOpen(false)}
-        currentStudentName={profile.name}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'showcase')}
-      />
-
-      {/* กลุ่มที่ 2: 3-Minute Daily Micro Challenge Modal */}
-      <DailyMicroChallengeModal
-        isOpen={isDailyChallengeOpen}
-        onClose={() => setIsDailyChallengeOpen(false)}
-        currentStudentName={profile.name}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
-      />
-
-      {/* กลุ่มที่ 3: Bebras CT Challenge Simulator Modal */}
-      <BebrasSimulatorModal
-        isOpen={isBebrasSimulatorOpen}
-        onClose={() => setIsBebrasSimulatorOpen(false)}
-        currentStudentName={profile.name}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
-      />
-
-      {/* กลุ่มที่ 3: Smart Socratic AI Debugger Modal */}
-      <SmartSocraticDebuggerModal
-        isOpen={isSocraticDebuggerOpen}
-        onClose={() => setIsSocraticDebuggerOpen(false)}
-        currentStudentName={profile.name}
-        onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
-      />
-
-      {/* กลุ่มที่ 4: Student Competency Report Card Modal (ปพ.5 / ว PA) */}
-      <StudentReportCardModal
-        isOpen={isStudentReportCardOpen}
-        onClose={() => setIsStudentReportCardOpen(false)}
-        profile={profile}
-        points={points}
-      />
-
-      {/* กลุ่มที่ 4: Computing Glossary Bilingual Dictionary Modal */}
-      <ComputingGlossaryModal
-        isOpen={isComputingGlossaryOpen}
-        onClose={() => setIsComputingGlossaryOpen(false)}
       />
 
       {/* Day / Night Smooth Transition Effect Overlay */}

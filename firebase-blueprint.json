@@ -1,0 +1,406 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Publicly visible learner profile and gamification progress without PII.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "nickname": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "avatarEmoji": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16
+        },
+        "grade": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "school": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "points": {
+          "type": "integer"
+        },
+        "codingLevel": {
+          "type": "string",
+          "enum": ["Beginner", "Intermediate", "Advanced"]
+        },
+        "selectedTitle": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "streakDays": {
+          "type": "integer"
+        },
+        "completedModulesCount": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "avatarEmoji",
+        "grade",
+        "school",
+        "points",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Strictly isolated learner PII (email, studentId, bio, role) readable only by owner or admin.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "contactEmail": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "bio": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "motto": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "teacher"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "role", "createdAt", "updatedAt"]
+    },
+    "SavedFlowchart": {
+      "title": "SavedFlowchart",
+      "description": "Student-created flowchart workspace saved as structured native Firestore maps/arrays.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "missionId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "templateId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "displayMode": {
+          "type": "string",
+          "enum": ["visual", "text"]
+        },
+        "snapToGrid": {
+          "type": "boolean"
+        },
+        "nodes": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["ownerId", "title", "displayMode", "snapToGrid", "nodes", "createdAt", "updatedAt"]
+    },
+    "ShowcaseProject": {
+      "title": "ShowcaseProject",
+      "description": "Student Scratch or Micro:bit project published to the class showcase gallery.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "authorAvatar": {
+          "type": "string",
+          "maxLength": 16
+        },
+        "grade": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Scratch", "Micro:bit", "Python", "Flowchart"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "projectUrl": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "likesCount": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["published", "archived"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "authorName",
+        "category",
+        "title",
+        "description",
+        "likesCount",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PeerReview": {
+      "title": "PeerReview",
+      "description": "Structured 2 Stars & A Wish peer feedback attached to a ShowcaseProject.",
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reviewerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "reviewerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "star1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "star2": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "wish": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["projectId", "reviewerId", "reviewerName", "star1", "wish", "createdAt"]
+    },
+    "PorPor5Record": {
+      "title": "PorPor5Record",
+      "description": "Teacher-managed Thai OBEC PorPor 5 competency assessment record.",
+      "type": "object",
+      "properties": {
+        "studentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "gradeRoom": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "pdpaScore": {
+          "type": "integer"
+        },
+        "logicScore": {
+          "type": "integer"
+        },
+        "codingScore": {
+          "type": "integer"
+        },
+        "showcaseScore": {
+          "type": "integer"
+        },
+        "totalScore": {
+          "type": "integer"
+        },
+        "gradeLevel": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ผ่านเกณฑ์", "รอพัฒนา", "ดีเยี่ยม"]
+        },
+        "teacherUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "studentId",
+        "name",
+        "gradeRoom",
+        "pdpaScore",
+        "logicScore",
+        "codingScore",
+        "showcaseScore",
+        "totalScore",
+        "status",
+        "teacherUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Trusted teacher/administrator role grant document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "teacher"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/public/{profileDocId}": {
+      "schema": { "$ref": "#/entities/UserPublicProfile" },
+      "description": "Public learner profile & gamification progress document (doc ID: profile)."
+    },
+    "/users/{userId}/private/{privateDocId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Private learner PII & role metadata isolated to owner or admin (doc ID: info)."
+    },
+    "/users/{userId}/flowcharts/{flowchartId}": {
+      "schema": { "$ref": "#/entities/SavedFlowchart" },
+      "description": "Saved flowchart workspace snapshots owned by the learner."
+    },
+    "/showcaseProjects/{projectId}": {
+      "schema": { "$ref": "#/entities/ShowcaseProject" },
+      "description": "Published student projects in the Coder Kids Showcase."
+    },
+    "/showcaseProjects/{projectId}/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/PeerReview" },
+      "description": "2 Stars & A Wish peer reviews scoped to a parent ShowcaseProject."
+    },
+    "/porpor5Records/{recordId}": {
+      "schema": { "$ref": "#/entities/PorPor5Record" },
+      "description": "Teacher-managed OBEC PorPor 5 assessment gradebook records."
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Trusted admin/teacher registry checked by security rules."
+    }
+  }
+}

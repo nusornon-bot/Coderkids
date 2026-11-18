@@ -5,6 +5,11 @@
  * Fully compatible with Cloudflare Workers (Static Assets) and Cloudflare Pages (Free Tier — no Google Cloud Billing required).
  */
 import { GoogleGenAI, Type } from '@google/genai';
+import {
+  verifyFirebaseIdToken,
+  isVerifiedTeacherToken,
+  FIREBASE_PROJECT_ID,
+} from '../shared/firebaseJwt.ts';
 
 export interface KVNamespace {
   get: (key: string) => Promise<string | null>;
@@ -233,6 +238,35 @@ function jsonResponse(data: any, status: number = 200): Response {
       ...corsHeaders,
     },
   });
+}
+
+async function requireVerifiedTeacherWorker(request: Request) {
+  const user = await verifyFirebaseIdToken(request.headers.get('Authorization'), {
+    projectId: FIREBASE_PROJECT_ID,
+  });
+  if (!user) {
+    return {
+      ok: false as const,
+      response: jsonResponse(
+        { success: false, error: 'Authentication required (valid Firebase ID token)' },
+        401
+      ),
+    };
+  }
+  if (!isVerifiedTeacherToken(user)) {
+    return {
+      ok: false as const,
+      response: jsonResponse(
+        { success: false, error: 'Forbidden: verified teacher account required' },
+        403
+      ),
+    };
+  }
+  return { ok: true as const, user };
+}
+
+function clampString(val: unknown, maxLen: number, fallback = ''): string {
+  return typeof val === 'string' ? val.trim().slice(0, maxLen) : fallback;
 }
 
 function buildTutorFallbackReply(message: string): string {
@@ -631,20 +665,26 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
         }
       }
 
-      // 1C. GOOGLE SHEETS BRIDGE TOKEN / GAS WEBAPP CONFIG (Allows Student ID logins to write directly to Google Sheet)
+      // 1C. GOOGLE SHEETS BRIDGE TOKEN / GAS WEBAPP CONFIG (Protected by verified teacher Firebase ID token)
       if (url.pathname === '/api/sheets/bridge') {
+        const authCheck = await requireVerifiedTeacherWorker(request);
+        if (!authCheck.ok) return authCheck.response;
         if (request.method === 'POST') {
           const body = (await request.json().catch(() => ({}))) as any;
           if (typeof body.accessToken === 'string' && body.accessToken.trim()) {
-            (globalThis as any).__bridgeSheetsToken = body.accessToken.trim();
+            const cleanToken = body.accessToken.trim().slice(0, 2048);
+            (globalThis as any).__bridgeSheetsToken = cleanToken;
             if (env.STUDENTS_KV) {
-              await env.STUDENTS_KV.put('bridge_sheets_token', body.accessToken.trim());
+              await env.STUDENTS_KV.put('bridge_sheets_token', cleanToken);
             }
           }
           if (typeof body.gasWebAppUrl === 'string') {
-            (globalThis as any).__bridgeGasUrl = body.gasWebAppUrl.trim();
-            if (env.STUDENTS_KV) {
-              await env.STUDENTS_KV.put('bridge_gas_url', body.gasWebAppUrl.trim());
+            const cleanUrl = body.gasWebAppUrl.trim().slice(0, 512);
+            if (!cleanUrl || cleanUrl.startsWith('https://script.google.com/')) {
+              (globalThis as any).__bridgeGasUrl = cleanUrl;
+              if (env.STUDENTS_KV) {
+                await env.STUDENTS_KV.put('bridge_gas_url', cleanUrl);
+              }
             }
           }
           return jsonResponse({
@@ -676,21 +716,30 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
       // 2. RECORD CLASSROOM ACCESS LOG
       if (url.pathname === '/api/logs/record' && request.method === 'POST') {
         try {
+          const authHeader = request.headers.get('Authorization');
+          if (authHeader) {
+            const verified = await verifyFirebaseIdToken(authHeader, {
+              projectId: FIREBASE_PROJECT_ID,
+            });
+            if (!verified) {
+              return jsonResponse({ success: false, error: 'Invalid Firebase ID token' }, 401);
+            }
+          }
           const log = (await request.json().catch(() => ({}))) as any;
           let directSheetWrite = false;
-          if (log && log.studentName) {
+          if (log && typeof log.studentName === 'string' && log.studentName.trim()) {
             const nowThai = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' }).replace('T', ' ');
             const logItem = {
-              timestamp: log.timestamp || nowThai,
-              studentName: log.studentName,
-              grade: log.grade || 'ป.4/1',
-              school: log.school || 'โรงเรียนอนุบาลนราธิวาส',
-              avatar: log.avatar || '🐱',
-              action: log.action || 'เข้าใช้งานห้องเรียน Coder Kids',
-              note: log.note || 'บันทึกการเข้าเรียนอัตโนมัติ',
-              streak: log.streak || 'Streak 1 วัน',
-              activeModule: log.activeModule || 'dashboard',
-              email: log.email || '',
+              timestamp: clampString(log.timestamp, 40, nowThai) || nowThai,
+              studentName: clampString(log.studentName, 120),
+              grade: clampString(log.grade, 40, 'ป.4/1') || 'ป.4/1',
+              school: clampString(log.school, 120, 'โรงเรียนอนุบาลนราธิวาส') || 'โรงเรียนอนุบาลนราธิวาส',
+              avatar: clampString(log.avatar, 16, '🐱') || '🐱',
+              action: clampString(log.action, 200, 'เข้าใช้งานห้องเรียน Coder Kids') || 'เข้าใช้งานห้องเรียน Coder Kids',
+              note: clampString(log.note, 300, 'บันทึกการเข้าเรียนอัตโนมัติ') || 'บันทึกการเข้าเรียนอัตโนมัติ',
+              streak: clampString(log.streak, 40, 'Streak 1 วัน') || 'Streak 1 วัน',
+              activeModule: clampString(log.activeModule, 60, 'dashboard') || 'dashboard',
+              email: clampString(log.email, 160, ''),
             };
 
             inMemoryLogs.unshift(logItem);
@@ -773,8 +822,10 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
         }
       }
 
-      // 3. GET CLASSROOM ACCESS LOGS
+      // 3. GET CLASSROOM ACCESS LOGS (Protected)
       if (url.pathname === '/api/logs/list' && request.method === 'GET') {
+        const authCheck = await requireVerifiedTeacherWorker(request);
+        if (!authCheck.ok) return authCheck.response;
         try {
           if (env.LOGS_KV) {
             const kvLogs = await env.LOGS_KV.get('latest_logs');
@@ -791,36 +842,48 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
       // 4. REGISTER STUDENT PROFILE
       if (url.pathname === '/api/students/register' && request.method === 'POST') {
         try {
+          const authHeader = request.headers.get('Authorization');
+          if (authHeader) {
+            const verified = await verifyFirebaseIdToken(authHeader, {
+              projectId: FIREBASE_PROJECT_ID,
+            });
+            if (!verified) {
+              return jsonResponse({ success: false, error: 'Invalid Firebase ID token' }, 401);
+            }
+          }
           const student = (await request.json().catch(() => ({}))) as any;
           let directSheetWrite = false;
-          if (student && student.name) {
+          if (student && typeof student.name === 'string' && student.name.trim()) {
             const nowThai = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' }).replace('T', ' ');
+            const cleanName = clampString(student.name, 120);
+            const cleanStudentId = clampString(student.studentId, 64, '') || `CK-2569-${Math.floor(1000 + Math.random() * 9000)}`;
             const existingIdx = inMemoryStudents.findIndex(
               (s) =>
-                (s.studentId && student.studentId && s.studentId === student.studentId) ||
-                (s.name && student.name && s.name.trim().toLowerCase() === student.name.trim().toLowerCase())
+                (s.studentId && cleanStudentId && s.studentId === cleanStudentId) ||
+                (s.name && cleanName && s.name.trim().toLowerCase() === cleanName.toLowerCase())
             );
 
             const studentRecord = {
-              id: student.id || `stu_${Date.now()}`,
-              name: student.name.trim(),
-              nickname: student.nickname ? student.nickname.trim() : '',
-              studentId: student.studentId ? student.studentId.trim() : `CK-2569-${Math.floor(1000 + Math.random() * 9000)}`,
-              grade: student.grade || 'ประถมศึกษาปีที่ 4/1',
-              school: student.school || 'โรงเรียนอนุบาลนราธิวาส',
-              avatarId: student.avatarId || 'avatar_cat',
-              avatarEmoji: student.avatarEmoji || '🐱',
-              registeredAt: student.registeredAt || nowThai,
-              email: student.email || student.contactEmail || '',
-              points: student.points || 50,
-              bio: student.bio || 'พร้อมเริ่มต้นเรียนรู้วิทยาการคำนวณและสะสมแต้มผลงาน',
-              role: student.role || 'student',
+              id: clampString(student.id, 80, `stu_${Date.now()}`) || `stu_${Date.now()}`,
+              name: cleanName,
+              nickname: clampString(student.nickname, 60, ''),
+              studentId: cleanStudentId,
+              grade: clampString(student.grade, 60, 'ประถมศึกษาปีที่ 4/1') || 'ประถมศึกษาปีที่ 4/1',
+              school: clampString(student.school, 120, 'โรงเรียนอนุบาลนราธิวาส') || 'โรงเรียนอนุบาลนราธิวาส',
+              avatarId: clampString(student.avatarId, 40, 'avatar_cat') || 'avatar_cat',
+              avatarEmoji: clampString(student.avatarEmoji, 16, '🐱') || '🐱',
+              registeredAt: clampString(student.registeredAt, 40, nowThai) || nowThai,
+              email: clampString(student.email || student.contactEmail, 160, ''),
+              points: Math.max(0, Math.min(1_000_000, Number(student.points) || 50)),
+              bio: clampString(student.bio, 400, 'พร้อมเริ่มต้นเรียนรู้วิทยาการคำนวณและสะสมแต้มผลงาน'),
+              role: 'student',
             };
 
             if (existingIdx >= 0) {
               inMemoryStudents[existingIdx] = { ...inMemoryStudents[existingIdx], ...studentRecord };
             } else {
               inMemoryStudents.push(studentRecord);
+              if (inMemoryStudents.length > 500) inMemoryStudents.shift();
             }
 
             if (env.STUDENTS_KV) {
@@ -902,23 +965,43 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
         }
       }
 
-      // 5. GET REGISTERED STUDENTS LIST
+      // 5. GET REGISTERED STUDENTS LIST (Full for verified teachers, non-PII lookup otherwise)
       if (url.pathname === '/api/students/list' && request.method === 'GET') {
         try {
+          const user = await verifyFirebaseIdToken(request.headers.get('Authorization'), {
+            projectId: FIREBASE_PROJECT_ID,
+          });
+          let list = inMemoryStudents;
           if (env.STUDENTS_KV) {
             const kvStudents = await env.STUDENTS_KV.get('registered_students');
             if (kvStudents) {
-              return jsonResponse({ success: true, students: JSON.parse(kvStudents) });
+              list = JSON.parse(kvStudents);
             }
           }
-          return jsonResponse({ success: true, students: inMemoryStudents });
+          if (isVerifiedTeacherToken(user)) {
+            return jsonResponse({ success: true, students: list });
+          }
+          const sanitized = Array.isArray(list)
+            ? list.map((s: any) => ({
+                studentId: s.studentId,
+                name: s.name,
+                nickname: s.nickname,
+                grade: s.grade,
+                school: s.school,
+                avatarId: s.avatarId,
+                avatarEmoji: s.avatarEmoji,
+              }))
+            : [];
+          return jsonResponse({ success: true, students: sanitized });
         } catch (err: any) {
           return jsonResponse({ success: false, error: err.message }, 500);
         }
       }
 
-      // 6. SHARED POR-POR-5 (ปพ.5) GRADEBOOK SYNC API
+      // 6. SHARED POR-POR-5 (ปพ.5) GRADEBOOK SYNC API (Protected)
       if (url.pathname === '/api/porpor5/list' && request.method === 'GET') {
+        const authCheck = await requireVerifiedTeacherWorker(request);
+        if (!authCheck.ok) return authCheck.response;
         try {
           let recordsList = Array.from(porPor5ServerRecords.values());
           let studentsList = inMemoryStudents;
@@ -962,19 +1045,22 @@ ${studentContext ? `\nข้อมูลบริบทผู้เรียน:
       }
 
       if (url.pathname === '/api/porpor5/save' && request.method === 'POST') {
+        const authCheck = await requireVerifiedTeacherWorker(request);
+        if (!authCheck.ok) return authCheck.response;
         try {
           const body = (await request.json().catch(() => ({}))) as any;
           const { records } = body;
-          if (Array.isArray(records)) {
-            for (const r of records) {
-              if (r && (r.studentId || r.name)) {
-                const key = String(r.studentId || r.name).trim().toLowerCase();
-                porPor5ServerRecords.set(key, {
-                  ...porPor5ServerRecords.get(key),
-                  ...r,
-                  lastUpdated: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
-                });
-              }
+          if (!Array.isArray(records)) {
+            return jsonResponse({ success: false, error: 'records must be an array' }, 400);
+          }
+          for (const r of records.slice(0, 500)) {
+            if (r && (r.studentId || r.name)) {
+              const key = String(r.studentId || r.name).trim().toLowerCase().slice(0, 128);
+              porPor5ServerRecords.set(key, {
+                ...porPor5ServerRecords.get(key),
+                ...r,
+                lastUpdated: new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }),
+              });
             }
           }
           const updatedList = Array.from(porPor5ServerRecords.values());
