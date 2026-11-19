@@ -216,17 +216,22 @@ export const AITutorChatbot: React.FC<AITutorChatbotProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const [confirmClearChat, setConfirmClearChat] = useState<boolean>(false);
+
   const handleClearHistory = () => {
-    if (window.confirm('ต้องการล้างประวัติการสนทนากับครูพี่โค้ดดิ้งหรือไม่?')) {
-      setMessages([
-        {
-          id: `msg_welcome_${Date.now()}`,
-          role: 'model',
-          text: `เริ่มบทสนทนาใหม่แล้วครับ! น้อง ${profile.nickname || profile.name || 'คนเก่ง'} มีเรื่องอะไรอยากปรึกษาครูพี่โค้ดดิ้งถามได้เลยนะครับ 🤖💡`,
-          timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
-        },
-      ]);
-    }
+    setConfirmClearChat(true);
+  };
+
+  const confirmResetChat = () => {
+    setMessages([
+      {
+        id: `msg_welcome_${Date.now()}`,
+        role: 'model',
+        text: `เริ่มบทสนทนาใหม่แล้วครับ! น้อง ${profile.nickname || profile.name || 'คนเก่ง'} มีเรื่องอะไรอยากปรึกษาครูพี่โค้ดดิ้งถามได้เลยนะครับ 🤖💡`,
+        timestamp: new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }),
+      },
+    ]);
+    setConfirmClearChat(false);
   };
 
   const handleToggleClose = () => {
@@ -344,6 +349,28 @@ export const AITutorChatbot: React.FC<AITutorChatbotProps> = ({
                 </button>
               </div>
             </div>
+
+            {confirmClearChat && !isMinimized && (
+              <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200 flex items-center justify-between gap-2 text-xs text-amber-950">
+                <span className="font-semibold">ล้างประวัติการสนทนาทั้งหมดหรือไม่?</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={confirmResetChat}
+                    className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer"
+                  >
+                    ล้างประวัติ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClearChat(false)}
+                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold cursor-pointer"
+                  >
+                    ยกเลิก
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* When not minimized: Messages List and Input */}
             {!isMinimized && (

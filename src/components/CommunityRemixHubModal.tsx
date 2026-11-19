@@ -210,6 +210,7 @@ export const CommunityRemixHubModal: React.FC<CommunityRemixHubModalProps> = ({
   const [newDescription, setNewDescription] = useState<string>('');
   const [newEmoji, setNewEmoji] = useState<string>('🎨✨');
   const [newSnippet, setNewSnippet] = useState<string>('// โค้ดผลงานของคุณ\nwhen green flag clicked\nsay [สวัสดีเพื่อนๆ Coder Kids!]');
+  const [remixBanner, setRemixBanner] = useState<string | null>(null);
 
   const handleToggleLike = (projectId: string) => {
     soundEffects.play('click');
@@ -254,7 +255,8 @@ export const CommunityRemixHubModal: React.FC<CommunityRemixHubModalProps> = ({
       onLoadProjectToLab(proj.codeSnippet, proj.category);
     }
 
-    alert(`🎉 รีมิกซ์ผลงาน "${proj.title}" สำเร็จ! โค้ดถูกนำเข้าสู่พื้นที่ทดลองเขียนโปรแกรมของคุณเรียบร้อยแล้ว`);
+    setRemixBanner(`รีมิกซ์ผลงาน "${proj.title}" สำเร็จ! โค้ดถูกนำเข้าสู่พื้นที่ทดลองเขียนโปรแกรมของคุณเรียบร้อยแล้ว (+10 EXP)`);
+    setTimeout(() => setRemixBanner(null), 4000);
   };
 
   const handleAddReview = (e: React.FormEvent) => {
@@ -384,6 +386,19 @@ export const CommunityRemixHubModal: React.FC<CommunityRemixHubModalProps> = ({
             </button>
           </div>
         </div>
+
+        {remixBanner && (
+          <div className="mx-4 mt-3 px-4 py-2.5 rounded-2xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 text-xs font-bold flex items-center justify-between gap-2">
+            <span>🎉 {remixBanner}</span>
+            <button
+              type="button"
+              onClick={() => setRemixBanner(null)}
+              className="text-emerald-300 hover:text-white cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Filter and Search Bar */}
         <div className="p-4 bg-slate-950/40 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">

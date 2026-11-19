@@ -371,6 +371,324 @@
         }
       },
       "required": ["uid", "email", "role", "createdAt"]
+    },
+    "HomeworkSubmission": {
+      "title": "HomeworkSubmission",
+      "description": "Student homework/assignment submission with teacher grading and rubric feedback.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "studentClass": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "projectUrl": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "reflection": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "graded"]
+        },
+        "gradeScore": {
+          "type": "integer"
+        },
+        "teacherFeedback": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "studentName",
+        "studentClass",
+        "topic",
+        "title",
+        "reflection",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StudioProject": {
+      "title": "StudioProject",
+      "description": "Cloud-saved student project in Scratch Studio, Micro:bit Simulator, or Junior Python Playground.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studioType": {
+          "type": "string",
+          "enum": ["scratch", "microbit", "python"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "presetId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "codeContent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000
+        },
+        "blocksJson": {
+          "type": "string",
+          "maxLength": 30000
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["ownerId", "studioType", "title", "codeContent", "createdAt", "updatedAt"]
+    },
+    "LiveQuizRoom": {
+      "title": "LiveQuizRoom",
+      "description": "Real-time classroom Live Quiz Battle room state managed by host/teacher.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 12,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "hostUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "hostName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "stage": {
+          "type": "string",
+          "enum": ["lobby", "question", "reveal", "podium"]
+        },
+        "currentQuestionIndex": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "closed"]
+        },
+        "platformSet": {
+          "type": "string",
+          "enum": ["Scratch", "Micro:bit", "mixed"]
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["all", "easy", "medium", "hard"]
+        },
+        "questionCount": {
+          "type": "integer"
+        },
+        "questionIds": {
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "hostUid",
+        "hostName",
+        "title",
+        "stage",
+        "currentQuestionIndex",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "LiveQuizParticipant": {
+      "title": "LiveQuizParticipant",
+      "description": "Participant score and streak state inside a LiveQuizRoom.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 12,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "avatar": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16
+        },
+        "score": {
+          "type": "integer"
+        },
+        "streak": {
+          "type": "integer"
+        },
+        "lastAnswerIndex": {
+          "type": "integer"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "userId",
+        "displayName",
+        "avatar",
+        "score",
+        "streak",
+        "lastAnswerIndex",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BattleQuestion": {
+      "title": "BattleQuestion",
+      "description": "Teacher-authored Scratch or Micro:bit coding battle question stored in the classroom question bank.",
+      "type": "object",
+      "properties": {
+        "platform": {
+          "type": "string",
+          "enum": ["Scratch", "Micro:bit"]
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "codeSnippet": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500
+        },
+        "options": {
+          "type": "array"
+        },
+        "correctIndex": {
+          "type": "integer"
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "archived"]
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "platform",
+        "difficulty",
+        "title",
+        "codeSnippet",
+        "options",
+        "correctIndex",
+        "explanation",
+        "status",
+        "createdByUid",
+        "createdByName",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -386,6 +704,10 @@
       "schema": { "$ref": "#/entities/SavedFlowchart" },
       "description": "Saved flowchart workspace snapshots owned by the learner."
     },
+    "/users/{userId}/studioProjects/{studioProjectId}": {
+      "schema": { "$ref": "#/entities/StudioProject" },
+      "description": "Cloud-saved Scratch, Micro:bit, and Python projects owned by the learner."
+    },
     "/showcaseProjects/{projectId}": {
       "schema": { "$ref": "#/entities/ShowcaseProject" },
       "description": "Published student projects in the Coder Kids Showcase."
@@ -394,6 +716,18 @@
       "schema": { "$ref": "#/entities/PeerReview" },
       "description": "2 Stars & A Wish peer reviews scoped to a parent ShowcaseProject."
     },
+    "/homeworkSubmissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/HomeworkSubmission" },
+      "description": "Student homework submissions with teacher grading and feedback."
+    },
+    "/liveRooms/{roomCode}": {
+      "schema": { "$ref": "#/entities/LiveQuizRoom" },
+      "description": "Live classroom quiz battle room state."
+    },
+    "/liveRooms/{roomCode}/participants/{participantId}": {
+      "schema": { "$ref": "#/entities/LiveQuizParticipant" },
+      "description": "Participants and live scores inside a LiveQuizRoom."
+    },
     "/porpor5Records/{recordId}": {
       "schema": { "$ref": "#/entities/PorPor5Record" },
       "description": "Teacher-managed OBEC PorPor 5 assessment gradebook records."
@@ -401,6 +735,10 @@
     "/admins/{adminUid}": {
       "schema": { "$ref": "#/entities/AdminRole" },
       "description": "Trusted admin/teacher registry checked by security rules."
+    },
+    "/battleQuestions/{questionId}": {
+      "schema": { "$ref": "#/entities/BattleQuestion" },
+      "description": "Classroom Coding Battle question bank separated by Scratch and Micro:bit with easy/medium/hard difficulty."
     }
   }
 }

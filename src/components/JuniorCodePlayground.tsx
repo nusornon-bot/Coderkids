@@ -10,10 +10,18 @@ import {
   BookOpen,
   Lightbulb,
   GitBranch,
+  Cloud,
+  Bot,
+  HelpCircle,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AudioNarratorButton } from './AudioNarratorButton.tsx';
 import { runPythonCode } from '../utils/pythonRunner.ts';
+import {
+  generateSocraticCodeHint,
+  type SocraticHintResult,
+} from '../utils/pythonSocraticHint.ts';
+import { CloudStudioProjectModal } from './Module3CodingLab/CloudStudioProjectModal.tsx';
 
 interface CodeTemplate {
   id: string;
@@ -115,6 +123,11 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
   );
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [lastRunHadError, setLastRunHadError] = useState<boolean>(false);
+  const [socraticHint, setSocraticHint] = useState<SocraticHintResult | null>(null);
+  const [aiDeepHint, setAiDeepHint] = useState<string | null>(null);
+  const [isAskingAiHint, setIsAskingAiHint] = useState<boolean>(false);
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (initialCode && initialCode.trim()) {
@@ -135,10 +148,16 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
     setIsFlowchartHandoff(false);
     setSelectedTemplate(template);
     setUserCode(template.code);
+    setLastRunHadError(false);
+    setSocraticHint(null);
+    setAiDeepHint(null);
     setTerminalOutput(`โหลดแม่แบบ: ${template.title}\nพร้อมประมวลผล...`);
   };
 
   const handleResetCode = () => {
+    setLastRunHadError(false);
+    setSocraticHint(null);
+    setAiDeepHint(null);
     if (isFlowchartHandoff && initialCode) {
       setUserCode(initialCode);
       setTerminalOutput('รีเซ็ตโค้ดกลับเป็นต้นฉบับจากผังงานแล้ว');
@@ -150,6 +169,8 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
 
   const handleRunCode = () => {
     setIsRunning(true);
+    setSocraticHint(null);
+    setAiDeepHint(null);
     setTerminalOutput('⏳ กำลังประมวลผลสคริปต์...');
 
     setTimeout(() => {
@@ -157,12 +178,15 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
 
       if (activeLang === 'python') {
         const res = runPythonCode(userCode);
+        setLastRunHadError(!res.ok);
         setTerminalOutput(
           res.ok
             ? `${res.output}\n\n✅ [Python Sandbox สำเร็จ · ${res.stepsExecuted} ขั้นตอน]`
             : res.output
         );
-        if (res.ok) {
+        if (!res.ok) {
+          setSocraticHint(generateSocraticCodeHint(userCode, res.output, 'python'));
+        } else {
           confetti({
             particleCount: 55,
             spread: 55,
@@ -176,6 +200,7 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
       }
 
       // Micro:bit JavaScript simulation preview
+      setLastRunHadError(false);
       setTerminalOutput(selectedTemplate.expectedOutput);
       confetti({
         particleCount: 55,
@@ -186,6 +211,43 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
         onAwardPoints(10);
       }
     }, 280);
+  };
+
+  const handleRequestSocraticHint = () => {
+    const hint = generateSocraticCodeHint(
+      userCode,
+      lastRunHadError ? terminalOutput : '',
+      activeLang
+    );
+    setSocraticHint(hint);
+    setAiDeepHint(null);
+  };
+
+  const handleAskAiTutorHint = async () => {
+    setIsAskingAiHint(true);
+    setAiDeepHint(null);
+    try {
+      const res = await fetch('/api/tutor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `ช่วยตรวจโค้ด ${activeLang} นี้แบบ Socratic Method (ตั้งคำถามชวนคิดและใบ้ทีละขั้น ไม่เฉลยโค้ดสำเร็จรูปทั้งหมด) สำหรับเด็ก ป.4-ป.6:\n\nโค้ด:\n${userCode.slice(0, 1200)}\n\nผลลัพธ์/Error:\n${terminalOutput.slice(0, 400)}`,
+          studentContext: { activeModule: 'Junior Code Playground' },
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.reply) {
+          setAiDeepHint(String(data.reply));
+        }
+      }
+    } catch {
+      setAiDeepHint(
+        'ครูพี่โค้ดแนะนำให้ลองตรวจสอบคำใบ้ทีละขั้นด้านบน และทดสอบแก้ทีละ 1 บรรทัดแล้วกดรันดูผลลัพธ์นะ!'
+      );
+    } finally {
+      setIsAskingAiHint(false);
+    }
   };
 
   const handleCopyCode = () => {
@@ -274,8 +336,18 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button
+                type="button"
+                onClick={() => setIsCloudModalOpen(true)}
+                className="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                title="บันทึกหรือโหลดโค้ดจาก Cloud Firestore / ในเครื่อง"
+              >
+                <Cloud className="w-3.5 h-3.5" />
+                <span>บันทึก / โหลด Cloud</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleCopyCode}
                 className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 text-xs flex items-center gap-1 cursor-pointer"
                 title="คัดลอกโค้ด"
@@ -284,6 +356,7 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
                 <span>{isCopied ? 'คัดลอกแล้ว' : 'Copy'}</span>
               </button>
               <button
+                type="button"
                 onClick={handleResetCode}
                 className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 text-xs flex items-center gap-1 cursor-pointer"
                 title="รีเซ็ตโค้ด"
@@ -305,19 +378,30 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
           </div>
 
           {/* Action Execution Button */}
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <span className="text-xs text-slate-500 flex items-center gap-1">
               <Lightbulb className="w-4 h-4 text-amber-500" />
               <span>พิมพ์แก้ไขตัวเลขหรือข้อความได้ตามใจชอบ แล้วกดปุ่มรันโค้ด</span>
             </span>
-            <button
-              onClick={handleRunCode}
-              disabled={isRunning}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
-            >
-              <Play className="w-4 h-4 fill-white" />
-              <span>{isRunning ? 'กำลังรัน...' : 'รันโค้ด (Run Code)'}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleRequestSocraticHint}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/60 dark:hover:bg-amber-900/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 font-bold text-xs transition-all cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>ขอคำใบ้แก้โค้ด (Socratic Hint)</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleRunCode}
+                disabled={isRunning}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              >
+                <Play className="w-4 h-4 fill-white" />
+                <span>{isRunning ? 'กำลังรัน...' : 'รันโค้ด (Run Code)'}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -338,6 +422,61 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
               {terminalOutput}
             </div>
           </div>
+
+          {/* Socratic Hint Panel */}
+          {socraticHint && (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 space-y-2.5 animate-in fade-in">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-extrabold text-amber-900 dark:text-amber-200">
+                  <Bot className="w-4 h-4 text-amber-600" />
+                  <span>ครูพี่โค้ดชวนคิด · {socraticHint.errorCategory}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSocraticHint(null)}
+                  className="text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline cursor-pointer"
+                >
+                  ซ่อน
+                </button>
+              </div>
+              <p className="text-xs font-bold text-slate-900 dark:text-white">
+                {socraticHint.headline}
+              </p>
+              <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/60 border border-amber-200 dark:border-amber-900 text-xs text-amber-950 dark:text-amber-100 leading-relaxed">
+                <strong>คำถามชวนคิด:</strong> {socraticHint.socraticQuestion}
+              </div>
+              <ul className="space-y-1 text-xs text-slate-700 dark:text-slate-300 list-disc pl-4">
+                {socraticHint.stepByStepHints.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ul>
+              {socraticHint.checkSnippet && (
+                <code className="block px-3 py-1.5 rounded-lg bg-slate-900 text-emerald-300 font-mono text-[11px]">
+                  {socraticHint.checkSnippet}
+                </code>
+              )}
+              <div className="pt-1 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => void handleAskAiTutorHint()}
+                  disabled={isAskingAiHint}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-[11px] font-bold cursor-pointer transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>
+                    {isAskingAiHint
+                      ? 'กำลังถามครูพี่โค้ด AI...'
+                      : 'ให้ครูพี่โค้ด AI อธิบายเพิ่มทีละขั้น'}
+                  </span>
+                </button>
+              </div>
+              {aiDeepHint && (
+                <div className="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-950 dark:text-indigo-100 whitespace-pre-wrap leading-relaxed">
+                  {aiDeepHint}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Explanation & Learning Objectives */}
           <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 space-y-2">
@@ -360,6 +499,26 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Cloud Save & Load Python Project Modal */}
+      <CloudStudioProjectModal
+        isOpen={isCloudModalOpen}
+        onClose={() => setIsCloudModalOpen(false)}
+        studioType="python"
+        studioLabel="Junior Code Playground"
+        defaultTitle={isFlowchartHandoff ? handoffTitle : selectedTemplate.title}
+        currentPresetId={selectedTemplate.id}
+        currentCodeContent={userCode}
+        onLoadProject={(proj) => {
+          setIsFlowchartHandoff(true);
+          setHandoffTitle(proj.title);
+          setUserCode(proj.codeContent);
+          setLastRunHadError(false);
+          setSocraticHint(null);
+          setAiDeepHint(null);
+          setTerminalOutput(`☁️ โหลดโค้ด "${proj.title}" เรียบร้อยแล้ว! กดปุ่ม "รันโค้ด (Run Code)" เพื่อทดสอบเลย`);
+        }}
+      />
     </div>
   );
 };

@@ -1057,18 +1057,26 @@ export const MicrobitMusicLab: React.FC<MicrobitMusicLabProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Delete Custom Melody
+  const [pendingDeleteMelodyId, setPendingDeleteMelodyId] = useState<string | null>(null);
+
+  // Delete Custom Melody (in-app confirmation without window.confirm)
   const handleDeleteCustomMelody = (id: string, name: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     soundEffects.play('click');
-    if (window.confirm(`ต้องการลบเพลง "${name}" ออกจากคลังเพลงหรือไม่?`)) {
-      setCustomMelodies((prev) => prev.filter((m) => m.id !== id));
-      if (activePresetId === id) {
-        setActivePresetId('');
-      }
-      setToastMessage(`ลบเพลง "${name}" เรียบร้อย`);
-      setTimeout(() => setToastMessage(null), 2500);
+    if (pendingDeleteMelodyId !== id) {
+      setPendingDeleteMelodyId(id);
+      setTimeout(() => {
+        setPendingDeleteMelodyId((curr) => (curr === id ? null : curr));
+      }, 4000);
+      return;
     }
+    setCustomMelodies((prev) => prev.filter((m) => m.id !== id));
+    setPendingDeleteMelodyId(null);
+    if (activePresetId === id) {
+      setActivePresetId('');
+    }
+    setToastMessage(`ลบเพลง "${name}" เรียบร้อย`);
+    setTimeout(() => setToastMessage(null), 2500);
   };
 
   // Export Custom Library JSON
@@ -1986,10 +1994,19 @@ while True:
                           <button
                             type="button"
                             onClick={(e) => handleDeleteCustomMelody(item.id, item.name, e)}
-                            className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/60 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
-                            title="ลบเพลงนี้ออกจากคลังเพลงส่วนบุคคล"
+                            className={`px-1.5 py-0.5 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                              pendingDeleteMelodyId === item.id
+                                ? 'bg-rose-600 text-white'
+                                : 'hover:bg-rose-50 dark:hover:bg-rose-950/60 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400'
+                            }`}
+                            title={
+                              pendingDeleteMelodyId === item.id
+                                ? 'คลิกอีกครั้งเพื่อยืนยันการลบเพลง'
+                                : 'ลบเพลงนี้ออกจากคลังเพลงส่วนบุคคล'
+                            }
                           >
                             <Trash2 className="w-3.5 h-3.5" />
+                            {pendingDeleteMelodyId === item.id && <span>ยืนยันลบ</span>}
                           </button>
                         )}
                       </div>

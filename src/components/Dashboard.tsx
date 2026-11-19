@@ -838,13 +838,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {gradeFocusFilter !== 'All' && (
-            <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2.5 text-indigo-900 dark:text-indigo-200 font-semibold">
+          <div className="p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex flex-wrap items-center gap-2 text-indigo-950 dark:text-indigo-100 font-semibold">
                 <span className="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-bold">
-                  โฟกัสชั้น {gradeFocusFilter}
+                  {gradeFocusFilter === 'All' ? 'เส้นทางแนะนำตามระดับชั้น (ว 4.2)' : `เส้นทางเรียนแนะนำชั้น ${gradeFocusFilter}`}
                 </span>
-                <span>
+                <span className="text-indigo-800 dark:text-indigo-200">
+                  {gradeFocusFilter === 'All' &&
+                    'เลือกชั้นเรียนของคุณเพื่อดูเส้นทางเรียนและภารกิจที่แนะนำตรงตัวชี้วัด ว 4.2:'}
                   {gradeFocusFilter === 'ป.4' &&
                     'เน้น ว 4.2 ป.4/1–ป.4/5: เหตุผลเชิงตรรกะ อัลกอริทึมเบื้องต้น Scratch พื้นฐาน ตารางข้อมูล 5 วัน และความปลอดภัยข้อมูล'}
                   {gradeFocusFilter === 'ป.5' &&
@@ -853,15 +855,72 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     'เน้น ว 4.2 ป.6/1–ป.6/4: แก้ปัญหาชีวิตจริง Nested Loop การสืบค้น Operators กฎหมาย PDPA และเตรียมสอบ O-NET ป.6'}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => handleSelectGradeFocus('All')}
-                className="text-[11px] font-bold text-indigo-600 dark:text-indigo-300 hover:underline cursor-pointer"
-              >
-                แสดงทุกระดับชั้น ✕
-              </button>
+              <div className="flex items-center gap-1.5">
+                {(['All', 'ป.4', 'ป.5', 'ป.6'] as const).map((g) => (
+                  <button
+                    key={`guided-grade-${g}`}
+                    type="button"
+                    onClick={() => handleSelectGradeFocus(g)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                      gradeFocusFilter === g
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/50'
+                    }`}
+                  >
+                    {g === 'All' ? 'ทั้งหมด' : g}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
+
+            {gradeFocusFilter !== 'All' && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+                {(gradeFocusFilter === 'ป.4'
+                  ? [
+                      { step: '1', label: 'เกมเหตุผลเชิงตรรกะ OX', badge: 'ว 4.2 ป.4/1', tab: 'thinking', sub: 'logicLab' },
+                      { step: '2', label: 'เขียนโค้ด Scratch พื้นฐาน', badge: 'ว 4.2 ป.4/2', tab: 'codingLab', sub: 'scratch' },
+                      { step: '3', label: 'ความปลอดภัย & รหัสผ่าน', badge: 'ว 4.2 ป.4/5', tab: 'safety', sub: 'password' },
+                      { step: '4', label: 'ตารางข้อมูล & แผนภูมิ 5 วัน', badge: 'ว 4.2 ป.4/4', tab: 'showcase', sub: 'dataLab' },
+                    ]
+                  : gradeFocusFilter === 'ป.5'
+                  ? [
+                      { step: '1', label: 'ผังงาน Flowchart & เงื่อนไข', badge: 'ว 4.2 ป.5/1', tab: 'thinking', sub: 'flowchart' },
+                      { step: '2', label: 'ฝึกแก้โค้ด Debug Lab', badge: 'ว 4.2 ป.5/2', tab: 'codingLab', sub: 'debugLab' },
+                      { step: '3', label: 'Mini Sudoku & อัลกอริทึม', badge: 'ว 4.2 ป.5/1', tab: 'thinking', sub: 'logicLab' },
+                      { step: '4', label: 'มารยาทดิจิทัล & Netiquette', badge: 'ว 4.2 ป.5/5', tab: 'safety', sub: 'netiquette' },
+                    ]
+                  : [
+                      { step: '1', label: 'สืบค้นขั้นสูง & กฎหมาย PDPA', badge: 'ว 4.2 ป.6/3–4', tab: 'safety', sub: 'searchLab' },
+                      { step: '2', label: 'Binary Search & โจทย์ O-NET', badge: 'ว 4.2 ป.6/1', tab: 'thinking', sub: 'logicLab' },
+                      { step: '3', label: 'Micro:bit & Python Playground', badge: 'ว 4.2 ป.6/2', tab: 'juniorPlayground', sub: undefined },
+                      { step: '4', label: 'เวทีประลอง Bebras & AI Lab', badge: 'ท้าทาย ป.6', tab: 'bebrasArena', sub: undefined },
+                    ]
+                ).map((item) => (
+                  <button
+                    key={`${gradeFocusFilter}-${item.step}`}
+                    type="button"
+                    onClick={() => onNavigate(item.tab, item.sub)}
+                    className="group text-left p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-800/80 hover:border-indigo-500 hover:shadow-sm transition-all cursor-pointer flex items-center justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[10px] font-black">
+                          {item.step}
+                        </span>
+                        <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                          {item.badge}
+                        </span>
+                      </div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-300">
+                        {item.label}
+                      </div>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 text-indigo-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* ก้าวที่ 01 */}

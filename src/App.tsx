@@ -146,7 +146,12 @@ import {
   initAuth,
   googleLogout,
 } from './services/googleSheetsService.ts';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Share2, Check } from 'lucide-react';
+import {
+  parseRouteFromUrl,
+  syncRouteToUrl,
+  buildShareableLessonUrl,
+} from './utils/urlRouter.ts';
 import confetti from 'canvas-confetti';
 
 // Helper: Filter out legacy mock profiles (กวินท์, ณิชารีย์, CK-2569-4102, ฯลฯ)
@@ -177,24 +182,106 @@ const isLegacyMockProfile = (p?: any): boolean => {
 };
 
 export default function App() {
-  const hasSharedFlowchart =
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('fc');
+  const initialRoute = typeof window !== 'undefined' ? parseRouteFromUrl(window.location.search) : null;
+  const isApplyingPopStateRef = useRef(false);
+  const [copiedLessonLink, setCopiedLessonLink] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<string>(hasSharedFlowchart ? 'thinking' : 'dashboard');
+  const [activeTab, setActiveTab] = useState<string>(initialRoute?.tab || 'dashboard');
 
   // Sub-tab selectors for each module
   const [safetySubTab, setSafetySubTab] = useState<
     'pdpaLab' | 'pdpa' | 'password' | 'netiquette' | 'quiz' | 'pdpaGenerator' | 'searchLab'
-  >('pdpaLab');
+  >(
+    initialRoute?.tab === 'safety' && initialRoute.sub
+      ? (initialRoute.sub as any)
+      : 'pdpaLab'
+  );
   const [thinkingSubTab, setThinkingSubTab] = useState<
     'pillars' | 'flowchart' | 'controls' | 'puzzle' | 'logicLab'
-  >(hasSharedFlowchart ? 'flowchart' : 'pillars');
+  >(
+    initialRoute?.tab === 'thinking' && initialRoute.sub
+      ? (initialRoute.sub as any)
+      : 'pillars'
+  );
   const [codingSubTab, setCodingSubTab] = useState<
     'scratch' | 'microbit' | 'musicLab' | 'examplesGallery' | 'debugLab'
-  >('scratch');
+  >(
+    initialRoute?.tab === 'codingLab' && initialRoute.sub
+      ? (initialRoute.sub as any)
+      : 'scratch'
+  );
   const [showcaseSubTab, setShowcaseSubTab] = useState<
     'gallery' | 'reviews' | 'reflection' | 'dailyJournal' | 'dataLab'
-  >('gallery');
+  >(
+    initialRoute?.tab === 'showcase' && initialRoute.sub
+      ? (initialRoute.sub as any)
+      : 'gallery'
+  );
+
+  const currentActiveSubTab =
+    activeTab === 'safety'
+      ? safetySubTab
+      : activeTab === 'thinking'
+      ? thinkingSubTab
+      : activeTab === 'codingLab'
+      ? codingSubTab
+      : activeTab === 'showcase'
+      ? showcaseSubTab
+      : undefined;
+
+  // Sync active tab & sub-tab to browser URL (?tab=...&sub=...) for shareable links & refresh persistence
+  useEffect(() => {
+    if (isApplyingPopStateRef.current) {
+      isApplyingPopStateRef.current = false;
+      return;
+    }
+    syncRouteToUrl({ tab: activeTab, sub: currentActiveSubTab }, false);
+  }, [activeTab, currentActiveSubTab]);
+
+  // Listen to browser Back / Forward buttons (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      const parsed = parseRouteFromUrl(window.location.search);
+      isApplyingPopStateRef.current = true;
+      if (!parsed) {
+        setActiveTab('dashboard');
+        return;
+      }
+      setActiveTab(parsed.tab);
+      if (parsed.tab === 'safety' && parsed.sub) setSafetySubTab(parsed.sub as any);
+      if (parsed.tab === 'thinking' && parsed.sub) setThinkingSubTab(parsed.sub as any);
+      if (parsed.tab === 'codingLab' && parsed.sub) setCodingSubTab(parsed.sub as any);
+      if (parsed.tab === 'showcase' && parsed.sub) setShowcaseSubTab(parsed.sub as any);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleCopyShareableLessonLink = async () => {
+    const url = buildShareableLessonUrl(activeTab, currentActiveSubTab);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      soundEffects.play('correct');
+      setCopiedLessonLink(true);
+      setTimeout(() => setCopiedLessonLink(false), 2400);
+    } catch {
+      // Fallback copy via temporary input
+      try {
+        const input = document.createElement('input');
+        input.value = url;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        soundEffects.play('correct');
+        setCopiedLessonLink(true);
+        setTimeout(() => setCopiedLessonLink(false), 2400);
+      } catch {
+        // Ignore clipboard errors in restricted frames
+      }
+    }
+  };
 
   // Student Profiles State for Multi-Profile Management (เพิ่ม, ลบ, แก้ไข, สลับ)
   // ลบโปรไฟล์เริ่มต้นของระบบออกทั้งหมด ข้อมูลจะถูกดึงอัตโนมัติจากแท็บ Students ใน Google Sheet
@@ -1704,14 +1791,39 @@ export default function App() {
         <Suspense fallback={<ModuleLoadingFallback />}>
         {/* Breadcrumb / Back button when navigating away from dashboard */}
         {activeTab !== 'dashboard' && (
-          <div className="mb-6 flex items-center justify-between">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>กลับสู่หน้าหลัก Dashboard</span>
-            </button>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setActiveTab('dashboard')}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>กลับสู่หน้าหลัก Dashboard</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyShareableLessonLink}
+                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border shadow-sm transition-colors cursor-pointer ${
+                  copiedLessonLink
+                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 border-slate-200 dark:border-slate-700'
+                }`}
+                title="คัดลอกลิงก์ตรงไปยังบทเรียนหน้านี้เพื่อส่งให้เพื่อนหรือครู"
+              >
+                {copiedLessonLink ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>คัดลอกลิงก์บทเรียนแล้ว!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>แชร์ลิงก์บทเรียนนี้</span>
+                  </>
+                )}
+              </button>
+            </div>
 
             <div className="text-xs text-slate-500 dark:text-slate-400">
               {activeTab === 'learningMap' && 'แผนที่การผจญภัยการเรียนรู้ 4 ดินแดน (Learning Path Map)'}
@@ -2536,6 +2648,7 @@ export default function App() {
             isOpen={isClassroomBattleOpen}
             onClose={() => setIsClassroomBattleOpen(false)}
             studentName={profile.name}
+            isTeacher={isAdmin && viewRoleMode === 'teacher'}
             addPoints={addPoints}
             onCelebrate={handleTriggerManualCelebration}
           />

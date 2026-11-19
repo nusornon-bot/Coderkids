@@ -21,9 +21,11 @@ import {
   Copy,
   Check,
   FileCode2,
+  Cloud,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { PythonExportModal } from './PythonExportModal.tsx';
+import { CloudStudioProjectModal } from './CloudStudioProjectModal.tsx';
 import {
   exportScratchBlocksToPython,
   ScratchPythonExportMode,
@@ -116,6 +118,7 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({
   const [showPythonComments, setShowPythonComments] = useState<boolean>(true);
   const [pythonCopied, setPythonCopied] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState<boolean>(false);
   const [exportMode, setExportMode] = useState<ScratchPythonExportMode>('playground');
   const [exportIncludeComments, setExportIncludeComments] = useState<boolean>(false);
 
@@ -2967,6 +2970,15 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setIsCloudModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white transition-colors cursor-pointer"
+                  title="บันทึกหรือเปิดโปรเจกต์ Scratch จาก Cloud Firestore / ในเครื่อง"
+                >
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>บันทึก / โหลด Cloud</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setIsExportModalOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white transition-colors cursor-pointer"
                 >
@@ -3093,6 +3105,41 @@ export const ScratchStudio: React.FC<ScratchStudioProps> = ({
         })}
         onOpenPythonLab={onOpenPythonLab}
         canRunInPlayground={exportMode === 'playground'}
+      />
+
+      {/* Cloud Save & Load Studio Project Modal */}
+      <CloudStudioProjectModal
+        isOpen={isCloudModalOpen}
+        onClose={() => setIsCloudModalOpen(false)}
+        studioType="scratch"
+        studioLabel="Scratch Studio"
+        defaultTitle={`Scratch: ${SCRATCH_PRESET_EXPLANATIONS[activePreset]?.title || 'โปรเจกต์ของฉัน'}`}
+        currentPresetId={activePreset}
+        currentCodeContent={exportScratchBlocksToPython(scriptBlocks, {
+          mode: 'playground',
+          includeComments: false,
+          inputValA,
+          inputValB,
+        })}
+        currentBlocksJson={JSON.stringify({ scriptBlocks, activePreset, inputValA, inputValB })}
+        onLoadProject={(proj) => {
+          if (proj.blocksJson) {
+            try {
+              const parsed = JSON.parse(proj.blocksJson);
+              if (Array.isArray(parsed.scriptBlocks) && parsed.scriptBlocks.length > 0) {
+                setScriptBlocks(parsed.scriptBlocks);
+              }
+              if (typeof parsed.inputValA === 'number') setInputValA(parsed.inputValA);
+              if (typeof parsed.inputValB === 'number') setInputValB(parsed.inputValB);
+              if (parsed.activePreset && SCRATCH_PRESET_EXPLANATIONS[parsed.activePreset]) {
+                setActivePreset(parsed.activePreset);
+              }
+              setSpeechBubble(`โหลดโปรเจกต์ "${proj.title}" สำเร็จ! คลิกธงเขียวเพื่อรันเลย`);
+            } catch {
+              // Ignore malformed JSON
+            }
+          }
+        }}
       />
     </div>
   );

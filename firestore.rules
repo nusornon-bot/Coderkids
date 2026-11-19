@@ -32,6 +32,10 @@ service cloud.firestore {
       return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidRoomCode(code) {
+      return code is string && code.size() >= 4 && code.size() <= 12 && code.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
     function isOwner(userId) {
       return isEmailVerified() && request.auth.uid == userId;
     }
@@ -151,6 +155,35 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function isValidStudioProject(data, userId) {
+      return data.keys().hasAll([
+          'ownerId',
+          'studioType',
+          'title',
+          'codeContent',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'studioType',
+          'title',
+          'presetId',
+          'codeContent',
+          'blocksJson',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.ownerId is string && isValidId(data.ownerId) && data.ownerId == userId &&
+        data.studioType is string && data.studioType in ['scratch', 'microbit', 'python'] &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        (!('presetId' in data) || (data.presetId is string && data.presetId.size() <= 64)) &&
+        data.codeContent is string && data.codeContent.size() >= 1 && data.codeContent.size() <= 20000 &&
+        (!('blocksJson' in data) || (data.blocksJson is string && data.blocksJson.size() <= 30000)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
     function isValidShowcaseProject(data) {
       return data.keys().hasAll([
           'ownerId',
@@ -218,6 +251,129 @@ service cloud.firestore {
         data.createdAt is timestamp;
     }
 
+    function isValidHomeworkSubmission(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'studentName',
+          'studentClass',
+          'topic',
+          'title',
+          'reflection',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'ownerId',
+          'studentName',
+          'studentClass',
+          'topic',
+          'title',
+          'projectUrl',
+          'reflection',
+          'status',
+          'gradeScore',
+          'teacherFeedback',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.ownerId is string && isValidId(data.ownerId) &&
+        data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 120 &&
+        data.studentClass is string && data.studentClass.size() >= 1 && data.studentClass.size() <= 60 &&
+        data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 200 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        (!('projectUrl' in data) || (data.projectUrl is string && data.projectUrl.size() <= 400)) &&
+        data.reflection is string && data.reflection.size() <= 1000 &&
+        data.status is string && data.status in ['pending', 'graded'] &&
+        (!('gradeScore' in data) || (data.gradeScore is int && data.gradeScore >= 1 && data.gradeScore <= 5)) &&
+        (!('teacherFeedback' in data) || (data.teacherFeedback is string && data.teacherFeedback.size() <= 600)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLiveQuizRoom(data, roomCode) {
+      return data.keys().hasAll([
+          'roomCode',
+          'hostUid',
+          'hostName',
+          'title',
+          'stage',
+          'currentQuestionIndex',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'hostUid',
+          'hostName',
+          'title',
+          'stage',
+          'currentQuestionIndex',
+          'status',
+          'platformSet',
+          'difficulty',
+          'questionCount',
+          'questionIds',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.hostUid is string && isValidId(data.hostUid) &&
+        data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 120 &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.stage is string && data.stage in ['lobby', 'question', 'reveal', 'podium'] &&
+        data.currentQuestionIndex is int && data.currentQuestionIndex >= 0 && data.currentQuestionIndex <= 50 &&
+        data.status is string && data.status in ['active', 'closed'] &&
+        (!('platformSet' in data) || (data.platformSet is string && data.platformSet in ['Scratch', 'Micro:bit', 'mixed'])) &&
+        (!('difficulty' in data) || (data.difficulty is string && data.difficulty in ['all', 'easy', 'medium', 'hard'])) &&
+        (!('questionCount' in data) || (data.questionCount is int && data.questionCount >= 1 && data.questionCount <= 50)) &&
+        (!('questionIds' in data) || (
+          data.questionIds is list &&
+          data.questionIds.size() >= 1 &&
+          data.questionIds.size() <= 50 &&
+          data.questionIds[0] is string &&
+          data.questionIds[0].size() >= 1 &&
+          data.questionIds[0].size() <= 128
+        )) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLiveQuizParticipant(data, roomCode, participantId) {
+      return data.keys().hasAll([
+          'roomCode',
+          'userId',
+          'displayName',
+          'avatar',
+          'score',
+          'streak',
+          'lastAnswerIndex',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'userId',
+          'displayName',
+          'avatar',
+          'score',
+          'streak',
+          'lastAnswerIndex',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.userId is string && isValidId(data.userId) && data.userId == participantId &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+        data.avatar is string && data.avatar.size() >= 1 && data.avatar.size() <= 16 &&
+        data.score is int && data.score >= 0 && data.score <= 100000 &&
+        data.streak is int && data.streak >= 0 && data.streak <= 100 &&
+        data.lastAnswerIndex is int && data.lastAnswerIndex >= -1 && data.lastAnswerIndex <= 10 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
     function isValidPorPor5Record(data) {
       return data.keys().hasAll([
           'studentId',
@@ -270,6 +426,53 @@ service cloud.firestore {
         data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
         data.role is string && data.role in ['admin', 'teacher'] &&
         data.createdAt is timestamp;
+    }
+
+    function isValidBattleQuestion(data) {
+      return data.keys().hasAll([
+          'platform',
+          'difficulty',
+          'title',
+          'codeSnippet',
+          'options',
+          'correctIndex',
+          'explanation',
+          'status',
+          'createdByUid',
+          'createdByName',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'platform',
+          'difficulty',
+          'title',
+          'codeSnippet',
+          'options',
+          'correctIndex',
+          'explanation',
+          'status',
+          'createdByUid',
+          'createdByName',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.platform is string && data.platform in ['Scratch', 'Micro:bit'] &&
+        data.difficulty is string && data.difficulty in ['easy', 'medium', 'hard'] &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.codeSnippet is string && data.codeSnippet.size() >= 1 && data.codeSnippet.size() <= 1500 &&
+        data.options is list && data.options.size() == 4 &&
+        data.options[0] is string && data.options[0].size() >= 1 && data.options[0].size() <= 300 &&
+        data.options[1] is string && data.options[1].size() >= 1 && data.options[1].size() <= 300 &&
+        data.options[2] is string && data.options[2].size() >= 1 && data.options[2].size() <= 300 &&
+        data.options[3] is string && data.options[3].size() >= 1 && data.options[3].size() <= 300 &&
+        data.correctIndex is int && data.correctIndex >= 0 && data.correctIndex <= 3 &&
+        data.explanation is string && data.explanation.size() >= 1 && data.explanation.size() <= 600 &&
+        data.status is string && data.status in ['active', 'archived'] &&
+        data.createdByUid is string && isValidId(data.createdByUid) &&
+        data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 120 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
     }
 
     // -------------------------------------------------------------------------
@@ -398,6 +601,40 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // Cloud Studio Projects Subcollection (Scratch, Micro:bit, Python)
+    // -------------------------------------------------------------------------
+    match /users/{userId}/studioProjects/{studioProjectId} {
+      allow get: if isValidId(userId) && isValidId(studioProjectId) && (isOwner(userId) || isAdmin());
+      allow list: if isValidId(userId) && isEmailVerified() && resource.data.ownerId == request.auth.uid;
+      allow create: if isValidId(userId) &&
+        isValidId(studioProjectId) &&
+        isOwner(userId) &&
+        isValidStudioProject(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) &&
+        isValidId(studioProjectId) &&
+        isValidStudioProject(incoming(), userId) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().studioType == existing().studioType &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            isOwner(userId) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'title',
+              'presetId',
+              'codeContent',
+              'blocksJson',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(userId) && isValidId(studioProjectId) && (isOwner(userId) || isAdmin());
+    }
+
+    // -------------------------------------------------------------------------
     // Showcase Projects & Peer Reviews
     // -------------------------------------------------------------------------
     match /showcaseProjects/{projectId} {
@@ -466,6 +703,139 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // Homework Submissions Collection (Student Submit + Teacher Rubric Grading)
+    // -------------------------------------------------------------------------
+    match /homeworkSubmissions/{submissionId} {
+      allow get: if isValidId(submissionId) && isEmailVerified() && (
+        existing().ownerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow list: if isEmailVerified() && (
+        resource.data.ownerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isValidId(submissionId) &&
+        isEmailVerified() &&
+        isValidHomeworkSubmission(incoming()) &&
+        incoming().ownerId == request.auth.uid &&
+        incoming().status == 'pending' &&
+        !('gradeScore' in incoming()) &&
+        !('teacherFeedback' in incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(submissionId) &&
+        isEmailVerified() &&
+        isValidHomeworkSubmission(incoming()) &&
+        incoming().ownerId == existing().ownerId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (
+            isAdmin() &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'status',
+              'gradeScore',
+              'teacherFeedback',
+              'updatedAt'
+            ])
+          ) ||
+          (
+            existing().ownerId == request.auth.uid &&
+            existing().status == 'pending' &&
+            incoming().status == 'pending' &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'topic',
+              'title',
+              'projectUrl',
+              'reflection',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidId(submissionId) && (
+        (isEmailVerified() && existing().ownerId == request.auth.uid) ||
+        isAdmin()
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // Live Classroom Quiz Battle Rooms & Participants
+    // -------------------------------------------------------------------------
+    match /liveRooms/{roomCode} {
+      allow get: if isValidRoomCode(roomCode) && isEmailVerified();
+      allow list: if isEmailVerified() && resource.data.status == 'active';
+      allow create: if isValidRoomCode(roomCode) &&
+        isEmailVerified() &&
+        isValidLiveQuizRoom(incoming(), roomCode) &&
+        incoming().hostUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidRoomCode(roomCode) &&
+        isEmailVerified() &&
+        isValidLiveQuizRoom(incoming(), roomCode) &&
+        incoming().roomCode == existing().roomCode &&
+        incoming().hostUid == existing().hostUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().hostUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'title',
+              'stage',
+              'currentQuestionIndex',
+              'status',
+              'platformSet',
+              'difficulty',
+              'questionCount',
+              'questionIds',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidRoomCode(roomCode) && (
+        (isEmailVerified() && existing().hostUid == request.auth.uid) ||
+        isAdmin()
+      );
+
+      match /participants/{participantId} {
+        allow get: if isValidRoomCode(roomCode) && isValidId(participantId) && isEmailVerified() &&
+          exists(/databases/$(database)/documents/liveRooms/$(roomCode));
+        allow list: if isEmailVerified() && resource.data.roomCode == roomCode;
+        allow create: if isValidRoomCode(roomCode) &&
+          isValidId(participantId) &&
+          isOwner(participantId) &&
+          isValidLiveQuizParticipant(incoming(), roomCode, participantId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/liveRooms/$(roomCode));
+        allow update: if isValidRoomCode(roomCode) &&
+          isValidId(participantId) &&
+          isValidLiveQuizParticipant(incoming(), roomCode, participantId) &&
+          incoming().roomCode == existing().roomCode &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time && (
+            isAdmin() ||
+            (
+              isOwner(participantId) &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'displayName',
+                'avatar',
+                'score',
+                'streak',
+                'lastAnswerIndex',
+                'updatedAt'
+              ])
+            )
+          );
+        allow delete: if isValidRoomCode(roomCode) && isValidId(participantId) && (
+          isOwner(participantId) ||
+          isAdmin()
+        );
+      }
+    }
+
+    // -------------------------------------------------------------------------
     // Teacher PorPor 5 (ปพ.5) Assessment Records (Admin / Verified Teacher Only)
     // -------------------------------------------------------------------------
     match /porpor5Records/{recordId} {
@@ -497,6 +867,42 @@ service cloud.firestore {
           'updatedAt'
         ]);
       allow delete: if isValidId(recordId) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // Live Classroom Coding Battle Question Bank (Scratch & Micro:bit)
+    // -------------------------------------------------------------------------
+    match /battleQuestions/{questionId} {
+      allow get: if isValidId(questionId) && isEmailVerified() && (
+        existing().status == 'active' ||
+        isAdmin()
+      );
+      allow list: if isEmailVerified() && resource.data.status == 'active';
+      allow create: if isValidId(questionId) &&
+        isAdmin() &&
+        isValidBattleQuestion(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().status == 'active' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(questionId) &&
+        isAdmin() &&
+        isValidBattleQuestion(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'platform',
+          'difficulty',
+          'title',
+          'codeSnippet',
+          'options',
+          'correctIndex',
+          'explanation',
+          'status',
+          'updatedAt'
+        ]);
+      allow delete: if isValidId(questionId) && isAdmin();
     }
   }
 }

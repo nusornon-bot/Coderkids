@@ -461,12 +461,22 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
     setTimeout(() => setEnterSuccess(null), 4000);
   };
 
-  // Handle delete material
+  const [pendingDeleteMatId, setPendingDeleteMatId] = useState<string | null>(null);
+
+  // Handle delete material (two-step in-app confirmation, zero browser confirm dialog)
   const handleDeleteMaterial = (id: string, title: string) => {
-    if (confirm(`คุณครูต้องการลบสื่อบทเรียน "${title}" ใช่หรือไม่?`)) {
-      setMaterials(materials.filter((m) => m.id !== id));
-      soundEffects.playClick();
+    soundEffects.playClick();
+    if (pendingDeleteMatId !== id) {
+      setPendingDeleteMatId(id);
+      setTimeout(() => {
+        setPendingDeleteMatId((curr) => (curr === id ? null : curr));
+      }, 4000);
+      return;
     }
+    setMaterials(materials.filter((m) => m.id !== id));
+    setPendingDeleteMatId(null);
+    setEnterSuccess(`ลบสื่อบทเรียน "${title}" เรียบร้อยแล้ว`);
+    setTimeout(() => setEnterSuccess(null), 3000);
   };
 
   // Handle simulated download
@@ -1323,11 +1333,17 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                         </span>
                         {currentRole === 'teacher' && (
                           <button
+                            type="button"
                             onClick={() => handleDeleteMaterial(mat.id, mat.title)}
-                            className="p-1 rounded text-slate-400 hover:text-rose-500"
-                            title="ลบสื่อนี้"
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors ${
+                              pendingDeleteMatId === mat.id
+                                ? 'bg-rose-600 text-white'
+                                : 'text-slate-400 hover:text-rose-500'
+                            }`}
+                            title={pendingDeleteMatId === mat.id ? 'คลิกอีกครั้งเพื่อยืนยันการลบ' : 'ลบสื่อนี้'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
+                            {pendingDeleteMatId === mat.id && <span>ยืนยันลบ</span>}
                           </button>
                         )}
                       </div>

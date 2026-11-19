@@ -15,14 +15,20 @@ describe('Firestore Security Rules & Blueprint Invariants (Dirty Dozen Verificat
 
   it('covers every collection declared in firebase-blueprint.json', () => {
     const paths = Object.keys(blueprint.firestore || {});
-    expect(paths.length).toBeGreaterThanOrEqual(7);
+    expect(paths.length).toBeGreaterThanOrEqual(12);
     expect(rulesContent).toContain('match /admins/{adminUid}');
     expect(rulesContent).toContain('match /users/{userId}/public/{profileDocId}');
     expect(rulesContent).toContain('match /users/{userId}/private/{privateDocId}');
     expect(rulesContent).toContain('match /users/{userId}/flowcharts/{flowchartId}');
+    expect(rulesContent).toContain('match /users/{userId}/studioProjects/{studioProjectId}');
     expect(rulesContent).toContain('match /showcaseProjects/{projectId}');
     expect(rulesContent).toContain('match /reviews/{reviewId}');
+    expect(rulesContent).toContain('match /homeworkSubmissions/{submissionId}');
+    expect(rulesContent).toContain('match /liveRooms/{roomCode}');
+    expect(rulesContent).toContain('match /participants/{participantId}');
     expect(rulesContent).toContain('match /porpor5Records/{recordId}');
+    expect(rulesContent).toContain('match /battleQuestions/{questionId}');
+    expect(rulesContent).toContain('function isValidBattleQuestion(');
   });
 
   it('prevents unverified email spoofing on admin allowlist checks', () => {

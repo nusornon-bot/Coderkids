@@ -18,9 +18,19 @@ import {
   QrCode,
   ArrowRight,
   ShieldAlert,
+  Cloud,
+  CloudOff,
+  RefreshCw,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../utils/soundEffects.ts';
+import {
+  isCloudFirestoreReadyForUser,
+  createOrUpdateLiveRoomInFirestore,
+  getLiveRoomFromFirestore,
+  joinOrUpdateLiveParticipantInFirestore,
+  listLiveParticipantsFromFirestore,
+} from '../services/firestoreService.ts';
 
 interface QuizQuestion {
   id: string;
@@ -143,10 +153,138 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
   const [players, setPlayers] = useState<Player[]>(INITIAL_BOT_PLAYERS);
   const [isAnswerLocked, setIsAnswerLocked] = useState<boolean>(false);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [joinPinInput, setJoinPinInput] = useState<string>('');
+  const [isCloudRoomActive, setIsCloudRoomActive] = useState<boolean>(false);
+  const [cloudNotice, setCloudNotice] = useState<string | null>(null);
+  const [isSyncingRoom, setIsSyncingRoom] = useState<boolean>(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentQ = BATTLE_QUESTIONS[currentQIndex];
+
+  const syncCloudParticipants = async (code: string) => {
+    if (!isCloudFirestoreReadyForUser()) return;
+    try {
+      const remoteList = await listLiveParticipantsFromFirestore(code);
+      if (remoteList.length > 0) {
+        setPlayers((prev) => {
+          const botKeep = prev.filter((p) => p.id.startsWith('p'));
+          const remotePlayers: Player[] = remoteList.map((r) => ({
+            id: `cloud_${r.userId}`,
+            name: r.displayName,
+            avatar: r.avatar || '🌟',
+            score: r.score,
+            streak: r.streak,
+            lastAnswerIndex: r.lastAnswerIndex >= 0 ? r.lastAnswerIndex : null,
+            lastAnswerTime: 0,
+          }));
+          return [...remotePlayers, ...botKeep.slice(0, Math.max(0, 4 - remotePlayers.length))];
+        });
+      }
+    } catch {
+      // Keep local standings if offline
+    }
+  };
+
+  // Poll Cloud Room state & participants every 4s when connected to a live Cloud room
+  useEffect(() => {
+    if (!isOpen || !isCloudRoomActive || !isCloudFirestoreReadyForUser()) return;
+    const poll = setInterval(async () => {
+      try {
+        if (role === 'player') {
+          const room = await getLiveRoomFromFirestore(roomPin);
+          if (room) {
+            if (room.stage !== gameStage) setGameStage(room.stage);
+            if (room.currentQuestionIndex !== currentQIndex && room.currentQuestionIndex < BATTLE_QUESTIONS.length) {
+              setCurrentQIndex(room.currentQuestionIndex);
+              setTimeLeft(BATTLE_QUESTIONS[room.currentQuestionIndex].timeLimit);
+              setSelectedAnswer(null);
+              setIsAnswerLocked(false);
+            }
+          }
+        }
+        await syncCloudParticipants(roomPin);
+      } catch {
+        // Ignore transient poll errors
+      }
+    }, 4000);
+    return () => clearInterval(poll);
+  }, [isOpen, isCloudRoomActive, role, roomPin, gameStage, currentQIndex]);
+
+  const handleCreateCloudRoom = async () => {
+    const newCode = `CK${Math.floor(1000 + Math.random() * 9000)}`;
+    setRoomPin(newCode);
+    setRole('host');
+    if (!isCloudFirestoreReadyForUser()) {
+      setIsCloudRoomActive(false);
+      setCloudNotice(`สร้างห้องจำลอง PIN: ${newCode} แล้ว (เข้าสู่ระบบด้วยอีเมลที่ยืนยันแล้วเพื่อเปิดห้อง Cloud จริงข้ามเครื่อง)`);
+      return;
+    }
+    setIsSyncingRoom(true);
+    try {
+      const ok = await createOrUpdateLiveRoomInFirestore({
+        roomCode: newCode,
+        hostName: currentStudentName || 'คุณครู Coder Kids',
+        stage: 'lobby',
+        currentQuestionIndex: 0,
+        status: 'active',
+      });
+      setIsCloudRoomActive(ok);
+      setCloudNotice(
+        ok
+          ? `เปิดห้องเรียนสด Cloud Room รหัส ${newCode} สำเร็จ! นักเรียนสามารถพิมพ์รหัสนี้เพื่อเข้าร่วมได้ทันที`
+          : `สร้างรหัสห้อง ${newCode} สำเร็จ (โหมดออฟไลน์)`
+      );
+      if (soundEnabled) soundEffects.play('correct');
+    } catch {
+      setIsCloudRoomActive(false);
+      setCloudNotice(`เปิดห้องแบบออฟไลน์ PIN: ${newCode}`);
+    } finally {
+      setIsSyncingRoom(false);
+    }
+  };
+
+  const handleJoinCloudRoom = async () => {
+    const clean = joinPinInput.trim().toUpperCase();
+    if (clean.length < 4) {
+      setCloudNotice('กรุณากรอกรหัสห้องอย่างน้อย 4 ตัวอักษร (เช่น CK1234)');
+      return;
+    }
+    setRoomPin(clean);
+    if (!isCloudFirestoreReadyForUser()) {
+      setIsCloudRoomActive(false);
+      setCloudNotice(`เข้าร่วมห้องจำลอง ${clean} เรียบร้อย! (เข้าสู่ระบบที่ยืนยันอีเมลเพื่อซิงค์คะแนนสดข้ามเครื่อง)`);
+      return;
+    }
+    setIsSyncingRoom(true);
+    try {
+      const room = await getLiveRoomFromFirestore(clean);
+      if (!room) {
+        setCloudNotice(`ไม่พบห้องรหัส ${clean} ใน Cloud — กำลังเล่นในโหมดฝึกซ้อมเดี่ยวแทน`);
+        setIsCloudRoomActive(false);
+      } else {
+        await joinOrUpdateLiveParticipantInFirestore({
+          roomCode: clean,
+          displayName: currentStudentName || 'ผู้เรียน Coder Kids',
+          avatar: '🌟',
+          score: myScore,
+          streak: myStreak,
+          lastAnswerIndex: -1,
+        });
+        setIsCloudRoomActive(true);
+        setGameStage(room.stage);
+        setCurrentQIndex(Math.min(room.currentQuestionIndex, BATTLE_QUESTIONS.length - 1));
+        setCloudNotice(`เชื่อมต่อห้องเรียนสด "${room.title}" (โดย ${room.hostName}) สำเร็จ!`);
+        await syncCloudParticipants(clean);
+        if (soundEnabled) soundEffects.play('correct');
+      }
+    } catch {
+      setIsCloudRoomActive(false);
+      setCloudNotice(`เชื่อมต่อแบบออฟไลน์สำหรับห้อง ${clean}`);
+    } finally {
+      setIsSyncingRoom(false);
+    }
+  };
 
   // Auto tick timer during question stage
   useEffect(() => {
@@ -212,13 +350,22 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
     if (soundEnabled) soundEffects.play('click');
 
     const isCorrect = index === currentQ.correctIndex;
-    if (isCorrect) {
-      const speedBonus = timeLeft * 30;
-      const roundPts = 600 + speedBonus;
-      setMyScore((prev) => prev + roundPts);
-      setMyStreak((prev) => prev + 1);
-    } else {
-      setMyStreak(0);
+    const speedBonus = timeLeft * 30;
+    const nextScore = isCorrect ? myScore + 600 + speedBonus : myScore;
+    const nextStreak = isCorrect ? myStreak + 1 : 0;
+
+    setMyScore(nextScore);
+    setMyStreak(nextStreak);
+
+    if (isCloudRoomActive && isCloudFirestoreReadyForUser()) {
+      void joinOrUpdateLiveParticipantInFirestore({
+        roomCode: roomPin,
+        displayName: currentStudentName || 'ผู้เรียน Coder Kids',
+        avatar: '🌟',
+        score: nextScore,
+        streak: nextStreak,
+        lastAnswerIndex: index,
+      }).catch(() => {});
     }
   };
 
@@ -232,6 +379,16 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
     setMyStreak(0);
     setPlayers(INITIAL_BOT_PLAYERS.map((p) => ({ ...p, score: 0, streak: 0 })));
     if (soundEnabled) soundEffects.play('click');
+
+    if (isCloudRoomActive && role === 'host' && isCloudFirestoreReadyForUser()) {
+      void createOrUpdateLiveRoomInFirestore({
+        roomCode: roomPin,
+        hostName: currentStudentName || 'คุณครู Coder Kids',
+        stage: 'question',
+        currentQuestionIndex: 0,
+        status: 'active',
+      }).catch(() => {});
+    }
   };
 
   const handleNextQuestion = () => {
@@ -243,6 +400,16 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
       setIsAnswerLocked(false);
       setGameStage('question');
       if (soundEnabled) soundEffects.play('click');
+
+      if (isCloudRoomActive && role === 'host' && isCloudFirestoreReadyForUser()) {
+        void createOrUpdateLiveRoomInFirestore({
+          roomCode: roomPin,
+          hostName: currentStudentName || 'คุณครู Coder Kids',
+          stage: 'question',
+          currentQuestionIndex: nextIdx,
+          status: 'active',
+        }).catch(() => {});
+      }
     } else {
       // Podium stage
       setGameStage('podium');
@@ -250,6 +417,15 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
       if (onRewardPoints) {
         onRewardPoints(25, 'ชัยชนะในสมรภูมิสด Live Quiz Battle');
+      }
+      if (isCloudRoomActive && role === 'host' && isCloudFirestoreReadyForUser()) {
+        void createOrUpdateLiveRoomInFirestore({
+          roomCode: roomPin,
+          hostName: currentStudentName || 'คุณครู Coder Kids',
+          stage: 'podium',
+          currentQuestionIndex: currentQIndex,
+          status: 'closed',
+        }).catch(() => {});
       }
     }
   };
@@ -376,16 +552,78 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
                 </p>
               </div>
 
-              <div className="p-6 rounded-3xl bg-slate-950/70 border border-slate-800 shadow-inner inline-block w-full max-w-sm">
-                <div className="text-xs uppercase tracking-widest text-slate-500 font-bold mb-1">
-                  Game PIN
+              <div className="p-6 rounded-3xl bg-slate-950/70 border border-slate-800 shadow-inner inline-block w-full max-w-md space-y-4">
+                <div>
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <span className="text-xs uppercase tracking-widest text-slate-500 font-bold">
+                      Game PIN
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        isCloudRoomActive
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      }`}
+                    >
+                      {isCloudRoomActive ? (
+                        <>
+                          <Cloud className="w-3 h-3" /> Cloud Room สด
+                        </>
+                      ) : (
+                        <>
+                          <CloudOff className="w-3 h-3" /> โหมดฝึกซ้อม / ออฟไลน์
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <div className="text-4xl font-mono font-black tracking-widest text-amber-400 select-all py-1">
+                    {roomPin}
+                  </div>
                 </div>
-                <div className="text-4xl font-mono font-black tracking-widest text-amber-400 select-all py-1">
-                  {roomPin}
-                </div>
-                <div className="mt-3 pt-3 border-t border-slate-800/80 flex items-center justify-center gap-2 text-xs text-slate-400">
-                  <QrCode className="w-4 h-4 text-indigo-400" />
-                  <span>สแกน QR Code เข้าจากมือถือได้ทันที</span>
+
+                {/* Cloud Classroom Room Actions */}
+                <div className="pt-3 border-t border-slate-800/80 space-y-2.5">
+                  {role === 'host' ? (
+                    <button
+                      type="button"
+                      disabled={isSyncingRoom}
+                      onClick={() => void handleCreateCloudRoom()}
+                      className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingRoom ? 'animate-spin' : ''}`} />
+                      <span>สร้างรหัสห้องเรียนสดใหม่ (Cloud Room)</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={joinPinInput}
+                        onChange={(e) => setJoinPinInput(e.target.value.toUpperCase())}
+                        placeholder="กรอกรหัสห้องจากครู เช่น CK4821"
+                        maxLength={12}
+                        className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-mono font-bold text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        disabled={isSyncingRoom}
+                        onClick={() => void handleJoinCloudRoom()}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white text-xs font-bold cursor-pointer shrink-0 transition-colors"
+                      >
+                        เข้าร่วมห้อง
+                      </button>
+                    </div>
+                  )}
+
+                  {cloudNotice && (
+                    <p className="text-[11px] font-semibold text-sky-300 bg-sky-950/60 border border-sky-800/60 rounded-xl px-3 py-2 leading-relaxed">
+                      {cloudNotice}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+                    <QrCode className="w-4 h-4 text-indigo-400" />
+                    <span>ครูเปิดห้องสดแล้วแชร์รหัส PIN ให้นักเรียนทั้งห้องเข้าพร้อมกันได้</span>
+                  </div>
                 </div>
               </div>
 

@@ -22,8 +22,6 @@ import {
   Share2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
 
 interface PDPAPrivacyGeneratorProps {
   currentProfile?: UserProfile;
@@ -158,6 +156,11 @@ export const PDPAPrivacyGenerator: React.FC<PDPAPrivacyGeneratorProps> = ({
     setIsExportingPdf(true);
 
     try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
       // High-resolution canvas rendering of the formatted A4 document
       const canvas = await html2canvas(printDocumentRef.current, {
         scale: 2, // 2x retina scale for crisp text

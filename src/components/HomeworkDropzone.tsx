@@ -16,10 +16,19 @@ import {
   Trash2,
   MessageSquare,
   FolderGit2,
+  Cloud,
+  CloudOff,
+  RefreshCw,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../utils/soundEffects.ts';
 import { UserProfile } from '../types/index.ts';
+import {
+  isCloudFirestoreReadyForUser,
+  listHomeworkFromFirestore,
+  submitHomeworkToFirestore,
+  gradeHomeworkInFirestore,
+} from '../services/firestoreService.ts';
 
 export interface HomeworkSubmission {
   id: string;
@@ -147,9 +156,66 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
   const [gradingScore, setGradingScore] = useState<number>(5);
   const [gradingFeedback, setGradingFeedback] = useState<string>('ตรวจแล้ว ผลงานเรียบร้อยและถูกต้องตามเกณฑ์');
 
+  // Cloud Firestore sync state
+  const [cloudStatus, setCloudStatus] = useState<'cloud' | 'syncing' | 'offline'>('offline');
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+
   useEffect(() => {
     localStorage.setItem('coderkids_homework_submissions', JSON.stringify(submissions));
   }, [submissions]);
+
+  useEffect(() => {
+    if (profile?.name) setStudentName(profile.name);
+    if (profile?.grade) setStudentClass(profile.grade);
+  }, [profile?.name, profile?.grade]);
+
+  const refreshCloudSubmissions = async () => {
+    if (!isCloudFirestoreReadyForUser()) {
+      setCloudStatus('offline');
+      return;
+    }
+    setCloudStatus('syncing');
+    try {
+      const cloudItems = await listHomeworkFromFirestore(activeTab === 'teacher');
+      if (cloudItems.length > 0) {
+        setSubmissions((prev) => {
+          const map = new Map<string, HomeworkSubmission>();
+          for (const item of cloudItems) {
+            map.set(item.id, {
+              id: item.id,
+              topic: item.topic,
+              title: item.title,
+              studentName: item.studentName,
+              studentClass: item.studentClass,
+              projectUrl: item.projectUrl || undefined,
+              reflection: item.reflection,
+              submittedAt: item.submittedAt,
+              status: item.status,
+              gradeScore: item.gradeScore,
+              teacherFeedback: item.teacherFeedback,
+            });
+          }
+          for (const localItem of prev) {
+            if (!map.has(localItem.id)) {
+              map.set(localItem.id, localItem);
+            } else if (localItem.imageUrl && !map.get(localItem.id)?.imageUrl) {
+              const existing = map.get(localItem.id)!;
+              map.set(localItem.id, { ...existing, imageUrl: localItem.imageUrl });
+            }
+          }
+          return Array.from(map.values());
+        });
+      }
+      setCloudStatus('cloud');
+    } catch {
+      setCloudStatus('offline');
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void refreshCloudSubmissions();
+  }, [isOpen, activeTab]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,12 +229,13 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
+    const submissionId = `hw_${Date.now()}`;
     const newSub: HomeworkSubmission = {
-      id: `sub_${Date.now()}`,
+      id: submissionId,
       topic,
       title: title.trim(),
       studentName: studentName.trim(),
@@ -186,12 +253,37 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
       status: 'pending',
     };
 
-    setSubmissions([newSub, ...submissions]);
+    setSubmissions((prev) => [newSub, ...prev]);
     soundEffects.play('victory');
     confetti({ particleCount: 60, spread: 60 });
 
     if (onAwardPoints) {
       onAwardPoints(20, `ส่งการบ้าน/ผลงานวิชาการ: "${title.trim()}" (+20 EXP)`);
+    }
+
+    if (isCloudFirestoreReadyForUser()) {
+      setCloudStatus('syncing');
+      try {
+        await submitHomeworkToFirestore({
+          submissionId,
+          studentName: newSub.studentName,
+          studentClass: newSub.studentClass,
+          topic: newSub.topic,
+          title: newSub.title,
+          projectUrl: newSub.projectUrl,
+          reflection: newSub.reflection,
+        });
+        setCloudStatus('cloud');
+        setSyncNotice('บันทึกชิ้นงานลง Cloud Firestore เรียบร้อยแล้ว!');
+        setTimeout(() => setSyncNotice(null), 4000);
+      } catch {
+        setCloudStatus('offline');
+        setSyncNotice('บันทึกในเครื่องแล้ว (รอซิงค์ Cloud เมื่อเชื่อมต่อสำเร็จ)');
+        setTimeout(() => setSyncNotice(null), 4000);
+      }
+    } else {
+      setSyncNotice('บันทึกผลงานในเครื่องเรียบร้อย (เข้าสู่ระบบด้วยบัญชีที่ยืนยันอีเมลเพื่อซิงค์ Cloud)');
+      setTimeout(() => setSyncNotice(null), 4000);
     }
 
     // Reset Form
@@ -202,7 +294,7 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
     setActiveTab('portfolio');
   };
 
-  const handleGradeSubmission = (subId: string) => {
+  const handleGradeSubmission = async (subId: string) => {
     const updated = submissions.map((sub) => {
       if (sub.id === subId) {
         return {
@@ -219,6 +311,24 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
     setViewingSubmission(null);
     soundEffects.play('correct');
     confetti({ particleCount: 40, spread: 50 });
+
+    if (isCloudFirestoreReadyForUser()) {
+      setCloudStatus('syncing');
+      try {
+        const ok = await gradeHomeworkInFirestore({
+          submissionId: subId,
+          gradeScore: gradingScore,
+          teacherFeedback: gradingFeedback,
+        });
+        setCloudStatus('cloud');
+        if (ok) {
+          setSyncNotice('บันทึกผลการตรวจลง Cloud Firestore แล้ว!');
+          setTimeout(() => setSyncNotice(null), 4000);
+        }
+      } catch {
+        setCloudStatus('offline');
+      }
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -244,13 +354,42 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
               <FolderGit2 className="w-5 h-5 text-teal-100" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
                   กล่องส่งการบ้าน &amp; แฟ้มผลงาน (Homework Dropzone)
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
                   สพฐ. ว 4.2
                 </span>
+                <button
+                  type="button"
+                  onClick={() => void refreshCloudSubmissions()}
+                  title="คลิกเพื่อซิงค์ข้อมูล Cloud Firestore"
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-colors ${
+                    cloudStatus === 'cloud'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300'
+                      : cloudStatus === 'syncing'
+                      ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300'
+                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+                  }`}
+                >
+                  {cloudStatus === 'cloud' ? (
+                    <>
+                      <Cloud className="w-3 h-3" />
+                      <span>ซิงค์ Cloud Firestore แล้ว</span>
+                    </>
+                  ) : cloudStatus === 'syncing' ? (
+                    <>
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                      <span>กำลังซิงค์ Cloud...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CloudOff className="w-3 h-3" />
+                      <span>โหมดออฟไลน์ (บันทึกในเครื่อง)</span>
+                    </>
+                  )}
+                </button>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 ถ่ายรูปส่งใบงานกระดาษ แนบภาพผลงาน Scratch และรับข้อเสนอแนะ 2 Stars 1 Wish จากครู
@@ -307,6 +446,18 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
 
         {/* Body content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+          {syncNotice && (
+            <div className="mb-4 px-4 py-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-2">
+              <span>☁️ {syncNotice}</span>
+              <button
+                type="button"
+                onClick={() => setSyncNotice(null)}
+                className="text-emerald-600 dark:text-emerald-300 hover:underline cursor-pointer"
+              >
+                ปิด
+              </button>
+            </div>
+          )}
           {activeTab === 'submit' && (
             <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-4">
               <div className="p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/60 flex items-start gap-3">

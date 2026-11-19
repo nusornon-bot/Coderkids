@@ -18,11 +18,13 @@ import {
   Info,
   Download,
   FileCode2,
+  Cloud,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { downloadMicrobitHexFile } from '../../utils/hexExporter.ts';
 import { soundEffects } from '../../utils/soundEffects.ts';
 import { PythonExportModal } from './PythonExportModal.tsx';
+import { CloudStudioProjectModal } from './CloudStudioProjectModal.tsx';
 import {
   exportMicrobitToPython,
   MicrobitPythonExportMode,
@@ -319,6 +321,7 @@ export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({
   const [codeViewTab, setCodeViewTab] = useState<'code' | 'ipo'>('code');
   const [copied, setCopied] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
   const [exportMode, setExportMode] = useState<MicrobitPythonExportMode>('playground');
   const [exportIncludeComments, setExportIncludeComments] = useState(false);
   const [useCustomLedExport, setUseCustomLedExport] = useState(false);
@@ -867,6 +870,17 @@ export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    {/* Cloud Save/Load button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsCloudModalOpen(true)}
+                      className="self-start sm:self-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white transition-colors text-[11px] font-sans font-bold cursor-pointer shadow-sm"
+                      title="บันทึกหรือเปิดโปรเจกต์ Micro:bit จาก Cloud Firestore / ในเครื่อง"
+                    >
+                      <Cloud className="w-3.5 h-3.5" />
+                      <span>บันทึก / โหลด Cloud</span>
+                    </button>
+
                     {/* Export to Python button */}
                     <button
                       type="button"
@@ -1120,6 +1134,52 @@ export const MicrobitSimulator: React.FC<MicrobitSimulatorProps> = ({
           />
         );
       })()}
+
+      {/* Cloud Save & Load Micro:bit Project Modal */}
+      <CloudStudioProjectModal
+        isOpen={isCloudModalOpen}
+        onClose={() => setIsCloudModalOpen(false)}
+        studioType="microbit"
+        studioLabel="Micro:bit V2 Simulator"
+        defaultTitle={`Micro:bit: ${(PRESET_EXPLANATIONS[activePresetId] || PRESET_EXPLANATIONS.heart).name}`}
+        currentPresetId={activePresetId}
+        currentCodeContent={exportMicrobitToPython({
+          presetId: activePresetId,
+          mode: 'playground',
+          includeComments: false,
+          temperature,
+          lightLevel,
+          counterValue,
+          leds,
+          useCustomLedMatrix: useCustomLedExport,
+        })}
+        currentBlocksJson={JSON.stringify({
+          activePresetId,
+          leds,
+          temperature,
+          lightLevel,
+          counterValue,
+        })}
+        onLoadProject={(proj) => {
+          if (proj.blocksJson) {
+            try {
+              const parsed = JSON.parse(proj.blocksJson);
+              if (parsed.activePresetId && PRESET_EXPLANATIONS[parsed.activePresetId]) {
+                setActivePresetId(parsed.activePresetId);
+              }
+              if (Array.isArray(parsed.leds) && parsed.leds.length === 5) {
+                setLeds(parsed.leds);
+              }
+              if (typeof parsed.temperature === 'number') setTemperature(parsed.temperature);
+              if (typeof parsed.lightLevel === 'number') setLightLevel(parsed.lightLevel);
+              if (typeof parsed.counterValue === 'number') setCounterValue(parsed.counterValue);
+              setStatusMessage(`โหลดโปรเจกต์ "${proj.title}" สำเร็จแล้ว!`);
+            } catch {
+              // Ignore malformed JSON
+            }
+          }
+        }}
+      />
     </div>
   );
 };

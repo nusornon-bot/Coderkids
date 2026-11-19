@@ -8,6 +8,7 @@ import {
   getDocs,
   setDoc,
   addDoc,
+  deleteDoc,
   collection,
   query,
   where,
@@ -101,6 +102,11 @@ function clampStr(value: unknown, maxLen: number, fallback = ''): string {
 
 function isSafeUid(uid: string | undefined | null): uid is string {
   return Boolean(uid && /^[a-zA-Z0-9_-]{1,128}$/.test(uid));
+}
+
+export function isCloudFirestoreReadyForUser(): boolean {
+  const user = firebaseAuth.currentUser;
+  return Boolean(user && user.emailVerified && isSafeUid(user.uid));
 }
 
 export async function syncUserProfileToFirestore(
@@ -311,3 +317,674 @@ export async function publishShowcaseProjectToFirestore(params: {
     handleFirestoreError(error, OperationType.CREATE, path);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Homework Submissions Cloud Persistence (/homeworkSubmissions/{submissionId})
+// ---------------------------------------------------------------------------
+export interface CloudHomeworkRecord {
+  id: string;
+  ownerId: string;
+  studentName: string;
+  studentClass: string;
+  topic: string;
+  title: string;
+  projectUrl: string;
+  reflection: string;
+  submittedAt: string;
+  status: 'pending' | 'graded';
+  gradeScore?: number;
+  teacherFeedback?: string;
+}
+
+export async function submitHomeworkToFirestore(params: {
+  submissionId?: string;
+  studentName: string;
+  studentClass: string;
+  topic: string;
+  title: string;
+  projectUrl?: string;
+  reflection: string;
+}): Promise<string | null> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return null;
+  }
+
+  const docId =
+    params.submissionId && /^[a-zA-Z0-9_-]{1,128}$/.test(params.submissionId)
+      ? params.submissionId
+      : `hw_${Date.now()}`;
+  const path = `homeworkSubmissions/${docId}`;
+
+  try {
+    const ref = doc(db, 'homeworkSubmissions', docId);
+    const payload: Record<string, unknown> = {
+      ownerId: user.uid,
+      studentName: clampStr(params.studentName, 120, 'นักเรียน Coder Kids') || 'นักเรียน Coder Kids',
+      studentClass: clampStr(params.studentClass, 60, 'ป.5/1') || 'ป.5/1',
+      topic: clampStr(params.topic, 200, 'ใบงานวิทยาการคำนวณ') || 'ใบงานวิทยาการคำนวณ',
+      title: clampStr(params.title, 160, 'ผลงานของฉัน') || 'ผลงานของฉัน',
+      reflection: clampStr(params.reflection, 1000, ''),
+      status: 'pending',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const cleanUrl = clampStr(params.projectUrl, 400, '');
+    if (cleanUrl) {
+      payload.projectUrl = cleanUrl;
+    }
+
+    await setDoc(ref, payload, { merge: false });
+    return docId;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function listHomeworkFromFirestore(
+  isTeacherRole: boolean
+): Promise<CloudHomeworkRecord[]> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return [];
+  }
+
+  const path = 'homeworkSubmissions';
+  try {
+    const emailLower = (user.email || '').trim().toLowerCase();
+    const isVerifiedAdminEmail = KNOWN_ADMIN_EMAILS.some((e) => e.toLowerCase() === emailLower);
+    const canQueryAll = isTeacherRole && isVerifiedAdminEmail;
+
+    const q = canQueryAll
+      ? query(collection(db, 'homeworkSubmissions'), limit(50))
+      : query(
+          collection(db, 'homeworkSubmissions'),
+          where('ownerId', '==', user.uid),
+          limit(50)
+        );
+
+    const snap = await getDocs(q);
+    const records: Array<CloudHomeworkRecord & { _sortMs: number }> = snap.docs.map((d) => {
+      const data = d.data();
+      const ts = data.updatedAt?.toDate?.() || data.createdAt?.toDate?.() || new Date();
+      return {
+        id: d.id,
+        ownerId: String(data.ownerId || ''),
+        studentName: String(data.studentName || 'นักเรียน'),
+        studentClass: String(data.studentClass || 'ป.5/1'),
+        topic: String(data.topic || ''),
+        title: String(data.title || ''),
+        projectUrl: String(data.projectUrl || ''),
+        reflection: String(data.reflection || ''),
+        submittedAt: ts.toLocaleDateString('th-TH', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        status: data.status === 'graded' ? 'graded' : 'pending',
+        ...(typeof data.gradeScore === 'number' ? { gradeScore: data.gradeScore } : {}),
+        ...(typeof data.teacherFeedback === 'string' ? { teacherFeedback: data.teacherFeedback } : {}),
+        _sortMs: ts.getTime(),
+      };
+    });
+
+    records.sort((a, b) => b._sortMs - a._sortMs);
+    return records.map(({ _sortMs, ...rest }) => rest);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export async function gradeHomeworkInFirestore(params: {
+  submissionId: string;
+  gradeScore: number;
+  teacherFeedback: string;
+}): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(params.submissionId)) {
+    return false;
+  }
+
+  const path = `homeworkSubmissions/${params.submissionId}`;
+  try {
+    const ref = doc(db, 'homeworkSubmissions', params.submissionId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return false;
+    const existing = snap.data();
+
+    const safeScore = Math.max(1, Math.min(5, Math.round(params.gradeScore || 5)));
+    const payload: Record<string, unknown> = {
+      ownerId: existing.ownerId,
+      studentName: existing.studentName,
+      studentClass: existing.studentClass,
+      topic: existing.topic,
+      title: existing.title,
+      ...(existing.projectUrl ? { projectUrl: existing.projectUrl } : {}),
+      reflection: existing.reflection || '',
+      status: 'graded',
+      gradeScore: safeScore,
+      teacherFeedback:
+        clampStr(params.teacherFeedback, 600, 'ผลงานยอดเยี่ยมมากครับ! พัฒนาต่อไปนะครับ 🌟') ||
+        'ผลงานยอดเยี่ยมมากครับ! พัฒนาต่อไปนะครับ 🌟',
+      createdAt: existing.createdAt,
+      updatedAt: serverTimestamp(),
+    };
+
+    await setDoc(ref, payload, { merge: false });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cloud Studio Projects (/users/{userId}/studioProjects/{studioProjectId})
+// ---------------------------------------------------------------------------
+export interface CloudStudioProjectRecord {
+  id: string;
+  studioType: 'scratch' | 'microbit' | 'python';
+  title: string;
+  presetId?: string;
+  codeContent: string;
+  blocksJson?: string;
+  updatedAtLabel: string;
+  source: 'cloud' | 'local';
+}
+
+export async function saveStudioProjectToFirestore(params: {
+  projectId?: string;
+  studioType: 'scratch' | 'microbit' | 'python';
+  title: string;
+  presetId?: string;
+  codeContent: string;
+  blocksJson?: string;
+}): Promise<string | null> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return null;
+  }
+
+  const docId =
+    params.projectId && /^[a-zA-Z0-9_-]{1,128}$/.test(params.projectId)
+      ? params.projectId
+      : `sp_${params.studioType}_${Date.now()}`;
+  const path = `users/${user.uid}/studioProjects/${docId}`;
+
+  try {
+    const ref = doc(db, 'users', user.uid, 'studioProjects', docId);
+    const snap = await getDoc(ref);
+
+    const payload: Record<string, unknown> = {
+      ownerId: user.uid,
+      studioType: params.studioType,
+      title: clampStr(params.title, 140, 'โปรเจกต์ของฉัน') || 'โปรเจกต์ของฉัน',
+      codeContent: clampStr(params.codeContent, 20000, '# Coder Kids Project') || '# Coder Kids Project',
+      createdAt: snap.exists() ? snap.data()?.createdAt || serverTimestamp() : serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (params.presetId) {
+      payload.presetId = clampStr(params.presetId, 64, '');
+    }
+    if (params.blocksJson) {
+      payload.blocksJson = clampStr(params.blocksJson, 30000, '');
+    }
+
+    await setDoc(ref, payload, { merge: false });
+    return docId;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function listStudioProjectsFromFirestore(
+  studioType?: 'scratch' | 'microbit' | 'python'
+): Promise<CloudStudioProjectRecord[]> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return [];
+  }
+
+  const path = `users/${user.uid}/studioProjects`;
+  try {
+    const q = query(
+      collection(db, 'users', user.uid, 'studioProjects'),
+      where('ownerId', '==', user.uid),
+      limit(30)
+    );
+    const snap = await getDocs(q);
+    const items: Array<CloudStudioProjectRecord & { _sortMs: number }> = snap.docs
+      .map((d) => {
+        const data = d.data();
+        const ts = data.updatedAt?.toDate?.() || data.createdAt?.toDate?.() || new Date();
+        const typeVal =
+          data.studioType === 'microbit' || data.studioType === 'python'
+            ? data.studioType
+            : 'scratch';
+        return {
+          id: d.id,
+          studioType: typeVal as 'scratch' | 'microbit' | 'python',
+          title: String(data.title || 'โปรเจกต์ของฉัน'),
+          ...(data.presetId ? { presetId: String(data.presetId) } : {}),
+          codeContent: String(data.codeContent || ''),
+          ...(data.blocksJson ? { blocksJson: String(data.blocksJson) } : {}),
+          updatedAtLabel: ts.toLocaleDateString('th-TH', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          source: 'cloud' as const,
+          _sortMs: ts.getTime(),
+        };
+      })
+      .filter((item) => (!studioType ? true : item.studioType === studioType));
+
+    items.sort((a, b) => b._sortMs - a._sortMs);
+    return items.map(({ _sortMs, ...rest }) => rest);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export async function deleteStudioProjectFromFirestore(projectId: string): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(projectId)) {
+    return false;
+  }
+  const path = `users/${user.uid}/studioProjects/${projectId}`;
+  try {
+    await deleteDoc(doc(db, 'users', user.uid, 'studioProjects', projectId));
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Live Classroom Quiz Rooms (/liveRooms/{roomCode} & /participants/{uid})
+// ---------------------------------------------------------------------------
+export interface LiveQuizRoomRecord {
+  roomCode: string;
+  hostUid: string;
+  hostName: string;
+  title: string;
+  stage: 'lobby' | 'question' | 'reveal' | 'podium';
+  currentQuestionIndex: number;
+  status: 'active' | 'closed';
+  platformSet?: 'Scratch' | 'Micro:bit' | 'mixed';
+  difficulty?: 'all' | 'easy' | 'medium' | 'hard';
+  questionCount?: number;
+  questionIds?: string[];
+}
+
+export interface LiveQuizParticipantRecord {
+  roomCode: string;
+  userId: string;
+  displayName: string;
+  avatar: string;
+  score: number;
+  streak: number;
+  lastAnswerIndex: number;
+}
+
+export async function createOrUpdateLiveRoomInFirestore(params: {
+  roomCode: string;
+  hostName: string;
+  title?: string;
+  stage: 'lobby' | 'question' | 'reveal' | 'podium';
+  currentQuestionIndex: number;
+  status?: 'active' | 'closed';
+  platformSet?: 'Scratch' | 'Micro:bit' | 'mixed';
+  difficulty?: 'all' | 'easy' | 'medium' | 'hard';
+  questionCount?: number;
+  questionIds?: string[];
+}): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  const cleanCode = clampStr(params.roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    return false;
+  }
+
+  const path = `liveRooms/${cleanCode}`;
+  try {
+    const ref = doc(db, 'liveRooms', cleanCode);
+    const snap = await getDoc(ref);
+
+    const payload: Record<string, unknown> = {
+      roomCode: cleanCode,
+      hostUid: snap.exists() ? snap.data()?.hostUid || user.uid : user.uid,
+      hostName: clampStr(params.hostName, 120, 'คุณครู') || 'คุณครู',
+      title: clampStr(params.title, 140, 'Live Quiz Battle ว 4.2') || 'Live Quiz Battle ว 4.2',
+      stage: params.stage,
+      currentQuestionIndex: Math.max(0, Math.min(50, Math.round(params.currentQuestionIndex || 0))),
+      status: params.status === 'closed' ? 'closed' : 'active',
+      createdAt: snap.exists() ? snap.data()?.createdAt || serverTimestamp() : serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    if (
+      params.platformSet === 'Scratch' ||
+      params.platformSet === 'Micro:bit' ||
+      params.platformSet === 'mixed'
+    ) {
+      payload.platformSet = params.platformSet;
+    }
+    if (
+      params.difficulty === 'all' ||
+      params.difficulty === 'easy' ||
+      params.difficulty === 'medium' ||
+      params.difficulty === 'hard'
+    ) {
+      payload.difficulty = params.difficulty;
+    }
+    if (typeof params.questionCount === 'number' && Number.isFinite(params.questionCount)) {
+      payload.questionCount = Math.max(1, Math.min(50, Math.round(params.questionCount)));
+    }
+    if (Array.isArray(params.questionIds) && params.questionIds.length > 0) {
+      const cleanIds = params.questionIds
+        .map((id) => clampStr(id, 128, ''))
+        .filter((id) => id.length > 0)
+        .slice(0, 50);
+      if (cleanIds.length > 0) {
+        payload.questionIds = cleanIds;
+      }
+    }
+
+    await setDoc(ref, payload, { merge: false });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function getLiveRoomFromFirestore(
+  roomCode: string
+): Promise<LiveQuizRoomRecord | null> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return null;
+  }
+  const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    return null;
+  }
+  const path = `liveRooms/${cleanCode}`;
+  try {
+    const snap = await getDoc(doc(db, 'liveRooms', cleanCode));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return {
+      roomCode: cleanCode,
+      hostUid: String(data.hostUid || ''),
+      hostName: String(data.hostName || 'คุณครู'),
+      title: String(data.title || 'Live Quiz Battle'),
+      stage:
+        data.stage === 'question' || data.stage === 'reveal' || data.stage === 'podium'
+          ? data.stage
+          : 'lobby',
+      currentQuestionIndex:
+        typeof data.currentQuestionIndex === 'number' ? data.currentQuestionIndex : 0,
+      status: data.status === 'closed' ? 'closed' : 'active',
+      ...(data.platformSet === 'Scratch' ||
+      data.platformSet === 'Micro:bit' ||
+      data.platformSet === 'mixed'
+        ? { platformSet: data.platformSet }
+        : {}),
+      ...(data.difficulty === 'all' ||
+      data.difficulty === 'easy' ||
+      data.difficulty === 'medium' ||
+      data.difficulty === 'hard'
+        ? { difficulty: data.difficulty }
+        : {}),
+      ...(typeof data.questionCount === 'number' ? { questionCount: data.questionCount } : {}),
+      ...(Array.isArray(data.questionIds)
+        ? { questionIds: data.questionIds.map((id: unknown) => String(id)) }
+        : {}),
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+  }
+}
+
+export async function joinOrUpdateLiveParticipantInFirestore(params: {
+  roomCode: string;
+  displayName: string;
+  avatar: string;
+  score: number;
+  streak: number;
+  lastAnswerIndex: number;
+}): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  const cleanCode = clampStr(params.roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    return false;
+  }
+
+  const path = `liveRooms/${cleanCode}/participants/${user.uid}`;
+  try {
+    const ref = doc(db, 'liveRooms', cleanCode, 'participants', user.uid);
+    const snap = await getDoc(ref);
+
+    await setDoc(
+      ref,
+      {
+        roomCode: cleanCode,
+        userId: user.uid,
+        displayName: clampStr(params.displayName, 120, 'ผู้เรียน') || 'ผู้เรียน',
+        avatar: clampStr(params.avatar, 16, '🐱') || '🐱',
+        score: Math.max(0, Math.min(100000, Math.round(params.score || 0))),
+        streak: Math.max(0, Math.min(100, Math.round(params.streak || 0))),
+        lastAnswerIndex: Math.max(-1, Math.min(10, Math.round(params.lastAnswerIndex ?? -1))),
+        createdAt: snap.exists() ? snap.data()?.createdAt || serverTimestamp() : serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: false }
+    );
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function listLiveParticipantsFromFirestore(
+  roomCode: string
+): Promise<LiveQuizParticipantRecord[]> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return [];
+  }
+  const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    return [];
+  }
+  const path = `liveRooms/${cleanCode}/participants`;
+  try {
+    const q = query(
+      collection(db, 'liveRooms', cleanCode, 'participants'),
+      where('roomCode', '==', cleanCode),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    const list: LiveQuizParticipantRecord[] = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        roomCode: cleanCode,
+        userId: String(data.userId || d.id),
+        displayName: String(data.displayName || 'ผู้เรียน'),
+        avatar: String(data.avatar || '🐱'),
+        score: typeof data.score === 'number' ? data.score : 0,
+        streak: typeof data.streak === 'number' ? data.streak : 0,
+        lastAnswerIndex: typeof data.lastAnswerIndex === 'number' ? data.lastAnswerIndex : -1,
+      };
+    });
+    list.sort((a, b) => b.score - a.score);
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Live Classroom Coding Battle Question Bank (/battleQuestions/{questionId})
+// ---------------------------------------------------------------------------
+export interface CloudBattleQuestionRecord {
+  id: string;
+  platform: 'Scratch' | 'Micro:bit';
+  difficulty: 'easy' | 'medium' | 'hard';
+  title: string;
+  codeSnippet: string;
+  options: [string, string, string, string];
+  correctIndex: 0 | 1 | 2 | 3;
+  explanation: string;
+  createdByName: string;
+  source: 'cloud';
+}
+
+export async function listBattleQuestionsFromFirestore(): Promise<CloudBattleQuestionRecord[]> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return [];
+  }
+
+  const path = 'battleQuestions';
+  try {
+    const q = query(
+      collection(db, 'battleQuestions'),
+      where('status', '==', 'active'),
+      limit(100)
+    );
+    const snap = await getDocs(q);
+    const records: Array<CloudBattleQuestionRecord & { _sortMs: number }> = snap.docs
+      .map((d) => {
+        const data = d.data();
+        const opts = Array.isArray(data.options) ? data.options : [];
+        if (opts.length !== 4) return null;
+        const platformVal = data.platform === 'Micro:bit' ? 'Micro:bit' : 'Scratch';
+        const diffVal =
+          data.difficulty === 'easy' || data.difficulty === 'hard'
+            ? data.difficulty
+            : 'medium';
+        const correctIdx =
+          typeof data.correctIndex === 'number' &&
+          data.correctIndex >= 0 &&
+          data.correctIndex <= 3
+            ? (Math.floor(data.correctIndex) as 0 | 1 | 2 | 3)
+            : 0;
+        const ts = data.updatedAt?.toDate?.() || data.createdAt?.toDate?.() || new Date();
+        return {
+          id: d.id,
+          platform: platformVal as 'Scratch' | 'Micro:bit',
+          difficulty: diffVal as 'easy' | 'medium' | 'hard',
+          title: String(data.title || ''),
+          codeSnippet: String(data.codeSnippet || ''),
+          options: [
+            String(opts[0] || ''),
+            String(opts[1] || ''),
+            String(opts[2] || ''),
+            String(opts[3] || ''),
+          ] as [string, string, string, string],
+          correctIndex: correctIdx,
+          explanation: String(data.explanation || ''),
+          createdByName: String(data.createdByName || 'คุณครู'),
+          source: 'cloud' as const,
+          _sortMs: ts.getTime(),
+        };
+      })
+      .filter((item): item is CloudBattleQuestionRecord & { _sortMs: number } => item !== null);
+
+    records.sort((a, b) => b._sortMs - a._sortMs);
+    return records.map(({ _sortMs, ...rest }) => rest);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export async function saveBattleQuestionToFirestore(params: {
+  questionId?: string;
+  platform: 'Scratch' | 'Micro:bit';
+  difficulty: 'easy' | 'medium' | 'hard';
+  title: string;
+  codeSnippet: string;
+  options: [string, string, string, string];
+  correctIndex: 0 | 1 | 2 | 3;
+  explanation: string;
+  createdByName: string;
+}): Promise<string | null> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return null;
+  }
+
+  const docId =
+    params.questionId && /^[a-zA-Z0-9_-]{1,128}$/.test(params.questionId)
+      ? params.questionId
+      : `bq_${params.platform === 'Scratch' ? 'sc' : 'mb'}_${Date.now()}`;
+  const path = `battleQuestions/${docId}`;
+
+  try {
+    const ref = doc(db, 'battleQuestions', docId);
+    const snap = await getDoc(ref);
+    const cleanOptions: [string, string, string, string] = [
+      clampStr(params.options[0], 300, 'ตัวเลือก A') || 'ตัวเลือก A',
+      clampStr(params.options[1], 300, 'ตัวเลือก B') || 'ตัวเลือก B',
+      clampStr(params.options[2], 300, 'ตัวเลือก C') || 'ตัวเลือก C',
+      clampStr(params.options[3], 300, 'ตัวเลือก D') || 'ตัวเลือก D',
+    ];
+    const safeCorrectIdx = Math.max(0, Math.min(3, Math.floor(params.correctIndex))) as 0 | 1 | 2 | 3;
+
+    const payload: Record<string, unknown> = {
+      platform: params.platform === 'Micro:bit' ? 'Micro:bit' : 'Scratch',
+      difficulty:
+        params.difficulty === 'easy' || params.difficulty === 'hard'
+          ? params.difficulty
+          : 'medium',
+      title: clampStr(params.title, 200, 'คำถามประลองโค้ด') || 'คำถามประลองโค้ด',
+      codeSnippet: clampStr(params.codeSnippet, 1500, '// ตัวอย่างโค้ด') || '// ตัวอย่างโค้ด',
+      options: cleanOptions,
+      correctIndex: safeCorrectIdx,
+      explanation: clampStr(params.explanation, 600, 'ตรวจสอบลำดับและเงื่อนไขของคำสั่งให้ถูกต้อง') || 'ตรวจสอบลำดับและเงื่อนไขของคำสั่งให้ถูกต้อง',
+      status: 'active',
+      createdByUid: snap.exists() ? snap.data()?.createdByUid || user.uid : user.uid,
+      createdByName: clampStr(params.createdByName, 120, 'คุณครู') || 'คุณครู',
+      createdAt: snap.exists() ? snap.data()?.createdAt || serverTimestamp() : serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    await setDoc(ref, payload, { merge: false });
+    return docId;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteBattleQuestionFromFirestore(questionId: string): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(questionId)) {
+    return false;
+  }
+  const path = `battleQuestions/${questionId}`;
+  try {
+    await deleteDoc(doc(db, 'battleQuestions', questionId));
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+
