@@ -42,6 +42,7 @@ import {
   ShoppingBag,
   ChevronDown,
   ChevronUp,
+  BarChart3,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../utils/soundEffects.ts';
@@ -94,6 +95,7 @@ interface DashboardProps {
   onOpenPairArena?: () => void;
   onOpenStemPacks?: () => void;
   onOpenTeacherMastery?: () => void;
+  onOpenClassroomStats?: () => void;
   onOpenHeroCards?: () => void;
   onOpenSmartExam?: () => void;
   onOpenCodeTracer?: () => void;
@@ -233,6 +235,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenPairArena,
   onOpenStemPacks,
   onOpenTeacherMastery,
+  onOpenClassroomStats,
   onOpenHeroCards,
   onOpenSmartExam,
   onOpenCodeTracer,
@@ -2756,6 +2759,40 @@ export const Dashboard: React.FC<DashboardProps> = ({
             onNavigate={onNavigate}
           />
 
+          {onOpenClassroomStats && (
+            <button
+              type="button"
+              onClick={onOpenClassroomStats}
+              className="w-full text-left p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-600 hover:from-indigo-500 hover:via-blue-500 hover:to-cyan-500 text-white shadow-lg shadow-indigo-500/20 transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            >
+              <div className="flex items-start sm:items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center shrink-0">
+                  <BarChart3 className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full">
+                      Classroom Overview
+                    </span>
+                    <span className="text-[11px] font-semibold text-cyan-100">
+                      อัปเดตอัตโนมัติจากข้อมูล ปพ.5 &amp; คลาวด์
+                    </span>
+                  </div>
+                  <h3 className="font-black text-base sm:text-lg mt-1">
+                    สรุปภาพรวมนักเรียนทั้งห้องเรียน (คะแนนเฉลี่ย · โมดูลรวม · นักเรียนที่ต้องดูแลพิเศษ)
+                  </h3>
+                  <p className="text-xs sm:text-sm text-indigo-100 mt-0.5">
+                    ติดตามคะแนนเฉลี่ยทั้งห้อง ความคืบหน้า 4 โมดูลหลัก ว 4.2 และรายชื่อนักเรียนกลุ่มเฝ้าระวังพร้อมคำแนะนำเสริมทักษะ
+                  </p>
+                </div>
+              </div>
+              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-indigo-700 font-extrabold text-xs sm:text-sm shrink-0 self-start sm:self-center group-hover:translate-x-0.5 transition-transform shadow-sm">
+                <span>เปิดสรุปภาพรวมห้องเรียน</span>
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </button>
+          )}
+
           {/* 4 การ์ดไฮไลท์ระบบบริหารวิชาการ ว 4.2 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {onOpenTeacherMastery && (
@@ -3300,6 +3337,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-teal-600 dark:text-teal-400">
                     <span>เปิดโต๊ะตรวจการบ้าน</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => (onOpenClassroomStats ? onOpenClassroomStats() : onNavigate('classroomStats'))}
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 transition-all text-left flex flex-col justify-between group cursor-pointer"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center text-indigo-700 dark:text-indigo-300">
+                        <BarChart3 className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
+                        สรุปห้องเรียน
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+                      สรุปภาพรวมนักเรียนทั้งห้องเรียน
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                      ดูคะแนนเฉลี่ย ความคืบหน้า 4 โมดูลรวม และคัดกรองนักเรียนที่ต้องการความช่วยเหลือพิเศษ
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
+                    <span>เปิดสรุปภาพรวมห้องเรียน</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </div>
                 </button>

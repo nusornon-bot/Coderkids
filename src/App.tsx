@@ -95,6 +95,7 @@ const ClassroomBattleModal = lazyNamed(() => import('./components/ClassroomBattl
 const CodeTyperModal = lazyNamed(() => import('./components/CodeTyperModal.tsx'), 'CodeTyperModal');
 const PairProgrammingArena = lazyNamed(() => import('./components/PairProgrammingArena.tsx'), 'PairProgrammingArena');
 const TeacherMasteryPortal = lazyNamed(() => import('./components/TeacherMasteryPortal.tsx'), 'TeacherMasteryPortal');
+const TeacherClassroomStatsModal = lazyNamed(() => import('./components/TeacherClassroomStatsModal.tsx'), 'TeacherClassroomStatsModal');
 const StemPacksModal = lazyNamed(() => import('./components/StemPacksModal.tsx'), 'StemPacksModal');
 const CoderHeroCardsModal = lazyNamed(() => import('./components/CoderHeroCardsModal.tsx'), 'CoderHeroCardsModal');
 const SmartExamGeneratorModal = lazyNamed(() => import('./components/SmartExamGeneratorModal.tsx'), 'SmartExamGeneratorModal');
@@ -445,6 +446,7 @@ export default function App() {
   const [isPairArenaOpen, setIsPairArenaOpen] = useState(false);
   const [isStemPacksOpen, setIsStemPacksOpen] = useState(false);
   const [isTeacherMasteryOpen, setIsTeacherMasteryOpen] = useState(false);
+  const [isClassroomStatsOpen, setIsClassroomStatsOpen] = useState(false);
   const [isHeroCardsOpen, setIsHeroCardsOpen] = useState(false);
   const [isSmartExamOpen, setIsSmartExamOpen] = useState(false);
   const [isCodeTracerOpen, setIsCodeTracerOpen] = useState(false);
@@ -924,6 +926,10 @@ export default function App() {
     }
     if (moduleKey === 'teacherMastery') {
       setIsTeacherMasteryOpen(true);
+      return;
+    }
+    if (moduleKey === 'classroomStats') {
+      setIsClassroomStatsOpen(true);
       return;
     }
     if (moduleKey === 'rubricModal') {
@@ -1766,6 +1772,7 @@ export default function App() {
         onOpenPairArena={() => setIsPairArenaOpen(true)}
         onOpenStemPacks={() => setIsStemPacksOpen(true)}
         onOpenTeacherMastery={() => setIsTeacherMasteryOpen(true)}
+        onOpenClassroomStats={() => setIsClassroomStatsOpen(true)}
         onOpenHeroCards={() => setIsHeroCardsOpen(true)}
         onOpenSmartExam={() => setIsSmartExamOpen(true)}
         onOpenCodeTracer={() => setIsCodeTracerOpen(true)}
@@ -1882,6 +1889,7 @@ export default function App() {
             onOpenPairArena={() => setIsPairArenaOpen(true)}
             onOpenStemPacks={() => setIsStemPacksOpen(true)}
             onOpenTeacherMastery={() => setIsTeacherMasteryOpen(true)}
+            onOpenClassroomStats={() => setIsClassroomStatsOpen(true)}
             onOpenHeroCards={() => setIsHeroCardsOpen(true)}
             onOpenSmartExam={() => setIsSmartExamOpen(true)}
             onOpenCodeTracer={() => setIsCodeTracerOpen(true)}
@@ -2690,6 +2698,29 @@ export default function App() {
           />
         )}
 
+        {isClassroomStatsOpen && (
+          <TeacherClassroomStatsModal
+            isOpen={isClassroomStatsOpen}
+            onClose={() => setIsClassroomStatsOpen(false)}
+            currentProfile={profile}
+            profiles={profiles}
+            currentPoints={points}
+            moduleProgress={moduleProgress}
+            onOpenTeacherMastery={() => {
+              setIsClassroomStatsOpen(false);
+              setIsTeacherMasteryOpen(true);
+            }}
+            onOpenAssessmentReport={() => {
+              setIsClassroomStatsOpen(false);
+              setIsAssessmentReportOpen(true);
+            }}
+            onOpenHomeworkDropzone={() => {
+              setIsClassroomStatsOpen(false);
+              setIsHomeworkDropzoneOpen(true);
+            }}
+          />
+        )}
+
         {isHeroCardsOpen && (
           <CoderHeroCardsModal
             isOpen={isHeroCardsOpen}
@@ -2734,6 +2765,7 @@ export default function App() {
             onOpenHomeworkDropzone={() => setIsHomeworkDropzoneOpen(true)}
             onOpenAvatarShop={() => setIsAvatarShopOpen(true)}
             onOpenTeacherMastery={() => setIsTeacherMasteryOpen(true)}
+            onOpenClassroomStats={() => setIsClassroomStatsOpen(true)}
             onOpenRubricModal={() => setIsRubricModalOpen(true)}
             onOpenSmartExam={() => setIsSmartExamOpen(true)}
           />

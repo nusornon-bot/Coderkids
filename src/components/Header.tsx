@@ -50,6 +50,7 @@ import {
   RotateCw,
   ShoppingBag,
   FolderGit2,
+  BarChart3,
 } from 'lucide-react';
 import { UserProfile, ColorTone, COLOR_TONES } from '../types/index.ts';
 import { soundEffects } from '../utils/soundEffects.ts';
@@ -92,6 +93,7 @@ interface HeaderProps {
   onOpenPairArena?: () => void;
   onOpenStemPacks?: () => void;
   onOpenTeacherMastery?: () => void;
+  onOpenClassroomStats?: () => void;
   onOpenHeroCards?: () => void;
   onOpenSmartExam?: () => void;
   onOpenCodeTracer?: () => void;
@@ -159,6 +161,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPairArena,
   onOpenStemPacks,
   onOpenTeacherMastery,
+  onOpenClassroomStats,
   onOpenHeroCards,
   onOpenSmartExam,
   onOpenCodeTracer,
@@ -1191,6 +1194,24 @@ export const Header: React.FC<HeaderProps> = ({
                           </button>
                         )}
 
+                        {onOpenClassroomStats && (
+                          <button
+                            onClick={() => handleAction(onOpenClassroomStats)}
+                            className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-indigo-50 dark:hover:bg-indigo-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                          >
+                            <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center shrink-0">
+                              <BarChart3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
+                                <span className="truncate">สรุปภาพรวมนักเรียนทั้งห้องเรียน</span>
+                                <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">สถิติห้อง</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">คะแนนเฉลี่ย · ความคืบหน้า 4 โมดูล · ดูแลพิเศษ</div>
+                            </div>
+                          </button>
+                        )}
+
                         {onOpenTeacherMastery && (
                           <button
                             onClick={() => handleAction(onOpenTeacherMastery)}
@@ -2135,6 +2156,14 @@ export const Header: React.FC<HeaderProps> = ({
                         className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
                       >
                         <span>14. 📂 โต๊ะตรวจการบ้าน &amp; ผลงานนักเรียน</span>
+                      </button>
+                    )}
+                    {onOpenClassroomStats && (
+                      <button
+                        onClick={() => handleAction(onOpenClassroomStats)}
+                        className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
+                      >
+                        <span>📊 สรุปภาพรวมนักเรียนทั้งห้องเรียน (สถิติ &amp; ดูแลพิเศษ)</span>
                       </button>
                     )}
                     {onOpenTeacherMastery && (

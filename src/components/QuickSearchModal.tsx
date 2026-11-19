@@ -23,6 +23,7 @@ import {
   Lightbulb,
   Award,
   Layers,
+  BarChart3,
 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects.ts';
 
@@ -47,6 +48,7 @@ interface QuickSearchModalProps {
   onOpenHomeworkDropzone?: () => void;
   onOpenAvatarShop?: () => void;
   onOpenTeacherMastery?: () => void;
+  onOpenClassroomStats?: () => void;
   onOpenRubricModal?: () => void;
   onOpenSmartExam?: () => void;
   onOpenClassroomBattle?: () => void;
@@ -71,6 +73,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
   onOpenHomeworkDropzone,
   onOpenAvatarShop,
   onOpenTeacherMastery,
+  onOpenClassroomStats,
   onOpenRubricModal,
   onOpenSmartExam,
   onOpenClassroomBattle,
@@ -284,6 +287,21 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
             },
           ]
         : []),
+      ...(onOpenClassroomStats
+        ? [
+            {
+              id: 'tool_classroom_stats',
+              title: 'สรุปภาพรวมนักเรียนทั้งห้องเรียน (Classroom Stats)',
+              category: 'teacher' as const,
+              categoryLabel: 'เครื่องมือห้องเรียน',
+              desc: 'คะแนนเฉลี่ยทั้งห้อง ความคืบหน้า 4 โมดูลรวม และคัดกรองนักเรียนที่ต้องการดูแลพิเศษ',
+              keywords: ['ภาพรวม', 'สถิติ', 'คะแนนเฉลี่ย', 'ดูแลพิเศษ', 'ช่วยเหลือพิเศษ', 'โมดูล', 'ห้องเรียน', 'classroom stats', 'ครู'],
+              icon: BarChart3,
+              action: onOpenClassroomStats,
+              badge: 'สถิติห้อง',
+            },
+          ]
+        : []),
       ...(onOpenTeacherMastery
         ? [
             {
@@ -448,6 +466,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
     onOpenHomeworkDropzone,
     onOpenAvatarShop,
     onOpenTeacherMastery,
+    onOpenClassroomStats,
     onOpenSmartExam,
     onOpenUnpluggedWorksheets,
     onOpenClassroomBattle,
