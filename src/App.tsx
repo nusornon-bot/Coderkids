@@ -92,6 +92,7 @@ const BebrasArena = lazyNamed(() => import('./components/BebrasArena.tsx'), 'Beb
 const AiPromptLab = lazyNamed(() => import('./components/AiPromptLab.tsx'), 'AiPromptLab');
 const MicrobitDataLogger = lazyNamed(() => import('./components/MicrobitDataLogger.tsx'), 'MicrobitDataLogger');
 const ClassroomBattleModal = lazyNamed(() => import('./components/ClassroomBattleModal.tsx'), 'ClassroomBattleModal');
+const OnetBattleModal = lazyNamed(() => import('./components/OnetBattleModal.tsx'), 'OnetBattleModal');
 const CodeTyperModal = lazyNamed(() => import('./components/CodeTyperModal.tsx'), 'CodeTyperModal');
 const PairProgrammingArena = lazyNamed(() => import('./components/PairProgrammingArena.tsx'), 'PairProgrammingArena');
 const TeacherMasteryPortal = lazyNamed(() => import('./components/TeacherMasteryPortal.tsx'), 'TeacherMasteryPortal');
@@ -442,6 +443,7 @@ export default function App() {
   const [isRubricModalOpen, setIsRubricModalOpen] = useState(false);
   const [isParentTeacherKitOpen, setIsParentTeacherKitOpen] = useState(false);
   const [isClassroomBattleOpen, setIsClassroomBattleOpen] = useState(false);
+  const [isOnetBattleOpen, setIsOnetBattleOpen] = useState(false);
   const [isCodeTyperOpen, setIsCodeTyperOpen] = useState(false);
   const [isPairArenaOpen, setIsPairArenaOpen] = useState(false);
   const [isStemPacksOpen, setIsStemPacksOpen] = useState(false);
@@ -966,6 +968,10 @@ export default function App() {
     }
     if (moduleKey === 'classroomBattle') {
       setIsClassroomBattleOpen(true);
+      return;
+    }
+    if (moduleKey === 'onetBattle') {
+      setIsOnetBattleOpen(true);
       return;
     }
     if (moduleKey === 'quickSearch') {
@@ -1768,6 +1774,7 @@ export default function App() {
         onOpenRubricModal={() => setIsRubricModalOpen(true)}
         onOpenParentTeacherKit={() => setIsParentTeacherKitOpen(true)}
         onOpenClassroomBattle={() => setIsClassroomBattleOpen(true)}
+        onOpenOnetBattle={() => setIsOnetBattleOpen(true)}
         onOpenCodeTyper={() => setIsCodeTyperOpen(true)}
         onOpenPairArena={() => setIsPairArenaOpen(true)}
         onOpenStemPacks={() => setIsStemPacksOpen(true)}
@@ -1885,6 +1892,7 @@ export default function App() {
             onOpenRubricModal={() => setIsRubricModalOpen(true)}
             onOpenParentTeacherKit={() => setIsParentTeacherKitOpen(true)}
             onOpenClassroomBattle={() => setIsClassroomBattleOpen(true)}
+            onOpenOnetBattle={() => setIsOnetBattleOpen(true)}
             onOpenCodeTyper={() => setIsCodeTyperOpen(true)}
             onOpenPairArena={() => setIsPairArenaOpen(true)}
             onOpenStemPacks={() => setIsStemPacksOpen(true)}
@@ -2662,6 +2670,17 @@ export default function App() {
           />
         )}
 
+        {isOnetBattleOpen && (
+          <OnetBattleModal
+            isOpen={isOnetBattleOpen}
+            onClose={() => setIsOnetBattleOpen(false)}
+            studentName={profile.name}
+            isTeacher={isAdmin && viewRoleMode === 'teacher'}
+            addPoints={addPoints}
+            onCelebrate={handleTriggerManualCelebration}
+          />
+        )}
+
         {isCodeTyperOpen && (
           <CodeTyperModal
             isOpen={isCodeTyperOpen}
@@ -2768,6 +2787,8 @@ export default function App() {
             onOpenClassroomStats={() => setIsClassroomStatsOpen(true)}
             onOpenRubricModal={() => setIsRubricModalOpen(true)}
             onOpenSmartExam={() => setIsSmartExamOpen(true)}
+            onOpenClassroomBattle={() => setIsClassroomBattleOpen(true)}
+            onOpenOnetBattle={() => setIsOnetBattleOpen(true)}
           />
         )}
 

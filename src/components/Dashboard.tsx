@@ -91,6 +91,7 @@ interface DashboardProps {
   onOpenRubricModal?: () => void;
   onOpenParentTeacherKit?: () => void;
   onOpenClassroomBattle?: () => void;
+  onOpenOnetBattle?: () => void;
   onOpenCodeTyper?: () => void;
   onOpenPairArena?: () => void;
   onOpenStemPacks?: () => void;
@@ -231,6 +232,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onOpenRubricModal,
   onOpenParentTeacherKit,
   onOpenClassroomBattle,
+  onOpenOnetBattle,
   onOpenCodeTyper,
   onOpenPairArena,
   onOpenStemPacks,
@@ -1227,11 +1229,37 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   Live Classroom Coding Battle
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  ประลองความเร็วแก้โจทย์โค้ดสดในห้องเรียน 5 ข้อ ตะลุยด่าน Scratch &amp; Python แบบเรียลไทม์
+                  ประลองความเร็วแก้โจทย์โค้ดสดในห้องเรียน สุ่มจากคลัง Scratch &amp; Micro:bit 144 ข้อแบบเรียลไทม์
                 </p>
               </div>
               <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-rose-600 dark:text-rose-400">
-                <span>เปิดห้องประลองสด</span>
+                <span>เปิดห้องประลองโค้ดสด</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </div>
+            </div>
+
+            <div
+              onClick={() => (onOpenOnetBattle ? onOpenOnetBattle() : onNavigate('onetBattle'))}
+              className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
+            >
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xl">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
+                    คลัง O-NET 100 ข้อ
+                  </span>
+                </div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                  Live Classroom O-NET Battle
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  ประลองข้อสอบ O-NET ป.6 สดในห้องเรียนด้วย Game PIN สุ่มจากคลัง 10 ชุด (100 ข้อ) เลือกหมวดและระดับความยากได้
+                </p>
+              </div>
+              <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
+                <span>เปิดห้องประลอง O-NET สด</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </div>
             </div>
@@ -1817,6 +1845,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-orange-600 dark:text-orange-400">
                     <span>เปิด Live Battle</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => (onOpenOnetBattle ? onOpenOnetBattle() : onNavigate('onetBattle'))}
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-slate-200 dark:border-slate-700 hover:border-amber-400 transition-all text-left flex flex-col justify-between group cursor-pointer"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center text-amber-700 dark:text-amber-300">
+                        <GraduationCap className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
+                        O-NET 100 ข้อ
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">
+                      18.5 Live Classroom O-NET Battle
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                      ประลองคลังข้อสอบ O-NET ป.6 สดในชั้นเรียนด้วย Game PIN สุ่มข้อสอบจาก 10 ชุดมาตรฐาน
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                    <span>เปิด O-NET Battle</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </div>
                 </button>
@@ -2937,6 +2992,33 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-amber-600 dark:text-amber-400">
                     <span>เปิดคลังข้อสอบ O-NET</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => (onOpenOnetBattle ? onOpenOnetBattle() : onNavigate('onetBattle'))}
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-orange-50 dark:hover:bg-orange-950/40 border border-slate-200 dark:border-slate-700 hover:border-orange-400 transition-all text-left flex flex-col justify-between group cursor-pointer"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-900/60 flex items-center justify-center text-orange-700 dark:text-orange-300">
+                        <GraduationCap className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300">
+                        แข่งสด PIN
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400">
+                      1.5 Live Classroom O-NET Battle
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                      นำคลังข้อสอบ O-NET 100 ข้อมาแข่งขันสดในห้องเรียน ครูตั้งรหัส PIN สุ่มชุดข้อสอบได้ทันที
+                    </p>
+                  </div>
+                  <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-orange-600 dark:text-orange-400">
+                    <span>เปิด Live O-NET Battle</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </div>
                 </button>

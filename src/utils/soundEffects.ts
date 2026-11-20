@@ -5,10 +5,16 @@ class SoundEffectsService {
   private isMuted: boolean = false;
 
   constructor() {
-    // Check saved mute preference
-    const saved = localStorage.getItem('coderkids_sound_muted');
-    if (saved !== null) {
-      this.isMuted = saved === 'true';
+    // Check saved mute preference safely in browser environments
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('coderkids_sound_muted');
+        if (saved !== null) {
+          this.isMuted = saved === 'true';
+        }
+      } catch {
+        // Ignore storage errors
+      }
     }
   }
 
@@ -32,7 +38,13 @@ class SoundEffectsService {
 
   public setSoundMuted(muted: boolean): void {
     this.isMuted = muted;
-    localStorage.setItem('coderkids_sound_muted', muted.toString());
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('coderkids_sound_muted', muted.toString());
+      } catch {
+        // Ignore storage errors
+      }
+    }
   }
 
   public toggleMute(): boolean {

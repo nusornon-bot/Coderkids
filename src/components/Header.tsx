@@ -89,6 +89,7 @@ interface HeaderProps {
   onOpenRubricModal?: () => void;
   onOpenParentTeacherKit?: () => void;
   onOpenClassroomBattle?: () => void;
+  onOpenOnetBattle?: () => void;
   onOpenCodeTyper?: () => void;
   onOpenPairArena?: () => void;
   onOpenStemPacks?: () => void;
@@ -157,6 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRubricModal,
   onOpenParentTeacherKit,
   onOpenClassroomBattle,
+  onOpenOnetBattle,
   onOpenCodeTyper,
   onOpenPairArena,
   onOpenStemPacks,
@@ -817,9 +819,27 @@ export const Header: React.FC<HeaderProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-400">
                             <span className="truncate">18. Live Classroom Battle</span>
-                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">10 ข้อ</span>
+                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">144 ข้อ</span>
                           </div>
-                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แข่งแก้บั๊กสปรินท์สดในชั้นเรียน</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แข่งแก้บั๊กและโค้ดดิ้งสดในชั้นเรียน</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenOnetBattle && (
+                      <button
+                        onClick={() => handleAction(onOpenOnetBattle)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-orange-50 dark:hover:bg-orange-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-900/60 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-orange-700 dark:text-orange-400">
+                            <span className="truncate">18.5 Live Classroom O-NET Battle</span>
+                            <span className="text-[10px] font-mono text-orange-600 dark:text-orange-400 shrink-0">100 ข้อ</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ประลองคลังข้อสอบ O-NET ป.6 สดด้วย PIN</div>
                         </div>
                       </button>
                     )}
@@ -926,6 +946,24 @@ export const Header: React.FC<HeaderProps> = ({
                             <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">10 ชุด (100 ข้อ)</span>
                           </div>
                           <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ฝึกทำข้อสอบ 10 ชุด + กราฟวิเคราะห์จุดแข็งรายบุคคล</div>
+                        </div>
+                      </button>
+                    )}
+
+                    {onOpenOnetBattle && (
+                      <button
+                        onClick={() => handleAction(onOpenOnetBattle)}
+                        className="w-full flex items-center gap-3 p-2 rounded-xl text-left hover:bg-orange-50 dark:hover:bg-orange-950/50 text-slate-700 dark:text-slate-200 transition-all cursor-pointer group"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-orange-100 dark:bg-orange-900/60 flex items-center justify-center shrink-0">
+                          <GraduationCap className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-orange-700 dark:text-orange-300">
+                            <span className="truncate">1.5 Live Classroom O-NET Battle</span>
+                            <span className="text-[10px] font-mono text-orange-600 dark:text-orange-400 shrink-0">แข่งสด PIN</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ห้องประลองคลังข้อสอบ O-NET สดในห้องเรียน (100 ข้อ)</div>
                         </div>
                       </button>
                     )}
@@ -1999,7 +2037,16 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
                   >
                     <span>18. ⚡ Live Classroom Battle</span>
-                    <span className="text-[10px] font-mono">10 ข้อ</span>
+                    <span className="text-[10px] font-mono">144 ข้อ</span>
+                  </button>
+                )}
+                {onOpenOnetBattle && (
+                  <button
+                    onClick={() => handleAction(onOpenOnetBattle)}
+                    className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-orange-700 dark:text-orange-300 hover:bg-orange-100/60 flex items-center justify-between"
+                  >
+                    <span>18.5 🎓 Live Classroom O-NET Battle</span>
+                    <span className="text-[10px] font-mono">100 ข้อ</span>
                   </button>
                 )}
                 {onOpenHeroCards && (

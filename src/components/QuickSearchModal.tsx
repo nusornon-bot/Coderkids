@@ -52,6 +52,7 @@ interface QuickSearchModalProps {
   onOpenRubricModal?: () => void;
   onOpenSmartExam?: () => void;
   onOpenClassroomBattle?: () => void;
+  onOpenOnetBattle?: () => void;
   onOpenBugHunter?: () => void;
   onOpenUnpluggedWorksheets?: () => void;
   onOpenCodeTyper?: () => void;
@@ -77,6 +78,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
   onOpenRubricModal,
   onOpenSmartExam,
   onOpenClassroomBattle,
+  onOpenOnetBattle,
   onOpenBugHunter,
   onOpenUnpluggedWorksheets,
   onOpenCodeTyper,
@@ -335,13 +337,27 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
         ? [
             {
               id: 'tool_battle',
-              title: 'Live Classroom Battle แข่งขันสดในห้อง',
+              title: 'Live Classroom Coding Battle แข่งขันสดในห้อง',
               category: 'teacher' as const,
               categoryLabel: 'เครื่องมือห้องเรียน',
-              desc: 'แข่งตอบปัญหาสด 4 ทีมผ่านจอโปรเจกเตอร์ด้วยรหัส PIN',
-              keywords: ['battle', 'แข่งสด', 'ห้องเรียน', 'pin', 'โปรเจกเตอร์', 'เกมตอบคำถาม'],
+              desc: 'แข่งตอบโจทย์ Scratch & Micro:bit สดผ่านจอโปรเจกเตอร์ด้วยรหัส PIN',
+              keywords: ['battle', 'coding battle', 'แข่งสด', 'ห้องเรียน', 'pin', 'โปรเจกเตอร์', 'เกมตอบคำถาม'],
               icon: Swords,
               action: onOpenClassroomBattle,
+            },
+          ]
+        : []),
+      ...(onOpenOnetBattle
+        ? [
+            {
+              id: 'tool_onet_battle',
+              title: 'Live Classroom O-NET Battle ประลอง O-NET สด',
+              category: 'teacher' as const,
+              categoryLabel: 'เครื่องมือห้องเรียน',
+              desc: 'แข่งขันคลังข้อสอบ O-NET ป.6 (100 ข้อ) สดในห้องเรียนด้วยรหัส Game PIN',
+              keywords: ['onet', 'o-net', 'battle', 'onet battle', 'ประลองสด', 'ข้อสอบ', 'pin', 'ห้องเรียน'],
+              icon: GraduationCap,
+              action: onOpenOnetBattle,
             },
           ]
         : []),
@@ -470,6 +486,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
     onOpenSmartExam,
     onOpenUnpluggedWorksheets,
     onOpenClassroomBattle,
+    onOpenOnetBattle,
     onOpenCodeTyper,
     onOpenHeroCards,
     onOpenCertificate,
