@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
+  computeExamDurationSeconds,
+  formatCountdownClock,
   formatThaiChoiceOption,
   generateSmartExamSet,
+  getDifficultyPoolBreakdown,
   getEligibleSmartExamPoolCount,
+  getTimerUrgencyLevel,
 } from '../smartExamGenerator';
 
 describe('smartExamGenerator', () => {
@@ -69,6 +73,27 @@ describe('smartExamGenerator', () => {
     expect(new Set(exam.map((q) => q.id)).size).toBe(24);
   });
 
+  it('supports difficulty filtering and breakdown counts across both battle and standard libraries', () => {
+    const mixedBreakdown = getDifficultyPoolBreakdown({ source: 'mixed', grade: 'ทั้งหมด' });
+    expect(mixedBreakdown).toEqual({ all: 144, easy: 48, medium: 48, hard: 48 });
+
+    const scratchBreakdown = getDifficultyPoolBreakdown({ source: 'Scratch', grade: 'ทั้งหมด' });
+    expect(scratchBreakdown).toEqual({ all: 72, easy: 24, medium: 24, hard: 24 });
+
+    const stdBreakdown = getDifficultyPoolBreakdown({ source: 'standard', grade: 'ทั้งหมด' });
+    expect(stdBreakdown).toEqual({ all: 8, easy: 3, medium: 3, hard: 2 });
+
+    const stdHard = generateSmartExamSet({
+      source: 'standard',
+      difficulty: 'hard',
+      grade: 'ทั้งหมด',
+      questionCount: 10,
+      rng: () => 0.2,
+    });
+    expect(stdHard).toHaveLength(2);
+    expect(stdHard.every((q) => q.difficulty === 'hard')).toBe(true);
+  });
+
   it('supports standard curriculum filter by grade and preserves correct answer after shuffling options', () => {
     const exam = generateSmartExamSet({
       source: 'standard',
@@ -87,5 +112,21 @@ describe('smartExamGenerator', () => {
   it('formats Thai choice prefixes without duplicating existing prefixes', () => {
     expect(formatThaiChoiceOption('สี่เหลี่ยมจัตุรัส', 1)).toBe('ข. สี่เหลี่ยมจัตุรัส');
     expect(formatThaiChoiceOption('ค. วงกลม', 2)).toBe('ค. วงกลม');
+  });
+
+  it('computes exam countdown durations, formats clocks, and classifies urgency accurately', () => {
+    expect(computeExamDurationSeconds(10, 'auto')).toBe(600);
+    expect(computeExamDurationSeconds(2, 'auto')).toBe(180); // min 3 minutes
+    expect(computeExamDurationSeconds(10, 15)).toBe(900);
+    expect(computeExamDurationSeconds(10, 120)).toBe(5400); // clamped to 90 min
+
+    expect(formatCountdownClock(0)).toBe('00:00');
+    expect(formatCountdownClock(65)).toBe('01:05');
+    expect(formatCountdownClock(600)).toBe('10:00');
+    expect(formatCountdownClock(3665)).toBe('1:01:05');
+
+    expect(getTimerUrgencyLevel(500, 600)).toBe('normal');
+    expect(getTimerUrgencyLevel(200, 600)).toBe('warning');
+    expect(getTimerUrgencyLevel(45, 600)).toBe('critical');
   });
 });

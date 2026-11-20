@@ -203,6 +203,32 @@ function shuffleSmartExamOptions(
   };
 }
 
+export function getDifficultyPoolBreakdown(options: {
+  source: SmartExamSource;
+  grade: SmartExamGrade;
+  battleBank?: BattleQuestionItem[];
+}): Record<BattleDifficultyFilter, number> {
+  const bank = options.battleBank ?? BUILTIN_BATTLE_QUESTIONS;
+  if (options.source === 'standard') {
+    const gradeFiltered = STANDARD_CURRICULUM_QUESTIONS.filter(
+      (q) => options.grade === 'ทั้งหมด' || q.grade === options.grade
+    );
+    return {
+      all: gradeFiltered.length,
+      easy: gradeFiltered.filter((q) => q.difficulty === 'easy').length,
+      medium: gradeFiltered.filter((q) => q.difficulty === 'medium').length,
+      hard: gradeFiltered.filter((q) => q.difficulty === 'hard').length,
+    };
+  }
+  const platformFiltered = filterBattleQuestions(bank, options.source, 'all');
+  return {
+    all: platformFiltered.length,
+    easy: platformFiltered.filter((q) => q.difficulty === 'easy').length,
+    medium: platformFiltered.filter((q) => q.difficulty === 'medium').length,
+    hard: platformFiltered.filter((q) => q.difficulty === 'hard').length,
+  };
+}
+
 export function getEligibleSmartExamPoolCount(options: {
   source: SmartExamSource;
   difficulty: BattleDifficultyFilter;
@@ -212,7 +238,9 @@ export function getEligibleSmartExamPoolCount(options: {
   const bank = options.battleBank ?? BUILTIN_BATTLE_QUESTIONS;
   if (options.source === 'standard') {
     return STANDARD_CURRICULUM_QUESTIONS.filter(
-      (q) => options.grade === 'ทั้งหมด' || q.grade === options.grade
+      (q) =>
+        (options.grade === 'ทั้งหมด' || q.grade === options.grade) &&
+        (options.difficulty === 'all' || q.difficulty === options.difficulty)
     ).length;
   }
   return filterBattleQuestions(bank, options.source, options.difficulty).length;
@@ -237,7 +265,9 @@ export function generateSmartExamSet(options: {
 
   if (options.source === 'standard') {
     const eligible = STANDARD_CURRICULUM_QUESTIONS.filter(
-      (q) => options.grade === 'ทั้งหมด' || q.grade === options.grade
+      (q) =>
+        (options.grade === 'ทั้งหมด' || q.grade === options.grade) &&
+        (options.difficulty === 'all' || q.difficulty === options.difficulty)
     );
     const picked = shuffleArray(eligible, rng).slice(
       0,
@@ -271,3 +301,55 @@ export function formatThaiChoiceOption(text: string, index: number): string {
   }
   return `${prefix} ${trimmed}`;
 }
+
+export type TimerUrgencyLevel = 'normal' | 'warning' | 'critical';
+
+/**
+ * Computes total exam duration in seconds from either 'auto' (1 min/question, min 3 min)
+ * or an explicit minute value clamped to [1, 90].
+ */
+export function computeExamDurationSeconds(
+  questionCount: number,
+  durationMode: 'auto' | number
+): number {
+  if (durationMode === 'auto') {
+    const safeCount = Math.max(1, Math.floor(questionCount || 1));
+    return Math.max(180, safeCount * 60);
+  }
+  const mins = Math.max(1, Math.min(90, Math.floor(durationMode || 1)));
+  return mins * 60;
+}
+
+/**
+ * Formats remaining seconds as MM:SS (or H:MM:SS when >= 3600s).
+ */
+export function formatCountdownClock(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safe / 3600);
+  const mins = Math.floor((safe % 3600) / 60);
+  const secs = safe % 60;
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  if (hours > 0) {
+    return `${hours}:${pad(mins)}:${pad(secs)}`;
+  }
+  return `${pad(mins)}:${pad(secs)}`;
+}
+
+/**
+ * Determines visual urgency zone for the countdown timer.
+ */
+export function getTimerUrgencyLevel(
+  timeLeftSeconds: number,
+  totalDurationSeconds: number
+): TimerUrgencyLevel {
+  const safeTotal = Math.max(1, totalDurationSeconds);
+  const ratio = Math.max(0, timeLeftSeconds) / safeTotal;
+  if (timeLeftSeconds <= 60 || ratio <= 0.2) {
+    return 'critical';
+  }
+  if (timeLeftSeconds <= 180 || ratio <= 0.45) {
+    return 'warning';
+  }
+  return 'normal';
+}
+
