@@ -434,6 +434,71 @@ export default {
         }
       }
 
+      // 1.5 SAFE SAME-ORIGIN PROXY FOR READING GOOGLE SHEET TABS
+      if (url.pathname === '/api/sheets/read' && request.method === 'GET') {
+        const rawSpreadsheetId = (url.searchParams.get('spreadsheetId') || '').trim();
+        const spreadsheetId = rawSpreadsheetId || TARGET_SPREADSHEET_ID;
+        const rawSheet = (url.searchParams.get('sheet') || '').trim();
+        const sheetTitle = clampString(rawSheet, 80, 'Students') || 'Students';
+        const rawRange = (url.searchParams.get('range') || 'A1:M100').trim();
+        const safeRange = /^[A-Z]{1,3}\d{1,5}:[A-Z]{1,3}\d{1,5}$/.test(rawRange) ? rawRange : 'A1:M100';
+
+        if (!/^[a-zA-Z0-9_-]{10,128}$/.test(spreadsheetId)) {
+          return jsonResponse({ ok: false, reason: 'invalid_spreadsheet_id', rows: [], csvText: '' }, 400);
+        }
+
+        const bridgeToken =
+          (globalThis as any).__bridgeSheetsToken ||
+          env.GOOGLE_SHEETS_ACCESS_TOKEN ||
+          (env.STUDENTS_KV ? await env.STUDENTS_KV.get('bridge_sheets_token') : '') ||
+          '';
+
+        const authHeader = request.headers.get('Authorization');
+        if (bridgeToken && authHeader) {
+          try {
+            const verifiedUser = await verifyFirebaseIdToken(authHeader, {
+              projectId: FIREBASE_PROJECT_ID,
+            });
+            if (isVerifiedTeacherToken(verifiedUser)) {
+              const apiRes = await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!${safeRange}`,
+                {
+                  headers: { Authorization: `Bearer ${bridgeToken}` },
+                }
+              );
+              if (apiRes.ok) {
+                const data = (await apiRes.json().catch(() => ({}))) as any;
+                return jsonResponse({
+                  ok: true,
+                  source: 'sheets_api',
+                  rows: Array.isArray(data.values) ? data.values : [],
+                  csvText: '',
+                });
+              }
+            }
+          } catch {
+            // Fall through to public gviz lookup
+          }
+        }
+
+        try {
+          const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetTitle)}`;
+          const gvizRes = await fetch(gvizUrl, { redirect: 'follow' });
+          const contentType = (gvizRes.headers.get('content-type') || '').toLowerCase();
+          if (!gvizRes.ok || contentType.includes('text/html')) {
+            return jsonResponse({ ok: false, reason: 'auth_required', rows: [], csvText: '' });
+          }
+          const csvText = await gvizRes.text();
+          const trimmedStart = csvText.trimStart().slice(0, 32).toLowerCase();
+          if (trimmedStart.startsWith('<!doctype') || trimmedStart.startsWith('<html')) {
+            return jsonResponse({ ok: false, reason: 'auth_required', rows: [], csvText: '' });
+          }
+          return jsonResponse({ ok: true, source: 'public_gviz', rows: [], csvText });
+        } catch {
+          return jsonResponse({ ok: false, reason: 'unreachable', rows: [], csvText: '' });
+        }
+      }
+
       // 2. RECORD CLASSROOM ACCESS LOG
       if (url.pathname === '/api/logs/record' && request.method === 'POST') {
         try {

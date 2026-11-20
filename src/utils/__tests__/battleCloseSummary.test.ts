@@ -5,6 +5,7 @@ import {
   TOP_THREE_XP_REWARDS,
   buildBattleClosedSummary,
   buildBattleClosedSummaryFromCloudRoom,
+  buildScoreChartMetrics,
   extractFinalTopWinners,
   findStudentRewardInClosedSummary,
 } from '../battleCloseSummary.ts';
@@ -65,6 +66,9 @@ describe('battleCloseSummary', () => {
     expect(summary.totalParticipants).toBe(4);
     expect(summary.topScore).toBe(2850);
     expect(summary.topWinners).toHaveLength(3);
+    expect(summary.topThreeXpAwarded).toBe(
+      TOP_THREE_XP_REWARDS[1] + TOP_THREE_XP_REWARDS[2] + TOP_THREE_XP_REWARDS[3]
+    );
 
     expect(summary.topWinners[0]).toMatchObject({
       rank: 1,
@@ -97,6 +101,29 @@ describe('battleCloseSummary', () => {
     );
   });
 
+  it('computes all-student score chart metrics accurately including median, average, and delta', () => {
+    const summary = buildBattleClosedSummary({
+      roomCode: '882410',
+      battleMode: 'coding',
+      battleTitle: 'Live Classroom Coding Battle',
+      hostName: 'ครูอนุสรณ์',
+      participants: SAMPLE_PARTICIPANTS,
+    });
+
+    const chart = buildScoreChartMetrics(summary.allRanked);
+    expect(chart.data).toHaveLength(4);
+    expect(chart.maxScore).toBe(2850);
+    expect(chart.minScore).toBe(1200);
+    expect(chart.averageScore).toBe(2038);
+    expect(chart.medianScore).toBe(2050);
+    expect(chart.aboveAverageCount).toBe(2);
+    expect(chart.topThreeXpTotal).toBe(310);
+    expect(chart.data[0].isTopThree).toBe(true);
+    expect(chart.data[0].deltaFromAverage).toBe(2850 - 2038);
+    expect(chart.data[3].isTopThree).toBe(false);
+    expect(chart.data[3].deltaFromAverage).toBe(1200 - 2038);
+  });
+
   it('reconstructs closed room summary from Firestore finalTopWinners when participants are already cleared', () => {
     const finalTopWinners = extractFinalTopWinners(SAMPLE_PARTICIPANTS);
     const closedRoom: LiveQuizRoomRecord = {
@@ -120,6 +147,7 @@ describe('battleCloseSummary', () => {
     expect(summary.topWinners).toHaveLength(3);
     expect(summary.topWinners[0].displayName).toBe('น้องพณสร');
     expect(summary.topWinners[0].xpReward).toBe(150);
+    expect(summary.topThreeXpAwarded).toBe(310);
     expect(summary.totalXpAwarded).toBe(150 + 100 + 60 + 3 * PARTICIPATION_XP_REWARD);
   });
 
@@ -158,7 +186,9 @@ describe('battleCloseSummary', () => {
 
     expect(summary.totalParticipants).toBe(0);
     expect(summary.topWinners).toEqual([]);
+    expect(summary.topThreeXpAwarded).toBe(0);
     expect(summary.totalXpAwarded).toBe(0);
+    expect(buildScoreChartMetrics(summary.allRanked).data).toEqual([]);
     expect(findStudentRewardInClosedSummary(summary, 'guest_x', 'นักเรียน')).toBeNull();
   });
 });

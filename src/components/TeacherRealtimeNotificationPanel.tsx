@@ -233,11 +233,15 @@ export const TeacherRealtimeNotificationPanel: React.FC<TeacherRealtimeNotificat
 
       try {
         const [studentsSheetRes, logsSheetRes, serverLogsRes] = await Promise.all([
-          readProfilesFromGoogleSheet(TARGET_SPREADSHEET_ID, STUDENTS_SHEET_TITLE).catch(() => ({
+          readProfilesFromGoogleSheet(TARGET_SPREADSHEET_ID, STUDENTS_SHEET_TITLE, {
+            forceRefresh: isManualTrigger,
+          }).catch(() => ({
             rows: [] as string[][],
             sheetTitle: STUDENTS_SHEET_TITLE,
           })),
-          readLogsFromGoogleSheet(TARGET_SPREADSHEET_ID).catch(() => ({
+          readLogsFromGoogleSheet(TARGET_SPREADSHEET_ID, {
+            forceRefresh: isManualTrigger,
+          }).catch(() => ({
             rows: [] as string[][],
             sheetTitle: LOGS_SHEET_TITLE,
           })),

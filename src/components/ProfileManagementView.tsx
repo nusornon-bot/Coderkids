@@ -1106,13 +1106,19 @@ export const ProfileManagementView: React.FC<ProfileManagementViewProps> = ({
   const loadSheetInspectionData = async () => {
     setIsLoadingSheetData(true);
     try {
-      const studentData = await readProfilesFromGoogleSheet(TARGET_SPREADSHEET_ID, STUDENTS_SHEET_TITLE);
+      const studentData = await readProfilesFromGoogleSheet(TARGET_SPREADSHEET_ID, STUDENTS_SHEET_TITLE, {
+        forceRefresh: true,
+      });
       setSheetStudentsRows(studentData.rows);
 
-      const teacherData = await readProfilesFromGoogleSheet(TARGET_SPREADSHEET_ID, TEACHERS_SHEET_TITLE);
+      const teacherData = await readProfilesFromGoogleSheet(TARGET_SPREADSHEET_ID, TEACHERS_SHEET_TITLE, {
+        forceRefresh: true,
+      });
       setSheetTeachersRows(teacherData.rows);
 
-      const logsData = await readLogsFromGoogleSheet(TARGET_SPREADSHEET_ID);
+      const logsData = await readLogsFromGoogleSheet(TARGET_SPREADSHEET_ID, {
+        forceRefresh: true,
+      });
       setSheetLogsRows(logsData.rows);
     } catch (err: any) {
       console.warn('Load sheet inspection error:', err);

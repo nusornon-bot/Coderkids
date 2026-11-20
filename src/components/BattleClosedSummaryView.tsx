@@ -4,11 +4,13 @@ import {
   CheckCircle2,
   Flame,
   KeyRound,
+  Loader2,
   Plus,
+  Power,
   RotateCcw,
+  Shuffle,
   Sparkles,
   Trophy,
-  Users,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type {
@@ -16,14 +18,28 @@ import type {
   BattleClosedWinner,
   StudentClosedRoomReward,
 } from '../utils/battleCloseSummary.ts';
+import { PostBattleScoreChart } from './PostBattleScoreChart.tsx';
+
+export interface PostBattlePersonalStats {
+  displayName: string;
+  correctCount: number;
+  totalQuestions: number;
+  score: number;
+  contextLabel?: string;
+}
 
 interface BattleClosedSummaryViewProps {
   summary: BattleClosedSummaryData;
   isTeacher: boolean;
+  /** 'live' = Post-Battle Summary right after last question (room still open); 'closed' = Room closed & XP coins auto-awarded */
+  stage?: 'live' | 'closed';
   currentParticipantId?: string;
   studentReward?: StudentClosedRoomReward | null;
+  personalStats?: PostBattlePersonalStats | null;
   removedCount?: number;
   isBusy?: boolean;
+  onCloseRoomAndAwardXp?: () => void;
+  onStartFreshRound?: () => void;
   onCreateNewRoom?: () => void;
   onBackToLobby: () => void;
   onCloseModal: () => void;
@@ -121,13 +137,26 @@ const MedalEmblemSvg: React.FC<{ rank: 1 | 2 | 3; className?: string }> = ({
           <stop offset="100%" stopColor={palette.faceEnd} />
         </linearGradient>
       </defs>
-      {/* Top Ribbon */}
       <path d="M16 2H29L34 26H22L16 2Z" fill={palette.ribbonL} />
       <path d="M48 2H35L30 26H42L48 2Z" fill={palette.ribbonR} />
-      {/* Medal Outer Ring */}
-      <circle cx="32" cy="44" r="22" fill={`url(#${gradRimId})`} stroke="#FFFFFF" strokeOpacity="0.45" strokeWidth="1.5" />
-      <circle cx="32" cy="44" r="17.5" fill={`url(#${gradFaceId})`} stroke="#FFFFFF" strokeOpacity="0.35" strokeWidth="1" />
-      {/* Laurel / Crown Accent for Rank 1 */}
+      <circle
+        cx="32"
+        cy="44"
+        r="22"
+        fill={`url(#${gradRimId})`}
+        stroke="#FFFFFF"
+        strokeOpacity="0.45"
+        strokeWidth="1.5"
+      />
+      <circle
+        cx="32"
+        cy="44"
+        r="17.5"
+        fill={`url(#${gradFaceId})`}
+        stroke="#FFFFFF"
+        strokeOpacity="0.35"
+        strokeWidth="1"
+      />
       {rank === 1 && (
         <path
           d="M24 34L27.5 37.5L32 31.5L36.5 37.5L40 34L38.5 40H25.5L24 34Z"
@@ -135,7 +164,6 @@ const MedalEmblemSvg: React.FC<{ rank: 1 | 2 | 3; className?: string }> = ({
           opacity="0.92"
         />
       )}
-      {/* Rank Numeral */}
       <text
         x="32"
         y={rank === 1 ? '55' : '51'}
@@ -154,15 +182,20 @@ const MedalEmblemSvg: React.FC<{ rank: 1 | 2 | 3; className?: string }> = ({
 export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = ({
   summary,
   isTeacher,
+  stage = 'closed',
   currentParticipantId,
   studentReward,
+  personalStats,
   removedCount,
   isBusy = false,
+  onCloseRoomAndAwardXp,
+  onStartFreshRound,
   onCreateNewRoom,
   onBackToLobby,
   onCloseModal,
 }) => {
   const [bannerError, setBannerError] = useState(false);
+  const isClosed = stage === 'closed';
 
   const fireVictoryConfetti = () => {
     try {
@@ -188,7 +221,7 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
     if (summary.topWinners.length > 0) {
       fireVictoryConfetti();
     }
-  }, [summary.roomCode, summary.topWinners.length]);
+  }, [summary.roomCode, stage, summary.topWinners.length]);
 
   const winner1 = summary.topWinners.find((w) => w.rank === 1) || null;
   const winner2 = summary.topWinners.find((w) => w.rank === 2) || null;
@@ -233,25 +266,28 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
     },
   ];
 
-  const maxChartScore = Math.max(summary.topScore, 1);
   const modeDisplayLabel =
     summary.battleMode === 'onet'
       ? 'Live Classroom O-NET Battle'
       : 'Live Classroom Coding Battle';
 
+  const accuracyPct =
+    personalStats && personalStats.totalQuestions > 0
+      ? Math.round((personalStats.correctCount / personalStats.totalQuestions) * 100)
+      : null;
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 1. Architectural Victory Stage Header with Generated Stage Backdrop */}
       <div className="relative rounded-3xl overflow-hidden border border-slate-700/80 bg-slate-950 shadow-2xl">
-        {/* Stage Artwork with Fallback */}
-        <div className="relative min-h-[220px] sm:min-h-[250px] flex flex-col justify-end p-5 sm:p-8">
+        <div className="relative min-h-[210px] sm:min-h-[236px] flex flex-col justify-end p-5 sm:p-8">
           {!bannerError ? (
             <img
               src={STAGE_BANNER_SRC}
-              alt="เวทีประกาศผลรางวัลการแข่งขันห้องเรียนสด"
+              alt="เวทีประกาศผลคะแนนและรางวัลหลังจบการแข่งขัน"
               referrerPolicy="no-referrer"
               onError={() => setBannerError(true)}
-              className="absolute inset-0 w-full h-full object-cover object-center opacity-55"
+              className="absolute inset-0 w-full h-full object-cover object-center opacity-50"
             />
           ) : (
             <div
@@ -259,7 +295,6 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
               aria-hidden="true"
             />
           )}
-          {/* Measured Contrast Scrim */}
           <div
             className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/75 to-slate-950/35"
             aria-hidden="true"
@@ -269,17 +304,23 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs font-semibold text-amber-300/95">
                 <span>{modeDisplayLabel}</span>
+                {summary.roomCode && (
+                  <>
+                    <span aria-hidden="true" className="text-slate-500">
+                      ·
+                    </span>
+                    <span className="font-mono tabular-nums text-slate-200">
+                      รหัสห้อง {summary.roomCode}
+                    </span>
+                  </>
+                )}
                 <span aria-hidden="true" className="text-slate-500">
                   ·
                 </span>
-                <span className="font-mono tabular-nums text-slate-200">
-                  รหัสห้อง {summary.roomCode}
+                <span className={isClosed ? 'text-emerald-300' : 'text-sky-300'}>
+                  {isClosed ? 'ปิดห้องและแจกเหรียญ XP แล้ว' : 'สรุปผลหลังจบการแข่งขัน (Post-Battle Summary)'}
                 </span>
-                <span aria-hidden="true" className="text-slate-500">
-                  ·
-                </span>
-                <span className="text-slate-300">ปิดห้องเรียบร้อย</span>
-                {summary.closedAtLabel && (
+                {isClosed && summary.closedAtLabel && (
                   <>
                     <span aria-hidden="true" className="text-slate-500">
                       ·
@@ -292,17 +333,27 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
               </div>
 
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight text-balance">
-                สรุปผลคะแนนและมอบเหรียญ XP รางวัล
+                {isClosed
+                  ? 'สรุปผลคะแนนและมอบเหรียญ XP รางวัลเรียบร้อย'
+                  : 'สรุปผลคะแนนหลังจบการแข่งขัน'}
               </h2>
 
               <p className="text-sm text-slate-300 leading-relaxed">
-                {summary.totalParticipants > 0
-                  ? isTeacher
-                    ? `ปิดห้องและลบรายชื่อผู้เข้าร่วมออกจากห้องอัตโนมัติเรียบร้อยแล้ว (${
-                        typeof removedCount === 'number' ? removedCount : summary.totalParticipants
-                      } คน) พร้อมบันทึกผลผู้ชนะ 3 อันดับแรกและแจกเหรียญ XP รางวัลให้ผู้ติดอันดับ`
-                    : `คุณครู ${summary.hostName} ปิดห้องประลองเรียบร้อยแล้ว ขอแสดงความยินดีกับผู้ชนะทั้ง 3 อันดับแรก!`
-                  : `ปิดห้องเรียนรหัส ${summary.roomCode} เรียบร้อยแล้ว (ยังไม่มีนักเรียนเข้าร่วมในรอบนี้)`}
+                {isClosed
+                  ? summary.totalParticipants > 0
+                    ? isTeacher
+                      ? `ปิดห้องและลบรายชื่อผู้เข้าร่วมอัตโนมัติแล้ว (${
+                          typeof removedCount === 'number' ? removedCount : summary.totalParticipants
+                        } คน) พร้อมแจกเหรียญ XP รางวัลให้อันดับ 1–3 เรียบร้อย`
+                      : `คุณครู ${summary.hostName} ปิดห้องประลองเรียบร้อยแล้ว ขอแสดงความยินดีกับผู้ชนะทั้ง 3 อันดับแรก!`
+                    : `ปิดห้องเรียนรหัส ${summary.roomCode} เรียบร้อยแล้ว (ยังไม่มีนักเรียนเข้าร่วมในรอบนี้)`
+                  : isTeacher
+                  ? 'ตรวจสอบกราฟคะแนนของนักเรียนทุกคนด้านล่าง แล้วกดปุ่มปิดห้อง Battle เพื่อแจกเหรียญ XP รางวัลให้อันดับ 1–3 อัตโนมัติ'
+                  : personalStats
+                  ? `${personalStats.displayName} ตอบถูก ${personalStats.correctCount}/${personalStats.totalQuestions} ข้อ${
+                      accuracyPct !== null ? ` (${accuracyPct}%)` : ''
+                    } ทำคะแนนได้ ${personalStats.score.toLocaleString()} คะแนน · รอคุณครูปิดห้องเพื่อรับเหรียญ XP รางวัลอัตโนมัติ`
+                  : 'ตรวจสอบอันดับและกราฟคะแนนรวมของห้องเรียนด้านล่าง'}
               </p>
             </div>
 
@@ -313,7 +364,7 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
                 className="self-start md:self-end inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/85 hover:bg-slate-800 border border-amber-400/40 text-amber-200 text-xs font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>ฉลองผลรางวัลอีกครั้ง</span>
+                <span>ฉลองผลรางวัล</span>
               </button>
             )}
           </div>
@@ -343,18 +394,72 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
             </div>
           </div>
           <div className="px-4 py-3.5">
-            <div className="text-xs text-slate-400">รวมเหรียญ XP ที่แจก</div>
+            <div className="text-xs text-slate-400">
+              {isClosed ? 'เหรียญ XP ที่แจกอันดับ 1–3' : 'เหรียญ XP เตรียมแจกอันดับ 1–3'}
+            </div>
             <div className="mt-1 flex items-center gap-1.5 text-xl font-black text-emerald-300 font-mono tabular-nums">
               <XpCoinSvg className="w-5 h-5 shrink-0" />
-              <span>+{summary.totalXpAwarded.toLocaleString()}</span>
+              <span>+{summary.topThreeXpAwarded.toLocaleString()}</span>
               <span className="text-xs font-semibold text-slate-400">XP</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 2. Personal Student Reward Callout (Student View Only) */}
-      {!isTeacher && studentReward && (
+      {/* 2. Teacher Auto-Award XP & Close Room Control Panel (Primary Focal Action when Live) */}
+      {isTeacher && !isClosed && onCloseRoomAndAwardXp && (
+        <div className="rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shrink-0">
+              <XpCoinSvg className="w-7 h-7" />
+            </div>
+            <div className="min-w-0 space-y-1">
+              <h3 className="text-sm sm:text-base font-extrabold text-white">
+                ปิดห้อง Battle และแจกเหรียญ XP รางวัลให้อันดับ 1–3 อัตโนมัติ
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                เมื่อกดปุ่มนี้ ระบบจะบันทึกผู้ชนะอันดับ 1 (+150 XP) · อันดับ 2 (+100 XP) · อันดับ 3 (+60 XP) ลงฐานข้อมูล
+                ส่งเหรียญ XP เข้าโปรไฟล์นักเรียนทันที และเคลียร์รายชื่อผู้เข้าแข่งขันในห้องให้อัตโนมัติ
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={onCloseRoomAndAwardXp}
+            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 disabled:opacity-50 text-slate-950 font-black text-xs sm:text-sm shadow-lg transition-all whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            {isBusy ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Power className="w-4 h-4" />
+            )}
+            <span>
+              {isBusy
+                ? 'กำลังปิดห้องและแจกเหรียญ XP...'
+                : 'ปิดห้อง Battle และแจกเหรียญ XP อันดับ 1–3 อัตโนมัติ'}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* 2b. Confirmed XP Award Status Strip (Teacher View after Close) */}
+      {isTeacher && isClosed && summary.topWinners.length > 0 && (
+        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3.5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-emerald-200">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <span>
+              แจกเหรียญ XP รางวัลให้อันดับ 1–3 อัตโนมัติเรียบร้อยแล้ว (รวม +{summary.topThreeXpAwarded} XP สำหรับ 3 อันดับแรก · รวมทั้งห้อง +{summary.totalXpAwarded} XP)
+            </span>
+          </div>
+          <span className="text-xs font-mono tabular-nums text-emerald-300 shrink-0">
+            บันทึกผลบน Cloud สำเร็จ
+          </span>
+        </div>
+      )}
+
+      {/* 2c. Personal Student Reward Callout (Student View Only when Closed) */}
+      {!isTeacher && isClosed && studentReward && (
         <div
           className={`rounded-2xl p-4 sm:p-5 border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
             studentReward.isTopThree
@@ -405,9 +510,15 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
                 อันดับ 1 รับ +150 XP · อันดับ 2 รับ +100 XP · อันดับ 3 รับ +60 XP · ผู้เข้าร่วมรับ +20 XP
               </p>
             </div>
-            <div className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
+            <div
+              className={`text-xs font-semibold flex items-center gap-1.5 ${
+                isClosed ? 'text-emerald-300' : 'text-amber-300'
+              }`}
+            >
               <Award className="w-4 h-4" />
-              <span>แจกเหรียญ XP อัตโนมัติแล้ว</span>
+              <span>
+                {isClosed ? 'แจกเหรียญ XP อัตโนมัติแล้ว' : 'พร้อมแจกเหรียญ XP เมื่อปิดห้อง'}
+              </span>
             </div>
           </div>
 
@@ -437,7 +548,6 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
                   key={slot.rank}
                   className={`${slot.orderClass} rounded-2xl border ${slot.borderAccent} bg-gradient-to-b ${slot.columnGradient} p-5 flex flex-col justify-between transition-transform duration-200 hover:-translate-y-0.5 ${slot.pedestalHeightClass}`}
                 >
-                  {/* Top Medal & Avatar */}
                   <div className="flex flex-col items-center text-center">
                     <MedalEmblemSvg
                       rank={slot.rank}
@@ -463,7 +573,6 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
                       </span>
                     </div>
 
-                    {/* Score & Streak */}
                     <div className="mt-2 flex items-baseline justify-center gap-2">
                       <span
                         className={`font-black font-mono tabular-nums ${
@@ -483,9 +592,10 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
                     )}
                   </div>
 
-                  {/* Bottom XP Coin Award Strip */}
                   <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-slate-300">เหรียญ XP รางวัล</span>
+                    <span className="text-xs font-semibold text-slate-300">
+                      {isClosed ? 'ได้รับเหรียญ XP' : 'รางวัล XP เมื่อปิดห้อง'}
+                    </span>
                     <div className="inline-flex items-center gap-1.5 font-black font-mono tabular-nums text-amber-300 text-sm sm:text-base">
                       <XpCoinSvg className="w-5 h-5 shrink-0" />
                       <span>+{w.xpReward} XP</span>
@@ -506,133 +616,88 @@ export const BattleClosedSummaryView: React.FC<BattleClosedSummaryViewProps> = (
         </div>
       )}
 
-      {/* 4. Graphical Score Comparison Chart & Complete Award Ledger */}
-      {summary.allRanked.length > 0 && (
-        <section
-          aria-label="กราฟเปรียบเทียบคะแนนและเหรียญ XP ทั้งหมด"
-          className="rounded-2xl border border-slate-800 bg-slate-900/80 overflow-hidden"
-        >
-          <div className="px-5 py-3.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-sm font-bold text-white">
-              <Users className="w-4 h-4 text-sky-400" />
-              <span>กราฟสรุปคะแนนและเหรียญ XP ทุกคน (เรียงจากมากไปน้อย)</span>
-            </div>
-            <span className="text-xs text-slate-400 font-mono tabular-nums">
-              แสดง {summary.allRanked.length} อันดับ
-            </span>
-          </div>
-
-          <div className="divide-y divide-slate-800/80 max-h-72 overflow-y-auto">
-            {summary.allRanked.map((entry) => {
-              const barPct =
-                entry.score > 0 ? Math.max(6, Math.round((entry.score / maxChartScore) * 100)) : 0;
-              const isSelf = Boolean(
-                currentParticipantId && entry.userId === currentParticipantId
-              );
-              const barGradient =
-                entry.rank === 1
-                  ? 'from-amber-400 to-yellow-300'
-                  : entry.rank === 2
-                  ? 'from-slate-300 to-sky-300'
-                  : entry.rank === 3
-                  ? 'from-orange-400 to-amber-500'
-                  : 'from-indigo-400 to-cyan-400';
-
-              return (
-                <div
-                  key={`${entry.userId}_${entry.rank}`}
-                  className={`px-5 py-3 flex flex-col sm:flex-row sm:items-center gap-3 ${
-                    isSelf ? 'bg-indigo-500/10' : ''
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0 sm:w-56 shrink-0">
-                    <span
-                      className={`w-7 text-center font-mono tabular-nums font-black text-sm shrink-0 ${
-                        entry.rank === 1
-                          ? 'text-amber-300'
-                          : entry.rank === 2
-                          ? 'text-slate-200'
-                          : entry.rank === 3
-                          ? 'text-orange-300'
-                          : 'text-slate-400'
-                      }`}
-                    >
-                      #{entry.rank}
-                    </span>
-                    <span className="text-base shrink-0" aria-hidden="true">
-                      {entry.avatar || '⚡'}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold text-white truncate">
-                        {entry.displayName}
-                        {isSelf ? ' (คุณ)' : ''}
-                      </div>
-                      {entry.streak >= 2 && (
-                        <div className="text-[11px] text-amber-300/90 font-semibold">
-                          Streak x{entry.streak}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Graphical Horizontal Bar */}
-                  <div className="flex-1 flex items-center gap-3">
-                    <div className="flex-1 h-2.5 rounded-full bg-slate-950 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full bg-gradient-to-r ${barGradient}`}
-                        style={{ width: `${barPct}%` }}
-                      />
-                    </div>
-                    <div className="w-24 text-right font-mono tabular-nums text-sm font-black text-white shrink-0">
-                      {entry.score.toLocaleString()}{' '}
-                      <span className="text-[11px] font-medium text-slate-400">pts</span>
-                    </div>
-                  </div>
-
-                  {/* Awarded XP Coin */}
-                  <div className="sm:w-28 flex items-center sm:justify-end gap-1.5 font-mono tabular-nums text-xs sm:text-sm font-black text-amber-300 shrink-0">
-                    <XpCoinSvg className="w-4 h-4 shrink-0" />
-                    <span>+{entry.xpReward} XP</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+      {/* 4. Interactive All-Students Score Summary Graph (Recharts) + Ranked XP Ledger */}
+      <PostBattleScoreChart
+        participants={summary.allRanked}
+        currentParticipantId={currentParticipantId}
+        isRoomClosed={isClosed}
+      />
 
       {/* 5. Action Footer */}
       <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
         {isTeacher ? (
-          <>
-            <button
-              type="button"
-              onClick={onBackToLobby}
-              disabled={isBusy}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>กลับหน้าตั้งค่าห้อง</span>
-            </button>
-            {onCreateNewRoom && (
+          isClosed ? (
+            <>
               <button
                 type="button"
-                onClick={onCreateNewRoom}
+                onClick={onBackToLobby}
                 disabled={isBusy}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-sm font-extrabold shadow-lg transition-all whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
               >
-                <Plus className="w-4 h-4" />
-                <span>สร้างห้อง Battle ใหม่ (สุ่มรหัสใหม่)</span>
+                <RotateCcw className="w-4 h-4" />
+                <span>กลับหน้าตั้งค่าห้อง</span>
               </button>
-            )}
-            <button
-              type="button"
-              onClick={onCloseModal}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-            >
-              <span>ปิดหน้าต่าง</span>
-            </button>
-          </>
+              {onCreateNewRoom && (
+                <button
+                  type="button"
+                  onClick={onCreateNewRoom}
+                  disabled={isBusy}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-sm font-extrabold shadow-lg transition-all whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>สร้างห้อง Battle ใหม่ (สุ่มรหัสใหม่)</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onCloseModal}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <span>ปิดหน้าต่าง</span>
+              </button>
+            </>
+          ) : (
+            <>
+              {onStartFreshRound && (
+                <button
+                  type="button"
+                  onClick={onStartFreshRound}
+                  disabled={isBusy}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  <Shuffle className="w-4 h-4" />
+                  <span>สุ่มชุดใหม่ + เคลียร์คะแนน</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onBackToLobby}
+                disabled={isBusy}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-sm font-bold transition-colors whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>กลับหน้าตั้งค่าห้อง</span>
+              </button>
+              {onCloseRoomAndAwardXp && (
+                <button
+                  type="button"
+                  onClick={onCloseRoomAndAwardXp}
+                  disabled={isBusy}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 text-sm font-extrabold shadow-lg transition-all whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-50"
+                >
+                  <Power className="w-4 h-4" />
+                  <span>ปิดห้อง &amp; แจกเหรียญ XP อันดับ 1–3</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onCloseModal}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 text-sm font-semibold transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <span>ปิดหน้าต่าง</span>
+              </button>
+            </>
+          )
         ) : (
           <>
             <button

@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Zap,
-  Trophy,
   Timer,
   Play,
-  RotateCcw,
   X,
   Tv,
   CheckCircle2,
@@ -53,7 +51,6 @@ import {
 } from '../utils/onetBattleSelector.ts';
 import { LiveClassroomScoreboard } from './LiveClassroomScoreboard.tsx';
 import { BattleClosedSummaryView } from './BattleClosedSummaryView.tsx';
-import { sortParticipantsByScoreDesc } from '../utils/liveScoreboardSort.ts';
 import {
   BattleClosedSummaryData,
   StudentClosedRoomReward,
@@ -1075,39 +1072,45 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
 
   const currentParticipantId = getLiveParticipantId();
 
-  const podiumEntries =
-    cloudParticipants.length > 0
-      ? sortParticipantsByScoreDesc(cloudParticipants).map((p, idx) => {
-          const isYou =
-            p.userId === currentParticipantId ||
-            p.displayName === (playerNickname || studentName);
-          return {
-            rank: idx + 1,
-            name: isYou ? `${p.displayName} (คุณ)` : p.displayName,
-            score: p.score,
-            isYou,
-          };
-        })
-      : [
-          { name: `${playerNickname} (คุณ)`, score, isYou: true },
-          {
-            name: 'ข้าวปั้น (ป.6/1)',
-            score: Math.max(180, Math.round(activeQuestions.length * 105)),
-            isYou: false,
-          },
-          {
-            name: 'น้ำหวาน (ป.6/2)',
-            score: Math.max(140, Math.round(activeQuestions.length * 88)),
-            isYou: false,
-          },
-          {
-            name: 'ก้องภพ (ป.6/3)',
-            score: Math.max(100, Math.round(activeQuestions.length * 72)),
-            isYou: false,
-          },
-        ]
-          .sort((a, b) => b.score - a.score)
-          .map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+  // Build real Post-Battle Summary from live Firestore participants (fallback to current player only if solo/offline)
+  const livePostBattleSummary = useMemo(() => {
+    const activeCode = isTeacher ? gamePin : joinedRoomCode || gamePin;
+    const sourceParticipants: LiveQuizParticipantRecord[] =
+      cloudParticipants.length > 0
+        ? cloudParticipants
+        : [
+            {
+              roomCode: activeCode || 'LOCAL',
+              userId: currentParticipantId || 'self',
+              displayName: playerNickname || studentName || 'ผู้เรียน',
+              avatar: isTeacher ? '👨‍🏫' : '🎓',
+              score,
+              streak,
+              lastAnswerIndex: selectedOption ?? -1,
+            },
+          ];
+
+    return buildBattleClosedSummary({
+      roomCode: activeCode || '',
+      battleMode: 'onet',
+      battleTitle: `Live Classroom O-NET Battle (${setLabelText})`,
+      hostName: isTeacher ? playerNickname || 'คุณครู' : joinedHostName || 'คุณครู',
+      participants: sourceParticipants,
+    });
+  }, [
+    cloudParticipants,
+    currentParticipantId,
+    gamePin,
+    isTeacher,
+    joinedHostName,
+    joinedRoomCode,
+    playerNickname,
+    score,
+    selectedOption,
+    setLabelText,
+    streak,
+    studentName,
+  ]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
@@ -1173,11 +1176,11 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
                 type="button"
                 disabled={isClosingOrClearing}
                 onClick={handleTeacherCloseRoom}
-                className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/35 border border-rose-500/40 text-rose-200 rounded-xl transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer disabled:opacity-40"
-                title="ปิดห้องเรียน ลบรายชื่อนักเรียนออกอัตโนมัติ และเปิดหน้าสรุปผลรางวัล 3 อันดับแรก"
+                className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/35 border border-amber-400/45 text-amber-200 rounded-xl transition-colors flex items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer disabled:opacity-40"
+                title="ปิดห้อง Battle แจกเหรียญ XP รางวัลให้อันดับ 1–3 อัตโนมัติ และลบรายชื่อผู้เข้าร่วม"
               >
                 <Power className="w-3.5 h-3.5" />
-                <span>ปิดห้อง</span>
+                <span>ปิดห้อง &amp; แจก XP</span>
               </button>
             )}
 
@@ -1656,6 +1659,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
         {activeView === 'arena' && gameState === 'closedSummary' && closedSummary && (
           <BattleClosedSummaryView
             summary={closedSummary}
+            stage="closed"
             isTeacher={isTeacher}
             currentParticipantId={currentParticipantId}
             studentReward={closedStudentReward}
@@ -2350,128 +2354,40 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
         )}
 
         {/* ================================================================ */}
-        {/* VIEW B: ARENA — 4. PODIUM & FINAL LEADERBOARD                    */}
+        {/* VIEW B: ARENA — 4. POST-BATTLE SUMMARY (GRAPH + TOP 3 XP AWARD)  */}
         {/* ================================================================ */}
         {activeView === 'arena' && gameState === 'podium' && (
-          <div className="text-center py-5 space-y-6">
-            <div className="w-20 h-20 rounded-full bg-amber-400/20 text-amber-400 mx-auto flex items-center justify-center border border-amber-400/30">
-              <Trophy className="w-10 h-10 animate-bounce" />
-            </div>
-
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white">
-                สิ้นสุดการประลอง O-NET สด!
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-300 mt-1.5">
-                {playerNickname} ตอบถูก{' '}
-                <span className="text-emerald-400 font-bold">
-                  {correctCount}/{activeQuestions.length} ข้อ (
-                  {activeQuestions.length > 0
-                    ? Math.round((correctCount / activeQuestions.length) * 100)
-                    : 0}
-                  %)
-                </span>{' '}
-                {!isTeacher && joinedRoomCode
-                  ? `(ห้อง PIN ${joinedRoomCode} · ${joinedHostName})`
-                  : `(${setLabelText} · ${categoryLabelText})`}{' '}
-                ทำคะแนนได้ <span className="text-amber-400 font-black">{score} คะแนน</span>!
-              </p>
-            </div>
-
-            <div className="bg-slate-800/80 p-5 rounded-2xl border border-slate-700 max-w-md mx-auto text-left space-y-2.5">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">
-                  🏆 ตารางคะแนนห้องประลอง O-NET (Real-Time)
-                </div>
-                {cloudParticipants.length > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
-                    <Radio className="w-2.5 h-2.5 animate-pulse" />
-                    {cloudParticipants.length} คน
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {podiumEntries.map((user) => (
-                  <div
-                    key={`${user.rank}-${user.name}`}
-                    className={`p-3 rounded-xl flex items-center justify-between text-xs font-semibold ${
-                      user.isYou
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : 'bg-slate-900/60 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center font-bold text-[10px] shrink-0">
-                        {user.rank}
-                      </span>
-                      <span className="truncate">{user.name}</span>
-                    </div>
-                    <span className="font-mono text-emerald-400 shrink-0">
-                      {user.score.toLocaleString()} pts
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2.5 max-w-xl mx-auto">
-              {isTeacher ? (
-                <>
-                  <button
-                    type="button"
-                    disabled={isOpeningOrJoining || isClosingOrClearing}
-                    onClick={() => handleTeacherStartGame(true)}
-                    className="flex-1 min-w-[150px] py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <Shuffle className="w-4 h-4" />
-                    <span>สุ่มชุด O-NET ใหม่ + เคลียร์คะแนน</span>
-                  </button>
-                  {isRoomOpenedByTeacher && (
-                    <button
-                      type="button"
-                      disabled={isClosingOrClearing}
-                      onClick={handleTeacherCloseRoom}
-                      className="flex-1 min-w-[140px] py-3 bg-rose-600/20 hover:bg-rose-600/35 border border-rose-500/40 disabled:opacity-40 text-rose-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Power className="w-4 h-4" />
-                      <span>ปิดห้องและลบผู้เข้าร่วม</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setGameState('lobby')}
-                    className="flex-1 min-w-[140px] py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    <span>กลับหน้าตั้งค่าห้อง</span>
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => resetStudentSession(null)}
-                  className="flex-1 min-w-[170px] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <KeyRound className="w-4 h-4" />
-                  <span>เล่นรอบถัดไป (กรอกรหัสห้องใหม่)</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isTeacher) {
-                    resetStudentSession(null);
-                  }
-                  onClose();
-                }}
-                className="flex-1 min-w-[140px] py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
-              >
-                เสร็จสิ้นและรับรางวัล
-              </button>
-            </div>
-          </div>
+          <BattleClosedSummaryView
+            summary={livePostBattleSummary}
+            stage="live"
+            isTeacher={isTeacher}
+            currentParticipantId={currentParticipantId}
+            personalStats={{
+              displayName: playerNickname || studentName || 'ผู้เรียน',
+              correctCount,
+              totalQuestions: activeQuestions.length,
+              score,
+              contextLabel: `${setLabelText} · ${categoryLabelText}`,
+            }}
+            isBusy={isOpeningOrJoining || isClosingOrClearing}
+            onCloseRoomAndAwardXp={
+              isTeacher && isRoomOpenedByTeacher ? handleTeacherCloseRoom : undefined
+            }
+            onStartFreshRound={isTeacher ? () => handleTeacherStartGame(true) : undefined}
+            onBackToLobby={() => {
+              if (isTeacher) {
+                setGameState('lobby');
+              } else {
+                resetStudentSession(null);
+              }
+            }}
+            onCloseModal={() => {
+              if (!isTeacher) {
+                resetStudentSession(null);
+              }
+              onClose();
+            }}
+          />
         )}
       </div>
     </div>

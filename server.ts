@@ -444,6 +444,85 @@ app.get('/api/sheets/bridge', async (req, res) => {
   });
 });
 
+// Safe same-origin proxy for reading Google Sheet tabs without browser CORS redirect failures
+app.get('/api/sheets/read', async (req, res) => {
+  const rawSpreadsheetId = typeof req.query.spreadsheetId === 'string' ? req.query.spreadsheetId.trim() : '';
+  const spreadsheetId = rawSpreadsheetId || TARGET_SPREADSHEET_ID;
+  const rawSheet = typeof req.query.sheet === 'string' ? req.query.sheet.trim() : '';
+  const sheetTitle = clampString(rawSheet, 80, 'Students') || 'Students';
+  const rawRange = typeof req.query.range === 'string' ? req.query.range.trim() : 'A1:M100';
+  const safeRange = /^[A-Z]{1,3}\d{1,5}:[A-Z]{1,3}\d{1,5}$/.test(rawRange) ? rawRange : 'A1:M100';
+
+  if (!/^[a-zA-Z0-9_-]{10,128}$/.test(spreadsheetId)) {
+    return res.status(400).json({ ok: false, reason: 'invalid_spreadsheet_id', rows: [], csvText: '' });
+  }
+
+  // Strategy 1: If caller is a verified teacher and a bridged Sheets OAuth token is configured, query Sheets API v4
+  if (bridgeSheetsAccessToken && req.headers.authorization) {
+    try {
+      const verifiedUser = await verifyFirebaseIdToken(req.headers.authorization, {
+        projectId: FIREBASE_PROJECT_ID,
+      });
+      if (isVerifiedTeacherToken(verifiedUser)) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        try {
+          const apiRes = await fetch(
+            `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!${safeRange}`,
+            {
+              headers: { Authorization: `Bearer ${bridgeSheetsAccessToken}` },
+              signal: controller.signal,
+            }
+          );
+          if (apiRes.ok) {
+            const data: any = await apiRes.json().catch(() => ({}));
+            return res.json({
+              ok: true,
+              source: 'sheets_api',
+              rows: Array.isArray(data.values) ? data.values : [],
+              csvText: '',
+            });
+          }
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+    } catch {
+      // Fall through to public gviz lookup
+    }
+  }
+
+  // Strategy 2: Server-side fetch of public Google Visualization CSV (avoids browser CORS redirect TypeError: Failed to fetch)
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  try {
+    const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetTitle)}`;
+    const gvizRes = await fetch(gvizUrl, {
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+    const contentType = (gvizRes.headers.get('content-type') || '').toLowerCase();
+    if (!gvizRes.ok || contentType.includes('text/html')) {
+      return res.json({ ok: false, reason: 'auth_required', rows: [], csvText: '' });
+    }
+    const csvText = await gvizRes.text();
+    const trimmedStart = csvText.trimStart().slice(0, 32).toLowerCase();
+    if (trimmedStart.startsWith('<!doctype') || trimmedStart.startsWith('<html')) {
+      return res.json({ ok: false, reason: 'auth_required', rows: [], csvText: '' });
+    }
+    return res.json({
+      ok: true,
+      source: 'public_gviz',
+      rows: [],
+      csvText,
+    });
+  } catch {
+    return res.json({ ok: false, reason: 'unreachable', rows: [], csvText: '' });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+});
+
 app.post('/api/logs/record', async (req, res) => {
   try {
     if (req.headers.authorization) {

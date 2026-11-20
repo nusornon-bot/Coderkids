@@ -195,6 +195,7 @@ export const googleSignIn = async (
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (credential?.accessToken && requestSheetsScope) {
       cachedAccessToken = credential.accessToken;
+      resetSheetReadCooldown();
       try {
         sessionStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
         localStorage.setItem('coderkids_sheets_access_token', cachedAccessToken);
@@ -210,6 +211,7 @@ export const googleSignIn = async (
       } catch {}
     } else if (credential?.accessToken && !cachedAccessToken) {
       cachedAccessToken = credential.accessToken;
+      resetSheetReadCooldown();
     }
 
     const userEmail = (result.user.email || result.user.providerData?.find((p) => p?.email)?.email || '').trim().toLowerCase();
@@ -400,41 +402,12 @@ export const fetchTeachersFromGoogleSheet = async (
   ];
 
   try {
-    const token = await getAccessToken();
-
-    // Strategy A: If token is available, use Google Sheets API
-    if (token) {
-      try {
-        const res = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(TEACHERS_SHEET_TITLE)}!A1:E50`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const rows: string[][] = data.values || [];
-          if (rows.length > 1) {
-            return parseTeacherRows(rows);
-          }
-        }
-      } catch (apiErr) {
-        console.warn('Authenticated Teachers fetch failed, falling back to gviz:', apiErr);
-      }
+    const result = await fetchSheetRowsResilient(spreadsheetId, TEACHERS_SHEET_TITLE, 'A1:E50');
+    if (result.rows.length > 1) {
+      return parseTeacherRows(result.rows);
     }
-
-    // Strategy B: Public Google Visualization API (CSV)
-    const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(TEACHERS_SHEET_TITLE)}`;
-    const gvizRes = await fetch(gvizUrl);
-    if (gvizRes.ok) {
-      const csvText = await gvizRes.text();
-      const rows = parseCSV(csvText);
-      if (rows.length > 1) {
-        return parseTeacherRows(rows);
-      }
-    }
-  } catch (err) {
-    console.error('Error fetching teachers from Google Sheet:', err);
+  } catch {
+    // Gracefully fall back to built-in teacher list
   }
 
   return fallbackTeachers;
@@ -652,50 +625,19 @@ export const fetchStudentsFromGoogleSheet = async (
   spreadsheetId: string = TARGET_SPREADSHEET_ID
 ): Promise<{ students: UserProfile[]; rawRows: string[][] }> => {
   try {
-    const token = await getAccessToken();
-
-    // Strategy A: If authenticated, query Sheets API
-    if (token) {
-      try {
-        const res = await fetch(
-          `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(STUDENTS_SHEET_TITLE)}!A1:M100`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const rows: string[][] = data.values || [];
-          if (rows.length > 1) {
-            return {
-              students: parseStudentRows(rows),
-              rawRows: rows,
-            };
-          }
-        }
-      } catch (apiErr) {
-        console.warn('Authenticated students fetch failed, falling back to gviz:', apiErr);
+    // Strategy A + B: Authenticated Sheets API v4 or same-origin /api/sheets/read proxy
+    const sheetResult = await fetchSheetRowsResilient(spreadsheetId, STUDENTS_SHEET_TITLE, 'A1:M100');
+    if (sheetResult.rows.length > 0) {
+      const parsed = parseStudentRows(sheetResult.rows);
+      if (parsed.length > 0) {
+        return {
+          students: parsed,
+          rawRows: sheetResult.rows,
+        };
       }
     }
 
-    // Strategy B: Public gviz export (CSV)
-    const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(STUDENTS_SHEET_TITLE)}`;
-    const res = await fetch(gvizUrl);
-    if (res.ok) {
-      const csvText = await res.text();
-      const rows = parseCSV(csvText);
-      if (rows.length > 0) {
-        const parsed = parseStudentRows(rows);
-        if (parsed.length > 0) {
-          return {
-            students: parsed,
-            rawRows: rows,
-          };
-        }
-      }
-    }
-
-    // Strategy C: If Google Sheet tab has no rows yet (only headers), merge students registered via server API & localStorage
+    // Strategy C: If Google Sheet tab is unavailable or has no rows yet, load students registered via server API
     try {
       const authHeaders = await getFirebaseAuthHeaders();
       const serverRes = await fetch('/api/students/list', { headers: authHeaders });
@@ -727,11 +669,11 @@ export const fetchStudentsFromGoogleSheet = async (
           return { students: registeredAsProfiles, rawRows: [] };
         }
       }
-    } catch (serverErr) {
-      console.warn('Fallback server students list fetch:', serverErr);
+    } catch {
+      // Ignore fallback API error when offline
     }
-  } catch (err) {
-    console.error('Error fetching students from Google Sheet:', err);
+  } catch {
+    // Gracefully return empty student list when offline or unauthorized
   }
 
   return { students: [], rawRows: [] };
@@ -1268,48 +1210,116 @@ export const saveMultipleProfilesToGoogleSheet = async (
   };
 };
 
+const SHEET_READ_COOLDOWN_MS = 45_000;
+const sheetReadCooldownMap = new Map<string, number>();
+
+export const resetSheetReadCooldown = () => {
+  sheetReadCooldownMap.clear();
+};
+
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeoutMs: number = 8000
+): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+/**
+ * Resilient Google Sheet tab reader:
+ * 1) Uses client-side Google OAuth Bearer token via Google Sheets API v4 when signed in with Sheets scope.
+ * 2) Falls back to same-origin /api/sheets/read proxy (avoiding cross-origin CORS redirect `TypeError: Failed to fetch` on docs.google.com/gviz).
+ * 3) Applies a short cooldown when a tab is private/unreachable so background polling never spams errors.
+ */
+async function fetchSheetRowsResilient(
+  spreadsheetId: string,
+  sheetTitle: string,
+  range: string = 'A1:M50',
+  options?: { forceRefresh?: boolean }
+): Promise<{ rows: string[][]; available: boolean }> {
+  const cacheKey = `${spreadsheetId}::${sheetTitle}`;
+  const forceRefresh = Boolean(options?.forceRefresh);
+
+  // 1. Try authenticated Google Sheets API v4 directly with client OAuth token
+  try {
+    const token = await getAccessToken();
+    if (token) {
+      const res = await fetchWithTimeout(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!${range}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+        8000
+      );
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        sheetReadCooldownMap.delete(cacheKey);
+        return {
+          rows: Array.isArray(data.values) ? data.values : [],
+          available: true,
+        };
+      }
+    }
+  } catch {
+    // Gracefully fall through to same-origin proxy
+  }
+
+  // Respect short cooldown after auth_required / unreachable response to prevent polling spam
+  if (!forceRefresh) {
+    const cooldownUntil = sheetReadCooldownMap.get(cacheKey) || 0;
+    if (Date.now() < cooldownUntil) {
+      return { rows: [], available: false };
+    }
+  }
+
+  // 2. Same-origin server proxy (/api/sheets/read) — never triggers browser CORS Failed to fetch
+  try {
+    const authHeaders = await getFirebaseAuthHeaders();
+    const proxyUrl = `/api/sheets/read?spreadsheetId=${encodeURIComponent(spreadsheetId)}&sheet=${encodeURIComponent(sheetTitle)}&range=${encodeURIComponent(range)}`;
+    const proxyRes = await fetchWithTimeout(proxyUrl, { headers: authHeaders }, 8000);
+    if (proxyRes.ok) {
+      const contentType = (proxyRes.headers.get('content-type') || '').toLowerCase();
+      if (contentType.includes('application/json')) {
+        const data = await proxyRes.json().catch(() => null);
+        if (data && data.ok) {
+          sheetReadCooldownMap.delete(cacheKey);
+          if (Array.isArray(data.rows) && data.rows.length > 0) {
+            return { rows: data.rows, available: true };
+          }
+          if (typeof data.csvText === 'string' && data.csvText.trim()) {
+            return { rows: parseCSV(data.csvText), available: true };
+          }
+          return { rows: [], available: true };
+        }
+      }
+    }
+  } catch {
+    // Ignore transient network errors and enter cooldown
+  }
+
+  sheetReadCooldownMap.set(cacheKey, Date.now() + SHEET_READ_COOLDOWN_MS);
+  return { rows: [], available: false };
+}
+
 /**
  * Read raw records from Google Sheet tab (Defaults to Students tab)
  */
 export const readProfilesFromGoogleSheet = async (
   spreadsheetId: string = TARGET_SPREADSHEET_ID,
-  sheetTitle: string = STUDENTS_SHEET_TITLE
+  sheetTitle: string = STUDENTS_SHEET_TITLE,
+  options?: { forceRefresh?: boolean }
 ): Promise<{ rows: string[][]; sheetTitle: string }> => {
-  // Try via fetchStudentsFromGoogleSheet or authenticated read
-  try {
-    const token = await getAccessToken();
-    if (token) {
-      const res = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!A1:M50`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        return {
-          rows: data.values || [],
-          sheetTitle,
-        };
-      }
-    }
-
-    // Fallback to public gviz
-    const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetTitle)}`;
-    const res = await fetch(gvizUrl);
-    if (res.ok) {
-      const csvText = await res.text();
-      return {
-        rows: parseCSV(csvText),
-        sheetTitle,
-      };
-    }
-  } catch (err: any) {
-    console.error('Error reading profiles from Google Sheet:', err);
-    throw new Error(err.message || 'ไม่สามารถอ่านข้อมูลได้');
-  }
-
-  return { rows: [], sheetTitle };
+  const result = await fetchSheetRowsResilient(spreadsheetId, sheetTitle, 'A1:M50', options);
+  return {
+    rows: result.rows,
+    sheetTitle,
+  };
 };
 
 /**
@@ -1575,9 +1585,10 @@ export const batchSyncLogsToGoogleSheet = async (
  * Read student access logs from Google Sheet TAB "Logs"
  */
 export const readLogsFromGoogleSheet = async (
-  spreadsheetId: string = TARGET_SPREADSHEET_ID
+  spreadsheetId: string = TARGET_SPREADSHEET_ID,
+  options?: { forceRefresh?: boolean }
 ): Promise<{ rows: string[][]; sheetTitle: string }> => {
-  return readProfilesFromGoogleSheet(spreadsheetId, LOGS_SHEET_TITLE);
+  return readProfilesFromGoogleSheet(spreadsheetId, LOGS_SHEET_TITLE, options);
 };
 
 /**

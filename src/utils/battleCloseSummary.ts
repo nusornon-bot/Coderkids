@@ -26,9 +26,33 @@ export interface BattleClosedSummaryData {
   totalParticipants: number;
   topScore: number;
   averageScore: number;
+  topThreeXpAwarded: number;
   totalXpAwarded: number;
   topWinners: BattleClosedWinner[];
   allRanked: BattleClosedRankedParticipant[];
+}
+
+export interface ScoreChartDatum {
+  userId: string;
+  rank: number;
+  displayName: string;
+  shortLabel: string;
+  avatar: string;
+  score: number;
+  streak: number;
+  xpReward: number;
+  isTopThree: boolean;
+  deltaFromAverage: number;
+}
+
+export interface ScoreChartMetrics {
+  data: ScoreChartDatum[];
+  averageScore: number;
+  medianScore: number;
+  minScore: number;
+  maxScore: number;
+  aboveAverageCount: number;
+  topThreeXpTotal: number;
 }
 
 export const TOP_THREE_XP_REWARDS: Record<1 | 2 | 3, number> = {
@@ -90,6 +114,73 @@ function formatClosedTimeThai(date: Date = new Date()): string {
   }
 }
 
+export function buildScoreChartMetrics(
+  ranked: readonly BattleClosedRankedParticipant[]
+): ScoreChartMetrics {
+  if (ranked.length === 0) {
+    return {
+      data: [],
+      averageScore: 0,
+      medianScore: 0,
+      minScore: 0,
+      maxScore: 0,
+      aboveAverageCount: 0,
+      topThreeXpTotal: 0,
+    };
+  }
+
+  const scoresAsc = ranked.map((p) => Math.max(0, Math.round(p.score || 0))).sort((a, b) => a - b);
+  const sum = scoresAsc.reduce((acc, value) => acc + value, 0);
+  const averageScore = Math.round(sum / ranked.length);
+  const mid = Math.floor(scoresAsc.length / 2);
+  const medianScore =
+    scoresAsc.length % 2 === 0
+      ? Math.round((scoresAsc[mid - 1] + scoresAsc[mid]) / 2)
+      : scoresAsc[mid];
+  const minScore = scoresAsc[0];
+  const maxScore = scoresAsc[scoresAsc.length - 1];
+
+  let aboveAverageCount = 0;
+  let topThreeXpTotal = 0;
+
+  const data: ScoreChartDatum[] = ranked.map((entry) => {
+    const cleanScore = Math.max(0, Math.round(entry.score || 0));
+    const delta = cleanScore - averageScore;
+    if (cleanScore >= averageScore && cleanScore > 0) {
+      aboveAverageCount += 1;
+    }
+    const isTopThree = entry.rank >= 1 && entry.rank <= 3;
+    if (isTopThree) {
+      topThreeXpTotal += entry.xpReward;
+    }
+    const trimmedName = (entry.displayName || 'ผู้เรียน').trim();
+    const shortName =
+      trimmedName.length > 12 ? `${trimmedName.slice(0, 11)}…` : trimmedName;
+    return {
+      userId: entry.userId,
+      rank: entry.rank,
+      displayName: trimmedName,
+      shortLabel: `#${entry.rank} ${shortName}`,
+      avatar: entry.avatar || '⚡',
+      score: cleanScore,
+      streak: Math.max(0, Math.round(entry.streak || 0)),
+      xpReward: entry.xpReward,
+      isTopThree,
+      deltaFromAverage: delta,
+    };
+  });
+
+  return {
+    data,
+    averageScore,
+    medianScore,
+    minScore,
+    maxScore,
+    aboveAverageCount,
+    topThreeXpTotal,
+  };
+}
+
 export function buildBattleClosedSummary(params: {
   roomCode: string;
   battleMode: BattleModeKind;
@@ -130,6 +221,7 @@ export function buildBattleClosedSummary(params: {
     totalParticipants > 0
       ? Math.round(allRanked.reduce((sum, p) => sum + p.score, 0) / totalParticipants)
       : 0;
+  const topThreeXpAwarded = topWinners.reduce((sum, w) => sum + w.xpReward, 0);
   const totalXpAwarded = allRanked.reduce((sum, p) => sum + p.xpReward, 0);
 
   return {
@@ -141,6 +233,7 @@ export function buildBattleClosedSummary(params: {
     totalParticipants,
     topScore,
     averageScore,
+    topThreeXpAwarded,
     totalXpAwarded,
     topWinners,
     allRanked,
@@ -216,9 +309,8 @@ export function buildBattleClosedSummaryFromCloudRoom(params: {
         )
       : 0;
   const extraParticipants = Math.max(0, totalParticipants - normalizedWinners.length);
-  const totalXpAwarded =
-    normalizedWinners.reduce((sum, w) => sum + w.xpReward, 0) +
-    extraParticipants * PARTICIPATION_XP_REWARD;
+  const topThreeXpAwarded = normalizedWinners.reduce((sum, w) => sum + w.xpReward, 0);
+  const totalXpAwarded = topThreeXpAwarded + extraParticipants * PARTICIPATION_XP_REWARD;
 
   return {
     roomCode: room.roomCode,
@@ -231,6 +323,7 @@ export function buildBattleClosedSummaryFromCloudRoom(params: {
     totalParticipants,
     topScore,
     averageScore,
+    topThreeXpAwarded,
     totalXpAwarded,
     topWinners: normalizedWinners,
     allRanked,
