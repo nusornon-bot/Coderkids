@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Zap,
   Trophy,
@@ -23,6 +23,11 @@ import {
   KeyRound,
   Users,
   Radio,
+  Copy,
+  Check,
+  Sparkles,
+  Power,
+  Eraser,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AudioReaderButton } from './AudioReaderButton.tsx';
@@ -42,9 +47,20 @@ import {
   shuffleQuestionOptions,
 } from '../utils/battleQuestionSelector.ts';
 import { LiveClassroomScoreboard } from './LiveClassroomScoreboard.tsx';
+import { BattleClosedSummaryView } from './BattleClosedSummaryView.tsx';
 import { sortParticipantsByScoreDesc } from '../utils/liveScoreboardSort.ts';
 import {
+  BattleClosedSummaryData,
+  StudentClosedRoomReward,
+  buildBattleClosedSummary,
+  buildBattleClosedSummaryFromCloudRoom,
+  findStudentRewardInClosedSummary,
+  hasClaimedClosedRoomReward,
+  markClosedRoomRewardClaimed,
+} from '../utils/battleCloseSummary.ts';
+import {
   LiveQuizParticipantRecord,
+  closeLiveRoomAndClearParticipantsInFirestore,
   createOrUpdateLiveRoomInFirestore,
   deleteBattleQuestionFromFirestore,
   getBattleQuestionByIdFromFirestore,
@@ -53,8 +69,10 @@ import {
   isCloudFirestoreReadyForUser,
   joinOrUpdateLiveParticipantInFirestore,
   listBattleQuestionsFromFirestore,
+  resetLiveRoomScoresInFirestore,
   saveBattleQuestionToFirestore,
   subscribeLiveParticipantsInFirestore,
+  subscribeLiveRoomInFirestore,
 } from '../services/firestoreService.ts';
 
 interface ClassroomBattleModalProps {
@@ -134,8 +152,27 @@ function saveLocalBattleRoom(room: LocalBattleRoomConfig): void {
   }
 }
 
-function generatePin(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+function closeLocalBattleRoom(roomCode: string): void {
+  try {
+    const existing = loadLocalBattleRooms();
+    const key = roomCode.trim().toUpperCase();
+    if (existing[key]) {
+      existing[key] = { ...existing[key], status: 'closed' };
+      localStorage.setItem(LOCAL_BATTLE_ROOMS_KEY, JSON.stringify(existing));
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+function generatePin(excludePin?: string): string {
+  let candidate = String(Math.floor(100000 + Math.random() * 900000));
+  let guard = 0;
+  while (excludePin && candidate === excludePin && guard < 10) {
+    candidate = String(Math.floor(100000 + Math.random() * 900000));
+    guard += 1;
+  }
+  return candidate;
 }
 
 export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
@@ -147,15 +184,25 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
   onCelebrate,
 }) => {
   const [activeView, setActiveView] = useState<'arena' | 'bank'>('arena');
-  const [gameState, setGameState] = useState<'lobby' | 'playing' | 'roundResult' | 'podium'>('lobby');
-  const [gamePin, setGamePin] = useState<string>('849201');
+  const [gameState, setGameState] = useState<
+    'lobby' | 'playing' | 'roundResult' | 'podium' | 'closedSummary'
+  >('lobby');
+  const [gamePin, setGamePin] = useState<string>(() => generatePin());
   const [studentJoinPin, setStudentJoinPin] = useState<string>('');
   const [joinedRoomCode, setJoinedRoomCode] = useState<string>('');
   const [joinedHostName, setJoinedHostName] = useState<string>('');
   const [isRoomOpenedByTeacher, setIsRoomOpenedByTeacher] = useState<boolean>(false);
+  const [isRoomSyncedToCloud, setIsRoomSyncedToCloud] = useState<boolean>(false);
+  const [copiedPin, setCopiedPin] = useState<boolean>(false);
   const [isOpeningOrJoining, setIsOpeningOrJoining] = useState<boolean>(false);
+  const [isClosingOrClearing, setIsClosingOrClearing] = useState<boolean>(false);
   const [cloudParticipants, setCloudParticipants] = useState<LiveQuizParticipantRecord[]>([]);
   const [isScoreboardExpanded, setIsScoreboardExpanded] = useState<boolean>(false);
+  const [closedSummary, setClosedSummary] = useState<BattleClosedSummaryData | null>(null);
+  const [closedRemovedCount, setClosedRemovedCount] = useState<number>(0);
+  const [closedStudentReward, setClosedStudentReward] = useState<StudentClosedRoomReward | null>(
+    null
+  );
 
   const [playerNickname, setPlayerNickname] = useState<string>(studentName || 'น้องโค้ดเดอร์');
   const [isProjectorMode, setIsProjectorMode] = useState<boolean>(false);
@@ -243,6 +290,41 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
     };
   }, [isOpen]);
 
+  // Keep refs synced for real-time closed-room summary without re-subscribing listeners
+  const latestParticipantsRef = useRef<LiveQuizParticipantRecord[]>(cloudParticipants);
+  const latestScoreRef = useRef<number>(score);
+  const latestNicknameRef = useRef<string>(playerNickname || studentName || 'นักเรียน');
+  latestParticipantsRef.current = cloudParticipants;
+  latestScoreRef.current = score;
+  latestNicknameRef.current = playerNickname || studentName || 'นักเรียน';
+
+  // Cleanly reset student session when re-opening modal after finishing a round so Round 2 works every time
+  const resetStudentSession = (
+    notice?: { type: 'success' | 'info' | 'error'; text: string } | null
+  ) => {
+    setStudentJoinPin('');
+    setJoinedRoomCode('');
+    setJoinedHostName('');
+    setActiveQuestions([]);
+    setCurrentRound(0);
+    setScore(0);
+    setCorrectCount(0);
+    setStreak(0);
+    setSelectedOption(null);
+    setIsAnswerSubmitted(false);
+    setCloudParticipants([]);
+    setClosedSummary(null);
+    setClosedStudentReward(null);
+    setGameState('lobby');
+    setBankNotice(notice ?? null);
+  };
+
+  useEffect(() => {
+    if (!isTeacher && isOpen && (gameState === 'podium' || gameState === 'closedSummary')) {
+      resetStudentSession(null);
+    }
+  }, [isOpen, isTeacher]);
+
   // Real-time Firestore listener for live participants & scores
   useEffect(() => {
     const activeCode = isTeacher ? (isRoomOpenedByTeacher ? gamePin : '') : joinedRoomCode;
@@ -264,6 +346,73 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
       unsubscribe();
     };
   }, [isOpen, isTeacher, isRoomOpenedByTeacher, gamePin, joinedRoomCode]);
+
+  // Real-time room status listener for joined students: show graphical Top 3 summary & auto-award XP coins when teacher closes room
+  useEffect(() => {
+    if (!isOpen || isTeacher || !joinedRoomCode) {
+      return;
+    }
+
+    const unsubscribe = subscribeLiveRoomInFirestore(
+      joinedRoomCode,
+      (room) => {
+        if (room && room.status === 'closed') {
+          const summary = buildBattleClosedSummaryFromCloudRoom({
+            room,
+            battleMode: 'coding',
+            fallbackParticipants: latestParticipantsRef.current,
+          });
+          const participantId = getLiveParticipantId();
+          const reward = findStudentRewardInClosedSummary(
+            summary,
+            participantId,
+            latestNicknameRef.current,
+            latestScoreRef.current
+          );
+
+          if (reward && reward.xpReward > 0 && !hasClaimedClosedRoomReward(room.roomCode)) {
+            markClosedRoomRewardClaimed(room.roomCode);
+            addPoints(
+              reward.xpReward,
+              `รางวัลเหรียญ XP ${reward.medalTitle} (Coding Battle ห้อง ${room.roomCode})`,
+              'thinking'
+            );
+            if (reward.isTopThree) {
+              onCelebrate(
+                'points_milestone',
+                `คว้า${reward.medalTitle} Coding Battle!`,
+                `ได้รับเหรียญรางวัล +${reward.xpReward} XP จากห้องประลองรหัส ${room.roomCode}`,
+                reward.rank === 1 ? '🥇' : reward.rank === 2 ? '🥈' : '🥉'
+              );
+            }
+          }
+
+          setStudentJoinPin('');
+          setJoinedRoomCode('');
+          setJoinedHostName('');
+          setActiveQuestions([]);
+          setCurrentRound(0);
+          setScore(0);
+          setCorrectCount(0);
+          setStreak(0);
+          setSelectedOption(null);
+          setIsAnswerSubmitted(false);
+          setCloudParticipants([]);
+          setClosedSummary(summary);
+          setClosedStudentReward(reward);
+          setBankNotice(null);
+          setGameState('closedSummary');
+        }
+      },
+      () => {
+        // Ignore transient network errors
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isOpen, isTeacher, joinedRoomCode]);
 
   // Combined deduplicated question bank
   const fullQuestionBank = useMemo<BattleQuestionItem[]>(() => {
@@ -323,9 +472,10 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
   // Teacher: Publish room PIN + randomized question set to Firestore + localStorage
   const publishTeacherBattleRoom = async (
     drawnQuestions: BattleQuestionItem[],
-    stage: 'lobby' | 'question'
-  ): Promise<boolean> => {
-    const cleanPin = gamePin.trim().toUpperCase();
+    stage: 'lobby' | 'question',
+    explicitRoomCode?: string
+  ): Promise<{ roomCode: string; syncedToCloud: boolean }> => {
+    const cleanPin = (explicitRoomCode || gamePin).trim().toUpperCase();
     const questionIds = drawnQuestions.map((q) => q.id);
 
     // Always store locally as fallback for same-browser / offline testing
@@ -360,12 +510,14 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
       }
     }
 
+    setGamePin(cleanPin);
     setIsRoomOpenedByTeacher(true);
-    return syncedToCloud;
+    setIsRoomSyncedToCloud(syncedToCloud);
+    return { roomCode: cleanPin, syncedToCloud };
   };
 
-  // Teacher: Open room so students can enter the Game PIN without starting host screen yet
-  const handleTeacherOpenRoomOnly = async () => {
+  // Teacher: Create a brand-new Battle Room with a fresh random Room Code (auto-closes previous room & clears old students)
+  const handleCreateBattleRoom = async () => {
     if (!isTeacher) return;
     const drawn = selectRandomBattleQuestions(fullQuestionBank, {
       platform: selectedPlatformSet,
@@ -383,30 +535,54 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
 
     setIsOpeningOrJoining(true);
     setBankNotice(null);
+    setCopiedPin(false);
+
     try {
-      const synced = await publishTeacherBattleRoom(drawn, 'lobby');
+      // Automatically close previous open room and clear old students before creating a new Room Code
+      if (isRoomOpenedByTeacher && gamePin) {
+        closeLocalBattleRoom(gamePin);
+        if (isCloudFirestoreReadyForUser()) {
+          await closeLiveRoomAndClearParticipantsInFirestore(gamePin).catch(() => {});
+        }
+      }
+
+      const freshRoomCode = generatePin(isRoomOpenedByTeacher ? gamePin : undefined);
+      setClosedSummary(null);
+      setClosedStudentReward(null);
+      setGameState('lobby');
+      setActiveView('arena');
+      setCloudParticipants([]);
+      setScore(0);
+      setCorrectCount(0);
+      setStreak(0);
+      setCurrentRound(0);
+
+      const { roomCode, syncedToCloud } = await publishTeacherBattleRoom(
+        drawn,
+        'lobby',
+        freshRoomCode
+      );
       setActiveQuestions(drawn);
       setBankNotice({
-        type: 'success',
-        text: synced
-          ? `เปิดห้องเรียนรหัส ${gamePin} บน Cloud เรียบร้อย! นักเรียนสามารถกรอกรหัส ${gamePin} เพื่อเข้าร่วมได้ทันที (${drawn.length} ข้อ)`
-          : `เปิดห้องเรียนรหัส ${gamePin} เรียบร้อย (${drawn.length} ข้อ) แจ้งรหัสให้นักเรียนกรอกเข้าร่วมได้เลย`,
+        type: syncedToCloud ? 'success' : 'info',
+        text: syncedToCloud
+          ? `สร้างห้อง Coding Battle รหัส ${roomCode} บน Firestore เรียบร้อย! นักเรียนสามารถกรอกรหัส ${roomCode} เพื่อเข้าร่วมได้ทันที (${drawn.length} ข้อ)`
+          : `สร้างห้อง Coding Battle รหัส ${roomCode} ในเครื่องเรียบร้อย (${drawn.length} ข้อ) · แนะนำให้คุณครูเข้าสู่ระบบด้วย Google เพื่อบันทึกลง Cloud Firestore ให้เด็กๆ เข้าร่วมข้ามเครื่องได้`,
       });
     } finally {
       setIsOpeningOrJoining(false);
     }
   };
 
-  // Teacher: Open room & start playing immediately
-  const handleTeacherStartGame = async () => {
-    if (!isTeacher) return;
+  // Teacher: Update question set in the currently open room (keeping same Room Code)
+  const handleUpdateCurrentRoom = async () => {
+    if (!isTeacher || !isRoomOpenedByTeacher) return;
     const drawn = selectRandomBattleQuestions(fullQuestionBank, {
       platform: selectedPlatformSet,
       difficulty: selectedDifficulty,
       count: effectiveQuestionCount || 5,
       shuffleOptions: shuffleChoicesEnabled,
     });
-
     if (drawn.length === 0) {
       setBankNotice({
         type: 'error',
@@ -418,7 +594,149 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
     setIsOpeningOrJoining(true);
     setBankNotice(null);
     try {
-      await publishTeacherBattleRoom(drawn, 'question');
+      const { roomCode, syncedToCloud } = await publishTeacherBattleRoom(drawn, 'lobby', gamePin);
+      setActiveQuestions(drawn);
+      setBankNotice({
+        type: 'success',
+        text: syncedToCloud
+          ? `อัปเดตชุดข้อสอบห้องรหัส ${roomCode} บน Firestore เรียบร้อย (${drawn.length} ข้อ)`
+          : `อัปเดตชุดข้อสอบห้องรหัส ${roomCode} เรียบร้อย (${drawn.length} ข้อ)`,
+      });
+    } finally {
+      setIsOpeningOrJoining(false);
+    }
+  };
+
+  // Teacher: Clear previous scores in the current active room (sets all participants to 0 pts)
+  const handleTeacherClearScores = async () => {
+    if (!isTeacher || !isRoomOpenedByTeacher || !gamePin) return;
+    setIsClosingOrClearing(true);
+    setBankNotice(null);
+    try {
+      let resetCount = cloudParticipants.length;
+      if (isCloudFirestoreReadyForUser()) {
+        const res = await resetLiveRoomScoresInFirestore(gamePin).catch(() => ({
+          ok: false,
+          resetCount: 0,
+        }));
+        if (res.ok) {
+          resetCount = res.resetCount;
+        }
+      }
+      setCloudParticipants((prev) =>
+        prev.map((p) => ({ ...p, score: 0, streak: 0, lastAnswerIndex: -1 }))
+      );
+      setScore(0);
+      setCorrectCount(0);
+      setStreak(0);
+      setBankNotice({
+        type: 'success',
+        text: `เคลียร์คะแนนเดิมของห้อง ${gamePin} เป็น 0 คะแนนเรียบร้อยแล้ว (${resetCount} คน) พร้อมแข่งรอบถัดไป`,
+      });
+    } finally {
+      setIsClosingOrClearing(false);
+    }
+  };
+
+  // Teacher: Close room, snapshot Top 3 winners & XP rewards, automatically delete all student participants, and display graphical summary
+  const handleTeacherCloseRoom = async () => {
+    if (!isTeacher || !isRoomOpenedByTeacher || !gamePin) return;
+    const closingCode = gamePin;
+    const localSnapshot = [...cloudParticipants];
+    setIsClosingOrClearing(true);
+    setBankNotice(null);
+    try {
+      let removedCount = localSnapshot.length;
+      let finalParticipants = localSnapshot;
+      closeLocalBattleRoom(closingCode);
+      if (isCloudFirestoreReadyForUser()) {
+        const res = await closeLiveRoomAndClearParticipantsInFirestore(closingCode, {
+          fallbackParticipants: localSnapshot,
+        }).catch(() => ({
+          closed: false,
+          removedCount: 0,
+          finalParticipants: [] as LiveQuizParticipantRecord[],
+          finalTopWinners: [],
+        }));
+        if (res.closed) {
+          removedCount = res.removedCount;
+          if (res.finalParticipants.length > 0) {
+            finalParticipants = res.finalParticipants;
+          }
+        }
+      }
+
+      const summary = buildBattleClosedSummary({
+        roomCode: closingCode,
+        battleMode: 'coding',
+        battleTitle: `Coding Battle (${selectedPlatformSet})`,
+        hostName: playerNickname || 'คุณครู',
+        participants: finalParticipants,
+      });
+
+      setIsRoomOpenedByTeacher(false);
+      setIsRoomSyncedToCloud(false);
+      setIsScoreboardExpanded(false);
+      setCloudParticipants([]);
+      setActiveQuestions([]);
+      setCurrentRound(0);
+      setScore(0);
+      setCorrectCount(0);
+      setStreak(0);
+      setSelectedOption(null);
+      setIsAnswerSubmitted(false);
+      setGamePin(generatePin(closingCode));
+      setClosedRemovedCount(removedCount);
+      setClosedStudentReward(null);
+      setClosedSummary(summary);
+      setActiveView('arena');
+      setGameState('closedSummary');
+    } finally {
+      setIsClosingOrClearing(false);
+    }
+  };
+
+  const handleCopyRoomCode = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(gamePin);
+        setCopiedPin(true);
+        setTimeout(() => setCopiedPin(false), 2000);
+      }
+    } catch {
+      // Ignore clipboard errors in restricted iframes
+    }
+  };
+
+  // Teacher: Start playing (reuses open room if already created, or creates a new room; forceFreshRound draws new questions & clears scores)
+  const handleTeacherStartGame = async (forceFreshRound = false) => {
+    if (!isTeacher) return;
+    const drawn =
+      !forceFreshRound && isRoomOpenedByTeacher && activeQuestions.length > 0
+        ? activeQuestions
+        : selectRandomBattleQuestions(fullQuestionBank, {
+            platform: selectedPlatformSet,
+            difficulty: selectedDifficulty,
+            count: effectiveQuestionCount || 5,
+            shuffleOptions: shuffleChoicesEnabled,
+          });
+
+    if (drawn.length === 0) {
+      setBankNotice({
+        type: 'error',
+        text: 'ไม่พบข้อสอบที่ตรงกับเงื่อนไขที่เลือก กรุณาเปลี่ยนตัวกรองหรือสร้างข้อสอบเพิ่มในคลัง',
+      });
+      return;
+    }
+
+    const targetRoomCode = isRoomOpenedByTeacher ? gamePin : generatePin();
+    setIsOpeningOrJoining(true);
+    setBankNotice(null);
+    try {
+      if (forceFreshRound && isRoomOpenedByTeacher && isCloudFirestoreReadyForUser()) {
+        await resetLiveRoomScoresInFirestore(targetRoomCode).catch(() => {});
+      }
+      await publishTeacherBattleRoom(drawn, 'question', targetRoomCode);
       setActiveQuestions(drawn);
       setActiveView('arena');
       setGameState('playing');
@@ -457,28 +775,41 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
       let hostName = 'คุณครู';
       let foundRoom = false;
       let isWrongBattleMode = false;
+      let isRoomClosed = false;
 
-      // 1. Always check Cloud Firestore first (works for both Google-signed-in and Student Profile accounts)
+      // 1. Always check Cloud Firestore directly from server (works for both Google and Student Profile logins)
       try {
         const cloudRoom = await getLiveRoomFromFirestore(enteredPin);
-        if (cloudRoom && cloudRoom.status === 'active') {
-          const ids = cloudRoom.questionIds || [];
-          const isOnetRoom =
-            cloudRoom.title.toUpperCase().includes('O-NET') ||
-            ids.some((id) => id.startsWith('onet_'));
-          if (isOnetRoom) {
-            isWrongBattleMode = true;
+        if (cloudRoom) {
+          if (cloudRoom.status === 'closed') {
+            isRoomClosed = true;
           } else {
-            foundRoom = true;
-            hostName = cloudRoom.hostName || 'คุณครู';
-            roomPlatform = cloudRoom.platformSet || 'mixed';
-            roomDifficulty = cloudRoom.difficulty || 'all';
-            roomCount = cloudRoom.questionCount || 5;
-            roomQuestionIds = ids;
+            const ids = cloudRoom.questionIds || [];
+            const isOnetRoom =
+              cloudRoom.title.toUpperCase().includes('O-NET') ||
+              ids.some((id) => id.startsWith('onet_'));
+            if (isOnetRoom) {
+              isWrongBattleMode = true;
+            } else {
+              foundRoom = true;
+              hostName = cloudRoom.hostName || 'คุณครู';
+              roomPlatform = cloudRoom.platformSet || 'mixed';
+              roomDifficulty = cloudRoom.difficulty || 'all';
+              roomCount = cloudRoom.questionCount || 5;
+              roomQuestionIds = ids;
+            }
           }
         }
       } catch {
         // Fall back to local room check below
+      }
+
+      if (isRoomClosed) {
+        setBankNotice({
+          type: 'error',
+          text: `ห้องเรียนรหัส "${enteredPin}" ถูกคุณครูปิดห้องแล้ว กรุณาขอรหัสห้องใหม่จากคุณครู`,
+        });
+        return;
       }
 
       if (isWrongBattleMode) {
@@ -866,7 +1197,8 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             {/* Teacher-only controls: Question Bank switcher & Projector Mode */}
-            {isTeacher && (gameState === 'lobby' || gameState === 'podium') && (
+            {isTeacher &&
+              (gameState === 'lobby' || gameState === 'podium' || gameState === 'closedSummary') && (
               <div className="inline-flex bg-slate-800/90 p-1 rounded-xl border border-slate-700/80">
                 <button
                   type="button"
@@ -895,6 +1227,19 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
               </div>
             )}
 
+            {isTeacher && isRoomOpenedByTeacher && (
+              <button
+                type="button"
+                disabled={isClosingOrClearing}
+                onClick={handleTeacherCloseRoom}
+                className="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/35 border border-rose-500/40 text-rose-200 rounded-xl transition-colors flex items-center gap-1.5 text-xs font-bold cursor-pointer disabled:opacity-40"
+                title="ปิดห้องเรียน ลบรายชื่อนักเรียนออกอัตโนมัติ และเปิดหน้าสรุปผลรางวัล 3 อันดับแรก"
+              >
+                <Power className="w-3.5 h-3.5" />
+                <span>ปิดห้อง</span>
+              </button>
+            )}
+
             {isTeacher && (
               <button
                 type="button"
@@ -911,7 +1256,15 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                if (!isTeacher && (gameState === 'podium' || gameState === 'closedSummary')) {
+                  resetStudentSession(null);
+                } else if (isTeacher && gameState === 'closedSummary') {
+                  setClosedSummary(null);
+                  setGameState('lobby');
+                }
+                onClose();
+              }}
               className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
               aria-label="ปิดหน้าต่าง"
             >
@@ -1370,6 +1723,41 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
         )}
 
         {/* ================================================================ */}
+        {/* VIEW B0: GRAPHICAL CLOSED ROOM SUMMARY (TOP 3 + XP COIN AWARDS)  */}
+        {/* ================================================================ */}
+        {activeView === 'arena' && gameState === 'closedSummary' && closedSummary && (
+          <BattleClosedSummaryView
+            summary={closedSummary}
+            isTeacher={isTeacher}
+            currentParticipantId={currentParticipantId}
+            studentReward={closedStudentReward}
+            removedCount={closedRemovedCount}
+            isBusy={isOpeningOrJoining || isClosingOrClearing}
+            onCreateNewRoom={isTeacher ? handleCreateBattleRoom : undefined}
+            onBackToLobby={() => {
+              if (isTeacher) {
+                setClosedSummary(null);
+                setGameState('lobby');
+              } else {
+                resetStudentSession({
+                  type: 'info',
+                  text: 'พร้อมสำหรับรอบถัดไปแล้ว กรอกรหัส Game PIN ห้องใหม่จากคุณครูเพื่อเข้าร่วมทันที',
+                });
+              }
+            }}
+            onCloseModal={() => {
+              if (isTeacher) {
+                setClosedSummary(null);
+                setGameState('lobby');
+              } else {
+                resetStudentSession(null);
+              }
+              onClose();
+            }}
+          />
+        )}
+
+        {/* ================================================================ */}
         {/* VIEW B1: STUDENT-ONLY LOBBY (กรอกรหัสเข้าร่วมห้องเรียนเท่านั้น)    */}
         {/* ================================================================ */}
         {!isTeacher && activeView === 'arena' && gameState === 'lobby' && (
@@ -1457,33 +1845,56 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
 
                 <div>
                   <div className="text-xs text-slate-400 mb-1.5 flex items-center justify-center gap-1.5">
-                    <span>รหัสเข้าร่วมห้องเรียน (Game PIN)</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGamePin(generatePin());
-                        setIsRoomOpenedByTeacher(false);
-                        setIsScoreboardExpanded(false);
-                        setCloudParticipants([]);
-                      }}
-                      className="text-slate-400 hover:text-amber-300 p-1 rounded-md hover:bg-slate-800 cursor-pointer"
-                      title="สุ่มรหัส PIN ใหม่"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
+                    <span>รหัสห้องประลอง Coding (Room Code)</span>
+                    {isRoomOpenedByTeacher && (
+                      <button
+                        type="button"
+                        onClick={handleCopyRoomCode}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-amber-300 transition-colors cursor-pointer"
+                        title="คัดลอกรหัสห้อง"
+                      >
+                        {copiedPin ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-300">คัดลอกแล้ว</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>คัดลอก</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
-                  <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-widest font-mono bg-slate-900/90 py-2.5 px-5 rounded-2xl border border-slate-700 inline-block">
-                    {gamePin}
-                  </div>
+
+                  {isRoomOpenedByTeacher ? (
+                    <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-widest font-mono bg-slate-900/90 py-2.5 px-5 rounded-2xl border border-amber-500/40 shadow-inner inline-block">
+                      {gamePin}
+                    </div>
+                  ) : (
+                    <div className="py-3 px-4 rounded-2xl bg-slate-900/80 border border-dashed border-slate-700 text-xs text-slate-400">
+                      กดปุ่ม <strong className="text-emerald-300">"สร้างห้อง Battle"</strong>{' '}
+                      เพื่อสุ่มรหัสห้องใหม่และบันทึกลง Firestore
+                    </div>
+                  )}
 
                   {isRoomOpenedByTeacher && (
                     <div className="mt-2.5 flex flex-col items-center gap-2.5">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
-                        <Radio className="w-3.5 h-3.5 animate-pulse" />
-                        <span>ห้องเปิดแล้ว</span>
-                        <span className="text-slate-400">·</span>
-                        <Users className="w-3.5 h-3.5" />
-                        <span>ผู้เข้าร่วม {cloudParticipants.length} คน</span>
+                      <div className="flex flex-wrap items-center justify-center gap-1.5">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
+                          <Radio className="w-3.5 h-3.5 animate-pulse" />
+                          <span>ห้องเปิดแล้ว</span>
+                          <span className="text-slate-400">·</span>
+                          <Users className="w-3.5 h-3.5" />
+                          <span>ผู้เข้าร่วม {cloudParticipants.length} คน</span>
+                        </div>
+                        {isRoomSyncedToCloud && (
+                          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-[10px] font-bold text-sky-300">
+                            <Cloud className="w-3 h-3" />
+                            <span>Firestore</span>
+                          </div>
+                        )}
                       </div>
 
                       {!isScoreboardExpanded && (
@@ -1518,7 +1929,7 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
                 <div>
                   🎲 ระบบจะสุ่มข้อสอบ{' '}
                   <span className="text-emerald-400 font-black">{effectiveQuestionCount} ข้อ</span>{' '}
-                  จากคลัง ({eligibleQuestions.length} ข้อที่ตรงเงื่อนไข) เมื่อเปิดห้อง
+                  จากคลัง ({eligibleQuestions.length} ข้อที่ตรงเงื่อนไข) เมื่อสร้างห้อง
                   นักเรียนกรอกรหัส PIN เพื่อเข้าร่วมได้ทันที
                 </div>
               </div>
@@ -1526,26 +1937,70 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
               <div className="space-y-2.5">
                 <button
                   type="button"
-                  disabled={effectiveQuestionCount === 0 || isOpeningOrJoining}
-                  onClick={handleTeacherOpenRoomOnly}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={effectiveQuestionCount === 0 || isOpeningOrJoining || isClosingOrClearing}
+                  onClick={handleCreateBattleRoom}
+                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-40 text-white font-black text-sm sm:text-base rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Radio className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4" />
                   <span>
-                    {isRoomOpenedByTeacher
-                      ? `อัปเดตชุดข้อสอบห้อง PIN ${gamePin}`
-                      : `เปิดห้องให้นักเรียนกรอก PIN (${gamePin})`}
+                    {isOpeningOrJoining
+                      ? 'กำลังสร้างห้องและบันทึกลง Firestore...'
+                      : isRoomOpenedByTeacher
+                      ? 'สร้างห้อง Battle ใหม่ (สุ่มรหัสใหม่)'
+                      : 'สร้างห้อง Battle'}
                   </span>
                 </button>
 
+                {isRoomOpenedByTeacher && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={isClosingOrClearing || isOpeningOrJoining}
+                      onClick={handleTeacherClearScores}
+                      className="py-2.5 px-2.5 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/35 disabled:opacity-40 text-amber-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="รีเซ็ตคะแนนนักเรียนทุกคนในห้องเป็น 0"
+                    >
+                      <Eraser className="w-3.5 h-3.5 shrink-0" />
+                      <span>เคลียร์คะแนนเดิม</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={isClosingOrClearing || isOpeningOrJoining}
+                      onClick={handleTeacherCloseRoom}
+                      className="py-2.5 px-2.5 bg-rose-600/20 hover:bg-rose-600/35 border border-rose-500/40 disabled:opacity-40 text-rose-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                      title="ปิดห้องและลบนักเรียนทั้งหมดออกจากห้องอัตโนมัติ"
+                    >
+                      <Power className="w-3.5 h-3.5 shrink-0" />
+                      <span>ปิดห้อง</span>
+                    </button>
+                  </div>
+                )}
+
+                {isRoomOpenedByTeacher && (
+                  <button
+                    type="button"
+                    disabled={effectiveQuestionCount === 0 || isOpeningOrJoining || isClosingOrClearing}
+                    onClick={handleUpdateCurrentRoom}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>อัปเดตชุดข้อสอบห้องเดิม ({gamePin})</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
-                  disabled={effectiveQuestionCount === 0 || isOpeningOrJoining}
-                  onClick={handleTeacherStartGame}
-                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-40 text-white font-black text-sm sm:text-base rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={effectiveQuestionCount === 0 || isOpeningOrJoining || isClosingOrClearing}
+                  onClick={() => handleTeacherStartGame(false)}
+                  className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-40 text-slate-950 font-black text-sm rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Play className="w-5 h-5 fill-current" />
-                  <span>เปิดห้องและเริ่มประลองสด (สุ่ม {effectiveQuestionCount} ข้อ)</span>
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>
+                    {isRoomOpenedByTeacher
+                      ? `เริ่มประลองสดหน้าจอครู (${activeQuestions.length || effectiveQuestionCount} ข้อ)`
+                      : `สร้างห้องและเริ่มประลองทันที (${effectiveQuestionCount} ข้อ)`}
+                  </span>
                 </button>
               </div>
             </div>
@@ -1973,44 +2428,57 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2.5 max-w-lg mx-auto">
+            <div className="flex flex-wrap gap-2.5 max-w-xl mx-auto">
               {isTeacher ? (
                 <>
                   <button
                     type="button"
-                    onClick={handleTeacherStartGame}
-                    className="flex-1 min-w-[150px] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    disabled={isOpeningOrJoining || isClosingOrClearing}
+                    onClick={() => handleTeacherStartGame(true)}
+                    className="flex-1 min-w-[150px] py-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <Shuffle className="w-4 h-4" />
-                    <span>สุ่มชุดใหม่ประลองอีกรอบ</span>
+                    <span>สุ่มชุดใหม่ + เคลียร์คะแนน</span>
                   </button>
+                  {isRoomOpenedByTeacher && (
+                    <button
+                      type="button"
+                      disabled={isClosingOrClearing}
+                      onClick={handleTeacherCloseRoom}
+                      className="flex-1 min-w-[140px] py-3 bg-rose-600/20 hover:bg-rose-600/35 border border-rose-500/40 disabled:opacity-40 text-rose-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Power className="w-4 h-4" />
+                      <span>ปิดห้องและลบผู้เข้าร่วม</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setGameState('lobby')}
                     className="flex-1 min-w-[140px] py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <RotateCcw className="w-4 h-4" />
-                    <span>ตั้งค่าชุดข้อสอบใหม่</span>
+                    <span>กลับหน้าตั้งค่าห้อง</span>
                   </button>
                 </>
               ) : (
                 <button
                   type="button"
-                  onClick={() => {
-                    setStudentJoinPin('');
-                    setJoinedRoomCode('');
-                    setGameState('lobby');
-                  }}
-                  className="flex-1 min-w-[150px] py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  onClick={() => resetStudentSession(null)}
+                  className="flex-1 min-w-[170px] py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <KeyRound className="w-4 h-4" />
-                  <span>กรอกรหัสห้องเรียนใหม่</span>
+                  <span>เล่นรอบถัดไป (กรอกรหัสห้องใหม่)</span>
                 </button>
               )}
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={() => {
+                  if (!isTeacher) {
+                    resetStudentSession(null);
+                  }
+                  onClose();
+                }}
                 className="flex-1 min-w-[140px] py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
               >
                 เสร็จสิ้นและรับรางวัล

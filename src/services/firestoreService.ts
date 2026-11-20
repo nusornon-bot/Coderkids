@@ -613,6 +613,16 @@ export async function deleteStudioProjectFromFirestore(projectId: string): Promi
 // ---------------------------------------------------------------------------
 // Live Classroom Quiz Rooms (/liveRooms/{roomCode} & /participants/{uid})
 // ---------------------------------------------------------------------------
+export interface LiveRoomFinalWinner {
+  rank: 1 | 2 | 3;
+  userId: string;
+  displayName: string;
+  avatar: string;
+  score: number;
+  streak: number;
+  xpReward: number;
+}
+
 export interface LiveQuizRoomRecord {
   roomCode: string;
   hostUid: string;
@@ -625,6 +635,8 @@ export interface LiveQuizRoomRecord {
   difficulty?: 'all' | 'easy' | 'medium' | 'hard';
   questionCount?: number;
   questionIds?: string[];
+  totalParticipants?: number;
+  finalTopWinners?: LiveRoomFinalWinner[];
 }
 
 export interface LiveQuizParticipantRecord {
@@ -662,17 +674,19 @@ export async function createOrUpdateLiveRoomInFirestore(params: {
   const path = `liveRooms/${cleanCode}`;
   try {
     const ref = doc(db, 'liveRooms', cleanCode);
-    const snap = await getDoc(ref);
+    let snap;
+    try {
+      snap = await getDocFromServer(ref);
+    } catch {
+      snap = await getDoc(ref);
+    }
 
-    const payload: Record<string, unknown> = {
-      roomCode: cleanCode,
-      hostUid: snap.exists() ? snap.data()?.hostUid || user.uid : user.uid,
+    const mutablePayload: Record<string, unknown> = {
       hostName: clampStr(params.hostName, 120, 'คุณครู') || 'คุณครู',
       title: clampStr(params.title, 140, 'Live Quiz Battle ว 4.2') || 'Live Quiz Battle ว 4.2',
       stage: params.stage,
       currentQuestionIndex: Math.max(0, Math.min(50, Math.round(params.currentQuestionIndex || 0))),
       status: params.status === 'closed' ? 'closed' : 'active',
-      createdAt: snap.exists() ? snap.data()?.createdAt || serverTimestamp() : serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
@@ -681,7 +695,7 @@ export async function createOrUpdateLiveRoomInFirestore(params: {
       params.platformSet === 'Micro:bit' ||
       params.platformSet === 'mixed'
     ) {
-      payload.platformSet = params.platformSet;
+      mutablePayload.platformSet = params.platformSet;
     }
     if (
       params.difficulty === 'all' ||
@@ -689,10 +703,10 @@ export async function createOrUpdateLiveRoomInFirestore(params: {
       params.difficulty === 'medium' ||
       params.difficulty === 'hard'
     ) {
-      payload.difficulty = params.difficulty;
+      mutablePayload.difficulty = params.difficulty;
     }
     if (typeof params.questionCount === 'number' && Number.isFinite(params.questionCount)) {
-      payload.questionCount = Math.max(1, Math.min(50, Math.round(params.questionCount)));
+      mutablePayload.questionCount = Math.max(1, Math.min(50, Math.round(params.questionCount)));
     }
     if (Array.isArray(params.questionIds) && params.questionIds.length > 0) {
       const cleanIds = params.questionIds
@@ -700,11 +714,24 @@ export async function createOrUpdateLiveRoomInFirestore(params: {
         .filter((id) => id.length > 0)
         .slice(0, 50);
       if (cleanIds.length > 0) {
-        payload.questionIds = cleanIds;
+        mutablePayload.questionIds = cleanIds;
       }
     }
 
-    await setDoc(ref, payload, { merge: false });
+    if (snap.exists()) {
+      await updateDoc(ref, mutablePayload);
+    } else {
+      await setDoc(
+        ref,
+        {
+          roomCode: cleanCode,
+          hostUid: user.uid,
+          ...mutablePayload,
+          createdAt: serverTimestamp(),
+        },
+        { merge: false }
+      );
+    }
     return true;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
@@ -779,6 +806,65 @@ export function getLiveParticipantId(): string {
   return generated;
 }
 
+function parseLiveRoomData(
+  cleanCode: string,
+  data: Record<string, unknown>
+): LiveQuizRoomRecord {
+  const parsedWinners: LiveRoomFinalWinner[] = Array.isArray(data.finalTopWinners)
+    ? data.finalTopWinners
+        .slice(0, 3)
+        .map((entry, idx): LiveRoomFinalWinner | null => {
+          if (!entry || typeof entry !== 'object') return null;
+          const obj = entry as Record<string, unknown>;
+          const rawRank = typeof obj.rank === 'number' ? Math.round(obj.rank) : idx + 1;
+          const rank: 1 | 2 | 3 = rawRank === 1 || rawRank === 2 || rawRank === 3 ? rawRank : ((idx + 1) as 1 | 2 | 3);
+          return {
+            rank,
+            userId: String(obj.userId || `winner_${rank}`),
+            displayName: String(obj.displayName || 'ผู้เรียน'),
+            avatar: String(obj.avatar || '⚡'),
+            score: typeof obj.score === 'number' ? Math.max(0, Math.round(obj.score)) : 0,
+            streak: typeof obj.streak === 'number' ? Math.max(0, Math.round(obj.streak)) : 0,
+            xpReward: typeof obj.xpReward === 'number' ? Math.max(0, Math.round(obj.xpReward)) : 0,
+          };
+        })
+        .filter((item): item is LiveRoomFinalWinner => item !== null)
+    : [];
+
+  return {
+    roomCode: cleanCode,
+    hostUid: String(data.hostUid || ''),
+    hostName: String(data.hostName || 'คุณครู'),
+    title: String(data.title || 'Live Quiz Battle'),
+    stage:
+      data.stage === 'question' || data.stage === 'reveal' || data.stage === 'podium'
+        ? data.stage
+        : 'lobby',
+    currentQuestionIndex:
+      typeof data.currentQuestionIndex === 'number' ? data.currentQuestionIndex : 0,
+    status: data.status === 'closed' ? 'closed' : 'active',
+    ...(data.platformSet === 'Scratch' ||
+    data.platformSet === 'Micro:bit' ||
+    data.platformSet === 'mixed'
+      ? { platformSet: data.platformSet }
+      : {}),
+    ...(data.difficulty === 'all' ||
+    data.difficulty === 'easy' ||
+    data.difficulty === 'medium' ||
+    data.difficulty === 'hard'
+      ? { difficulty: data.difficulty }
+      : {}),
+    ...(typeof data.questionCount === 'number' ? { questionCount: data.questionCount } : {}),
+    ...(Array.isArray(data.questionIds)
+      ? { questionIds: data.questionIds.map((id: unknown) => String(id)) }
+      : {}),
+    ...(typeof data.totalParticipants === 'number'
+      ? { totalParticipants: Math.max(0, Math.round(data.totalParticipants)) }
+      : {}),
+    ...(parsedWinners.length > 0 ? { finalTopWinners: parsedWinners } : {}),
+  };
+}
+
 export async function getLiveRoomFromFirestore(
   roomCode: string
 ): Promise<LiveQuizRoomRecord | null> {
@@ -788,39 +874,241 @@ export async function getLiveRoomFromFirestore(
   }
   const path = `liveRooms/${cleanCode}`;
   try {
-    const snap = await getDoc(doc(db, 'liveRooms', cleanCode));
+    const ref = doc(db, 'liveRooms', cleanCode);
+    let snap;
+    try {
+      // Fetch directly from server first so newly created/reopened PINs are never masked by stale cache
+      snap = await getDocFromServer(ref);
+    } catch {
+      snap = await getDoc(ref);
+    }
     if (!snap.exists()) return null;
-    const data = snap.data();
-    return {
-      roomCode: cleanCode,
-      hostUid: String(data.hostUid || ''),
-      hostName: String(data.hostName || 'คุณครู'),
-      title: String(data.title || 'Live Quiz Battle'),
-      stage:
-        data.stage === 'question' || data.stage === 'reveal' || data.stage === 'podium'
-          ? data.stage
-          : 'lobby',
-      currentQuestionIndex:
-        typeof data.currentQuestionIndex === 'number' ? data.currentQuestionIndex : 0,
-      status: data.status === 'closed' ? 'closed' : 'active',
-      ...(data.platformSet === 'Scratch' ||
-      data.platformSet === 'Micro:bit' ||
-      data.platformSet === 'mixed'
-        ? { platformSet: data.platformSet }
-        : {}),
-      ...(data.difficulty === 'all' ||
-      data.difficulty === 'easy' ||
-      data.difficulty === 'medium' ||
-      data.difficulty === 'hard'
-        ? { difficulty: data.difficulty }
-        : {}),
-      ...(typeof data.questionCount === 'number' ? { questionCount: data.questionCount } : {}),
-      ...(Array.isArray(data.questionIds)
-        ? { questionIds: data.questionIds.map((id: unknown) => String(id)) }
-        : {}),
-    };
+    return parseLiveRoomData(cleanCode, snap.data() as Record<string, unknown>);
   } catch (error) {
     handleFirestoreError(error, OperationType.GET, path);
+  }
+}
+
+/**
+ * Real-time listener for a Live Classroom room document so joined students are
+ * notified immediately when the teacher closes the room.
+ */
+export function subscribeLiveRoomInFirestore(
+  roomCode: string,
+  onUpdate: (room: LiveQuizRoomRecord | null) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    onUpdate(null);
+    return () => {};
+  }
+
+  const path = `liveRooms/${cleanCode}`;
+  return onSnapshot(
+    doc(db, 'liveRooms', cleanCode),
+    (snap) => {
+      if (!snap.exists()) {
+        onUpdate(null);
+        return;
+      }
+      onUpdate(parseLiveRoomData(cleanCode, snap.data() as Record<string, unknown>));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (handledErr) {
+        if (onError) {
+          onError(handledErr);
+        }
+      }
+    }
+  );
+}
+
+/**
+ * Deletes every student participant document inside a Live Classroom room.
+ */
+export async function clearLiveRoomParticipantsInFirestore(
+  roomCode: string
+): Promise<{ ok: boolean; removedCount: number }> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return { ok: false, removedCount: 0 };
+  }
+  const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    return { ok: false, removedCount: 0 };
+  }
+
+  const path = `liveRooms/${cleanCode}/participants`;
+  try {
+    const q = query(
+      collection(db, 'liveRooms', cleanCode, 'participants'),
+      where('roomCode', '==', cleanCode),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      return { ok: true, removedCount: 0 };
+    }
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    return { ok: true, removedCount: snap.docs.length };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+/**
+ * Resets all participant scores, streaks, and last answers to 0 inside an active room
+ * so the teacher can clear previous scores for a fresh round without changing PIN.
+ */
+export async function resetLiveRoomScoresInFirestore(
+  roomCode: string
+): Promise<{ ok: boolean; resetCount: number }> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return { ok: false, resetCount: 0 };
+  }
+  const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    return { ok: false, resetCount: 0 };
+  }
+
+  const path = `liveRooms/${cleanCode}/participants`;
+  try {
+    const q = query(
+      collection(db, 'liveRooms', cleanCode, 'participants'),
+      where('roomCode', '==', cleanCode),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      return { ok: true, resetCount: 0 };
+    }
+    await Promise.all(
+      snap.docs.map((d) =>
+        updateDoc(d.ref, {
+          score: 0,
+          streak: 0,
+          lastAnswerIndex: -1,
+          updatedAt: serverTimestamp(),
+        })
+      )
+    );
+    return { ok: true, resetCount: snap.docs.length };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+/**
+ * Closes a Live Classroom room on Firestore, snapshots final Top 3 winners & XP coin awards
+ * onto the room document (so students see the graphical summary and claim XP rewards),
+ * and automatically deletes all participant documents from the room.
+ */
+export async function closeLiveRoomAndClearParticipantsInFirestore(
+  roomCode: string,
+  options?: {
+    fallbackParticipants?: readonly LiveQuizParticipantRecord[];
+  }
+): Promise<{
+  closed: boolean;
+  removedCount: number;
+  finalParticipants: LiveQuizParticipantRecord[];
+  finalTopWinners: LiveRoomFinalWinner[];
+}> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return { closed: false, removedCount: 0, finalParticipants: [], finalTopWinners: [] };
+  }
+  const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    return { closed: false, removedCount: 0, finalParticipants: [], finalTopWinners: [] };
+  }
+
+  const path = `liveRooms/${cleanCode}`;
+  try {
+    // 1. Read the latest participants right before clearing so we never lose last-second scores
+    const participantsQuery = query(
+      collection(db, 'liveRooms', cleanCode, 'participants'),
+      where('roomCode', '==', cleanCode),
+      limit(50)
+    );
+    const participantsSnap = await getDocs(participantsQuery);
+    const fetchedParticipants: LiveQuizParticipantRecord[] = participantsSnap.docs.map((d) => {
+      const data = d.data();
+      const updatedMs =
+        typeof data.updatedAt?.toMillis === 'function' ? data.updatedAt.toMillis() : undefined;
+      return {
+        roomCode: cleanCode,
+        userId: String(data.userId || d.id),
+        displayName: String(data.displayName || 'ผู้เรียน'),
+        avatar: String(data.avatar || '⚡'),
+        score: typeof data.score === 'number' ? data.score : 0,
+        streak: typeof data.streak === 'number' ? data.streak : 0,
+        lastAnswerIndex: typeof data.lastAnswerIndex === 'number' ? data.lastAnswerIndex : -1,
+        updatedAtMs: updatedMs,
+      };
+    });
+
+    const sourceParticipants =
+      fetchedParticipants.length > 0
+        ? fetchedParticipants
+        : [...(options?.fallbackParticipants || [])];
+    const sortedParticipants = sortParticipantsByScoreDesc(sourceParticipants);
+
+    const rankXpTable: Record<1 | 2 | 3, number> = { 1: 150, 2: 100, 3: 60 };
+    const finalTopWinners: LiveRoomFinalWinner[] = sortedParticipants
+      .slice(0, 3)
+      .map((participant, index) => {
+        const rank = (index + 1) as 1 | 2 | 3;
+        const safeUserId = /^[a-zA-Z0-9_-]{1,128}$/.test(participant.userId)
+          ? participant.userId
+          : `winner_${rank}`;
+        return {
+          rank,
+          userId: safeUserId,
+          displayName: clampStr(participant.displayName, 120, 'ผู้เรียน') || 'ผู้เรียน',
+          avatar: clampStr(participant.avatar, 16, '⚡') || '⚡',
+          score: Math.max(0, Math.min(100000, Math.round(participant.score || 0))),
+          streak: Math.max(0, Math.min(100, Math.round(participant.streak || 0))),
+          xpReward: rankXpTable[rank],
+        };
+      });
+
+    // 2. Delete all participants from the room automatically
+    if (!participantsSnap.empty) {
+      await Promise.all(participantsSnap.docs.map((d) => deleteDoc(d.ref)));
+    }
+    const removedCount = participantsSnap.docs.length;
+
+    // 3. Mark room closed and store Top 3 winners snapshot for student reward delivery
+    const ref = doc(db, 'liveRooms', cleanCode);
+    let roomSnap;
+    try {
+      roomSnap = await getDocFromServer(ref);
+    } catch {
+      roomSnap = await getDoc(ref);
+    }
+    if (roomSnap.exists()) {
+      await updateDoc(ref, {
+        status: 'closed',
+        stage: 'podium',
+        totalParticipants: Math.max(0, Math.min(500, sortedParticipants.length)),
+        finalTopWinners,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    return {
+      closed: true,
+      removedCount,
+      finalParticipants: sortedParticipants,
+      finalTopWinners,
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
 
@@ -841,7 +1129,12 @@ export async function joinOrUpdateLiveParticipantInFirestore(params: {
   const path = `liveRooms/${cleanCode}/participants/${participantId}`;
   try {
     const ref = doc(db, 'liveRooms', cleanCode, 'participants', participantId);
-    const snap = await getDoc(ref);
+    let snap;
+    try {
+      snap = await getDocFromServer(ref);
+    } catch {
+      snap = await getDoc(ref);
+    }
     const mutableFields = {
       displayName: clampStr(params.displayName, 120, 'ผู้เรียน') || 'ผู้เรียน',
       avatar: clampStr(params.avatar, 16, '🐱') || '🐱',

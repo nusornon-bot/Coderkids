@@ -45,6 +45,12 @@ service cloud.firestore {
         get(/databases/$(database)/documents/liveRooms/$(roomCode)).data.status == 'active';
     }
 
+    function isLiveRoomHost(roomCode) {
+      return isEmailVerified() &&
+        exists(/databases/$(database)/documents/liveRooms/$(roomCode)) &&
+        get(/databases/$(database)/documents/liveRooms/$(roomCode)).data.hostUid == request.auth.uid;
+    }
+
     function isOwner(userId) {
       return isEmailVerified() && request.auth.uid == userId;
     }
@@ -300,6 +306,35 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function isValidLiveRoomTopWinner(entry) {
+      return entry is map &&
+        entry.keys().hasAll([
+          'rank',
+          'userId',
+          'displayName',
+          'avatar',
+          'score',
+          'streak',
+          'xpReward'
+        ]) &&
+        entry.keys().hasOnly([
+          'rank',
+          'userId',
+          'displayName',
+          'avatar',
+          'score',
+          'streak',
+          'xpReward'
+        ]) &&
+        entry.rank is int && entry.rank >= 1 && entry.rank <= 3 &&
+        entry.userId is string && isValidId(entry.userId) &&
+        entry.displayName is string && entry.displayName.size() >= 1 && entry.displayName.size() <= 120 &&
+        entry.avatar is string && entry.avatar.size() >= 1 && entry.avatar.size() <= 16 &&
+        entry.score is int && entry.score >= 0 && entry.score <= 100000 &&
+        entry.streak is int && entry.streak >= 0 && entry.streak <= 100 &&
+        entry.xpReward is int && entry.xpReward >= 0 && entry.xpReward <= 1000;
+    }
+
     function isValidLiveQuizRoom(data, roomCode) {
       return data.keys().hasAll([
           'roomCode',
@@ -324,6 +359,8 @@ service cloud.firestore {
           'difficulty',
           'questionCount',
           'questionIds',
+          'totalParticipants',
+          'finalTopWinners',
           'createdAt',
           'updatedAt'
         ]) &&
@@ -344,6 +381,14 @@ service cloud.firestore {
           data.questionIds[0] is string &&
           data.questionIds[0].size() >= 1 &&
           data.questionIds[0].size() <= 128
+        )) &&
+        (!('totalParticipants' in data) || (data.totalParticipants is int && data.totalParticipants >= 0 && data.totalParticipants <= 500)) &&
+        (!('finalTopWinners' in data) || (
+          data.finalTopWinners is list &&
+          data.finalTopWinners.size() <= 3 &&
+          (data.finalTopWinners.size() < 1 || isValidLiveRoomTopWinner(data.finalTopWinners[0])) &&
+          (data.finalTopWinners.size() < 2 || isValidLiveRoomTopWinner(data.finalTopWinners[1])) &&
+          (data.finalTopWinners.size() < 3 || isValidLiveRoomTopWinner(data.finalTopWinners[2]))
         )) &&
         data.createdAt is timestamp &&
         data.updatedAt is timestamp;
@@ -773,7 +818,7 @@ service cloud.firestore {
       allow get: if isValidRoomCode(roomCode) && (
         isEmailVerified() ||
         resource == null ||
-        existing().status == 'active'
+        existing().status in ['active', 'closed']
       );
       allow list: if isEmailVerified() && resource.data.status == 'active';
       allow create: if isValidRoomCode(roomCode) &&
@@ -793,6 +838,7 @@ service cloud.firestore {
           (
             existing().hostUid == request.auth.uid &&
             incoming().diff(existing()).affectedKeys().hasOnly([
+              'hostName',
               'title',
               'stage',
               'currentQuestionIndex',
@@ -801,6 +847,8 @@ service cloud.firestore {
               'difficulty',
               'questionCount',
               'questionIds',
+              'totalParticipants',
+              'finalTopWinners',
               'updatedAt'
             ])
           )
@@ -831,6 +879,7 @@ service cloud.firestore {
           incoming().createdAt == existing().createdAt &&
           incoming().updatedAt == request.time && (
             isAdmin() ||
+            isLiveRoomHost(roomCode) ||
             (
               (isOwner(participantId) || isGuestParticipantId(participantId)) &&
               isActiveLiveRoom(roomCode) &&
@@ -846,6 +895,7 @@ service cloud.firestore {
           );
         allow delete: if isValidRoomCode(roomCode) && isValidId(participantId) && (
           isOwner(participantId) ||
+          isLiveRoomHost(roomCode) ||
           isAdmin()
         );
       }

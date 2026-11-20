@@ -5,11 +5,12 @@ import type { BattleQuestionItem } from './battleQuestionBank.ts';
  * - ง่าย (Easy): 24 ข้อ (กระจายคำตอบถูก A=6, B=6, C=6, D=6)
  * - ปานกลาง (Medium): 24 ข้อ (กระจายคำตอบถูก A=6, B=6, C=6, D=6)
  * - ยาก (Hard): 24 ข้อ (กระจายคำตอบถูก A=6, B=6, C=6, D=6)
+ * - ทุกข้อปรับความยาวตัวเลือกทั้ง 4 ข้อให้ใกล้เคียงกันและไม่ทิ้งร่องรอยความยาวที่คำตอบถูก
  */
 export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
   // =========================================================================
   // MICRO:BIT — ง่าย (Easy) x 24
-  // correctIndex pattern: [3, 1, 2, 0, 1, 3, 0, 2, 2, 0, 3, 1, 0, 2, 1, 3, 1, 0, 2, 3, 3, 1, 2, 0]
+  // correctIndex: [3, 1, 2, 0, 1, 3, 0, 2, 2, 0, 3, 1, 0, 2, 1, 3, 1, 0, 2, 3, 3, 1, 2, 0]
   // =========================================================================
   {
     id: 'microbit_easy_01',
@@ -19,10 +20,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'basic.forever(() => {\n  basic.showIcon(IconNames.Heart)\n  basic.showString("HI")\n})\n// ข้อความวิ่งวนซ้ำไม่ยอมหยุด!',
     options: [
-      'ถอดสาย USB ออกทันที',
-      'เปลี่ยนชื่อไอคอนเป็น Happy',
-      'เพิ่มคำสั่ง basic.pause(10)',
-      'ย้ายคำสั่งไปไว้ในบล็อก [on start (เมื่อเริ่มต้น)] แทน forever',
+      'ถอดสายไฟ USB ออกจากบอร์ดทันทีหลังแสดงเสร็จ',
+      'เปลี่ยนไอคอนหัวใจเป็นไอคอนหน้ายิ้มใน forever',
+      'เพิ่มคำสั่ง basic.pause(10) ต่อท้ายใน forever',
+      'ย้ายคำสั่งไปไว้ในบล็อก [on start] แทน forever',
     ],
     correctIndex: 3,
     explanation:
@@ -37,10 +38,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'basic.forever(() => {\n  basic.showIcon(IconNames.Heart)\n  basic.pause(500)\n  // ขาดคำสั่งดับหน้าจอ LED\n})',
     options: [
-      'เปลี่ยน pause เป็น 10000 มิลลิวินาที',
-      'เพิ่ม basic.clearScreen() และ basic.pause(500) ต่อท้าย',
-      'ห้ามใช้ basic.pause ใน forever',
-      'กดปุ่ม Reset ทุกรอบ',
+      'เปลี่ยนเวลา basic.pause เป็น 10000 มิลลิวินาที',
+      'เพิ่ม basic.clearScreen() แล้ว basic.pause(500)',
+      'ลบคำสั่ง basic.pause(500) ออกจากลูป forever',
+      'กดปุ่ม Reset ด้านหลังบอร์ดซ้ำในทุกรอบการทำงาน',
     ],
     correctIndex: 1,
     explanation:
@@ -55,10 +56,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       '// ควรเลือกบล็อกเหตุการณ์ (Input) ใดในการรับค่าการกดปุ่ม A?',
     options: [
-      'input.onGesture(Gesture.Shake, () => { ... })',
-      'basic.showNumber(10)',
-      'input.onButtonPressed(Button.A, () => { basic.showIcon(IconNames.Happy) })',
-      'radio.sendNumber(1)',
+      'input.onGesture(Gesture.Shake, ...)',
+      'basic.showIcon(IconNames.Happy)',
+      'input.onButtonPressed(Button.A, ...)',
+      'radio.onReceivedNumber((n) => ...)',
     ],
     correctIndex: 2,
     explanation:
@@ -76,7 +77,7 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
       '25 ดวง (ตาราง 5 × 5)',
       '16 ดวง (ตาราง 4 × 4)',
       '9 ดวง (ตาราง 3 × 3)',
-      '100 ดวง (ตาราง 10 × 10)',
+      '36 ดวง (ตาราง 6 × 6)',
     ],
     correctIndex: 0,
     explanation:
@@ -91,10 +92,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'input.onGesture(Gesture.Shake, () => {\n  basic.showNumber(randint(1, 3))\n})\n// ทอยยังไงก็ไม่เคยออกแต้ม 4, 5, 6 เลย!',
     options: [
-      'เปลี่ยน Gesture.Shake เป็น Button.B',
-      'แก้ช่วงการสุ่มจาก randint(1, 3) เป็น randint(1, 6)',
-      'ลบคำสั่ง basic.showNumber ออก',
-      'เปลี่ยน randint(1, 3) เป็น randint(0, 1)',
+      'เปลี่ยนเหตุการณ์ Gesture.Shake เป็น Button.B',
+      'แก้ช่วงสุ่มจาก randint(1, 3) เป็น randint(1, 6)',
+      'ลบคำสั่ง basic.showNumber ออกจากบล็อกเขย่า',
+      'แก้ช่วงสุ่มจาก randint(1, 3) เป็น randint(0, 1)',
     ],
     correctIndex: 1,
     explanation:
@@ -109,10 +110,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'basic.showIcon(IconNames.Yes)\nbasic.pause(2)  // ทำไมไฟหายเร็วมาก แทบมองไม่ทัน!',
     options: [
-      'ต้องใส่ 20',
-      'ต้องใส่ 200',
-      'ต้องใส่ 0.2',
-      'ต้องใส่ 2000 เพราะหน่วยของ pause คือมิลลิวินาที (1 วินาที = 1000 ms)',
+      'ต้องใส่เลข 20 มิลลิวินาที',
+      'ต้องใส่เลข 200 มิลลิวินาที',
+      'ต้องใส่เลข 20000 มิลลิวินาที',
+      'ต้องใส่เลข 2000 มิลลิวินาที',
     ],
     correctIndex: 3,
     explanation:
@@ -143,10 +144,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'อยากตรวจจับการกดปุ่ม A และปุ่ม B พร้อมกันทั้งสองปุ่ม',
     codeSnippet: '// ใน MakeCode บล็อก on button pressed รองรับตัวเลือกใด?',
     options: [
-      'Button.C',
-      'Button.Space',
+      'Button.C (ปุ่มเสริมด้านล่าง)',
+      'Button.Space (ปุ่มสเปซบาร์)',
       'Button.AB (กด A+B พร้อมกัน)',
-      'Gesture.LogoDown',
+      'Gesture.LogoDown (กลับหัว)',
     ],
     correctIndex: 2,
     explanation:
@@ -177,7 +178,7 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'อยากวาดภาพจรวดเองบนตาราง LED 5×5 โดยเลือกติ๊กจุดสว่างทีละช่อง',
     codeSnippet: '// ควรเลือกใช้บล็อกใดในหมวด Basic?',
     options: [
-      'basic.showLeds(...) (แสดงรูปไฟ LED 5×5 ที่กำหนดเอง)',
+      'basic.showLeds(...)',
       'basic.showNumber(55)',
       'input.temperature()',
       'radio.setGroup(5)',
@@ -194,10 +195,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'ปุ่ม Reset บนบอร์ด Micro:bit อยู่บริเวณใดและมีหน้าที่อะไร?',
     codeSnippet: '// ใช้เมื่อต้องการเริ่มรันโปรแกรมตั้งแต่บล็อก on start ใหม่',
     options: [
-      'อยู่ข้างปุ่ม A ใช้ปรับความสว่างหน้าจอ',
-      'อยู่บนสาย USB ใช้ลบไฟล์ทั้งหมดทิ้ง',
-      'อยู่ตรงกลางไฟ LED ใช้เปลี่ยนเพลง',
-      'อยู่ด้านหลังบอร์ด ใช้รีสตาร์ทให้โปรแกรมเริ่มทำงานใหม่ตั้งแต่ต้น',
+      'อยู่ข้างปุ่ม A ใช้ปรับระดับความสว่างของหน้าจอ LED',
+      'อยู่บนหัวสาย USB ใช้ลบไฟล์โปรแกรมทั้งหมดทิ้ง',
+      'อยู่กลางตาราง LED ใช้เปลี่ยนทำนองเสียงเพลง',
+      'อยู่ด้านหลังบอร์ด ใช้เริ่มรันโปรแกรมใหม่ทันที',
     ],
     correctIndex: 3,
     explanation:
@@ -211,10 +212,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'อยากให้บอร์ดเล่นทำนองเพลงฉลองเมื่อกดปุ่ม B',
     codeSnippet: 'input.onButtonPressed(Button.B, () => {\n  // ควรใช้หมวดคำสั่งใด?\n})',
     options: [
-      'หมวด Radio (คลื่นวิทยุ)',
-      'หมวด Music เช่น music.startMelody(...) หรือ music.playTone(...)',
-      'หมวด Logic (ตรรกะ)',
-      'หมวด Led (หน้าจอไฟ)',
+      'หมวด Radio (สื่อสารคลื่นวิทยุ)',
+      'หมวด Music (เล่นโน้ตและทำนองเพลง)',
+      'หมวด Logic (เงื่อนไขและตรรกะ)',
+      'หมวด Led (ควบคุมจุดไฟบนหน้าจอ)',
     ],
     correctIndex: 1,
     explanation:
@@ -245,10 +246,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'อยากทำลูกศรชี้ไปทางซ้ายเมื่อเอียงบอร์ดไปทางซ้าย',
     codeSnippet: '// ควรเลือกท่าทาง (Gesture) ใดในบล็อก on shake / on gesture?',
     options: [
-      'Gesture.Shake (เขย่า)',
+      'Gesture.Shake (เขย่าบอร์ด)',
       'Gesture.TiltRight (เอียงขวา)',
       'Gesture.TiltLeft (เอียงซ้าย)',
-      'Gesture.ScreenDown (คว่ำหน้าจอ)',
+      'Gesture.ScreenDown (คว่ำจอ)',
     ],
     correctIndex: 2,
     explanation:
@@ -262,10 +263,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'ขาเชื่อมต่อทองแดงขนาดใหญ่ด้านล่างบอร์ด (Edge Connector) ที่มีตัวเลข 0, 1, 2 เรียกว่าอะไร?',
     codeSnippet: '// บริเวณด้านล่างบอร์ดมีขา [0] [1] [2] [3V] [GND]',
     options: [
-      'ปุ่มกดเสริม',
-      'ขา Pin (P0, P1, P2) สำหรับต่ออุปกรณ์ไฟฟ้าหรือเซนเซอร์ภายนอก',
-      'เสาสัญญาณ Wi-Fi',
-      'ช่องใส่ถ่านไฟฉาย',
+      'ปุ่มกดเสริมสำหรับควบคุมเกมบนหน้าจอ',
+      'ขา Pin (P0, P1, P2) ต่ออุปกรณ์ภายนอก',
+      'เสาสัญญาณรับส่งอินเทอร์เน็ต Wi-Fi',
+      'ช่องสำหรับใส่ถ่านไฟฉายขนาดเล็ก',
     ],
     correctIndex: 1,
     explanation:
@@ -279,10 +280,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'บน Micro:bit V2 มีโลโก้สีทองด้านบนหน้าจอ สามารถใช้งานแบบใดได้?',
     codeSnippet: '// input.onLogoEvent(TouchButtonEvent.Pressed, () => { ... })',
     options: [
-      'ใช้ชาร์จแบตเตอรี่ด้วยแสงอาทิตย์',
-      'ใช้เป็นเลนส์กล้องถ่ายรูป',
-      'ใช้เปิดฝาหลังบอร์ด',
-      'ใช้เป็นปุ่มสัมผัส (Touch Logo) รับเหตุการณ์เมื่อนิ้วแตะได้',
+      'ใช้รับแสงอาทิตย์เพื่อชาร์จไฟให้แบตเตอรี่',
+      'ใช้เป็นเลนส์กล้องสำหรับถ่ายภาพและวิดีโอ',
+      'ใช้เป็นสลักสำหรับกดเปิดฝาครอบด้านหลังบอร์ด',
+      'ใช้เป็นปุ่มระบบสัมผัสรับเหตุการณ์เมื่อนิ้วแตะ',
     ],
     correctIndex: 3,
     explanation:
@@ -296,10 +297,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'คำสั่ง basic.showArrow(ArrowNames.North) จะแสดงภาพใดบนหน้าจอ LED?',
     codeSnippet: 'basic.showArrow(ArrowNames.North)',
     options: [
-      'ลูกศรชี้ลงล่าง (ทิศใต้)',
+      'ลูกศรชี้ลงด้านล่าง (ทิศใต้)',
       'ลูกศรชี้ขึ้นด้านบน (ทิศเหนือ)',
-      'รูปหัวใจดวงใหญ่',
-      'ตัวเลข 0',
+      'ลูกศรชี้ไปทางขวา (ทิศตะวันออก)',
+      'ลูกศรชี้ไปทางซ้าย (ทิศตะวันตก)',
     ],
     correctIndex: 1,
     explanation:
@@ -330,10 +331,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'เมื่อต้องการทดสอบโค้ด Micro:bit โดยยังไม่มีบอร์ดจริงอยู่ในมือ ควรทำอย่างไรใน MakeCode?',
     codeSnippet: '// หน้าต่างด้านซ้ายของเว็บไซต์ Microsoft MakeCode',
     options: [
-      'เขียนโค้ดไม่ได้เลยจนกว่าจะซื้อบอร์ดจริง',
-      'ต้องพิมพ์โค้ดลงในกระดาษแล้วสแกน',
-      'กดทดลองรันบนบอร์ดจำลอง (Simulator) ด้านซ้ายของหน้าจอได้ทันที',
-      'ต้องต่ออินเทอร์เน็ตความเร็ว 10 Gbps เท่านั้น',
+      'ยังไม่สามารถทดสอบโค้ดได้เลยจนกว่าจะมีบอร์ดจริง',
+      'ต้องพิมพ์โค้ดลงกระดาษแล้วใช้กล้องสแกนตรวจคำตอบ',
+      'กดทดลองรันบนบอร์ดจำลอง (Simulator) ด้านซ้ายจอ',
+      'ต้องเชื่อมต่ออินเทอร์เน็ตความเร็วสูงพิเศษเท่านั้น',
     ],
     correctIndex: 2,
     explanation:
@@ -364,10 +365,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'อยากให้บอร์ด Micro:bit ส่งเสียงเตือนเมื่อเราปรบมือเสียงดัง (Micro:bit V2) ต้องใช้เซนเซอร์ใด?',
     codeSnippet: 'input.onSound(DetectedSound.Loud, () => {\n  basic.showIcon(IconNames.Surprised)\n})',
     options: [
-      'เซนเซอร์เข็มทิศ (Compass)',
-      'เซนเซอร์อุณหภูมิ (Thermometer)',
-      'ปุ่มกด A และ B',
-      'ไมโครโฟนในตัว (Microphone) ตรวจจับระดับเสียงดัง',
+      'เซนเซอร์เข็มทิศดิจิทัล (Compass)',
+      'เซนเซอร์วัดอุณหภูมิ (Thermometer)',
+      'เซนเซอร์วัดแสงสว่าง (Light Sensor)',
+      'เซนเซอร์ไมโครโฟนในตัว (Microphone)',
     ],
     correctIndex: 3,
     explanation:
@@ -382,10 +383,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'basic.showNumber(1)\n// รอ 1 วินาที\nbasic.showNumber(2)\n// รอ 1 วินาที\nbasic.showNumber(3)',
     options: [
-      'basic.pause(1)',
+      'basic.pause(100)',
       'basic.pause(1000)',
       'basic.clearScreen()',
-      'basic.showString("1s")',
+      'basic.showNumber(1)',
     ],
     correctIndex: 1,
     explanation:
@@ -399,10 +400,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'ขาเชื่อมต่อ GND และ 3V ด้านล่างบอร์ด Micro:bit มีไว้เพื่ออะไร?',
     codeSnippet: '// บนแถบทองแดงมี [0] [1] [2] [3V] [GND]',
     options: [
-      'ใช้เชื่อมต่ออินเทอร์เน็ตความเร็วสูง',
-      'ใช้พิมพ์เอกสารออกเครื่องปริ้นเตอร์',
-      'ใช้จ่ายไฟเลี้ยง (3 โวลต์) และสายกราวด์ (ขั้วลบ) ให้กับวงจรและเซนเซอร์ที่ต่อเพิ่ม',
-      'ใช้บันทึกเสียงเพลง MP3',
+      'ใช้เชื่อมต่ออินเทอร์เน็ตความเร็วสูงไร้สาย',
+      'ใช้สั่งพิมพ์เอกสารออกทางเครื่องปริ้นเตอร์',
+      'ใช้จ่ายไฟ 3 โวลต์และสายกราวด์ให้วงจรภายนอก',
+      'ใช้บันทึกและเล่นไฟล์เสียงเพลงนามสกุล MP3',
     ],
     correctIndex: 2,
     explanation:
@@ -417,7 +418,7 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let coin = randint(?, ?)\nif (coin == 0) { basic.showString("H") }\nelse { basic.showString("T") }',
     options: [
-      'randint(0, 1) เพราะมีผลลัพธ์เป็นไปได้ 2 ค่าเท่าๆ กันคือ 0 กับ 1',
+      'randint(0, 1)',
       'randint(0, 10)',
       'randint(1, 6)',
       'randint(1, 1)',
@@ -430,7 +431,7 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
 
   // =========================================================================
   // MICRO:BIT — ปานกลาง (Medium) x 24
-  // correctIndex pattern: [1, 2, 0, 3, 2, 1, 3, 0, 0, 3, 2, 1, 3, 0, 1, 2, 2, 3, 0, 1, 0, 1, 3, 2]
+  // correctIndex: [1, 2, 0, 3, 2, 1, 3, 0, 0, 3, 2, 1, 3, 0, 1, 2, 2, 3, 0, 1, 0, 1, 3, 2]
   // =========================================================================
   {
     id: 'microbit_medium_01',
@@ -440,10 +441,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       '// เครื่องส่ง: radio.setGroup(7)\n// เครื่องรับ: radio.setGroup(1)\nradio.sendString("SOS")',
     options: [
-      'คลื่นวิทยุของ Micro:bit ส่งได้ไม่เกิน 1 เซนติเมตร',
-      'เลข Group ของเครื่องส่ง (7) และเครื่องรับ (1) ไม่ตรงกัน ต้องตั้งให้เหมือนกัน',
-      'ต้องปิดไฟหน้าจอ LED ก่อนส่งวิทยุ',
-      'Micro:bit ส่งข้อความภาษาอังกฤษไม่ได้',
+      'คลื่นวิทยุส่งสัญญาณได้ระยะห่างไม่เกิน 1 เซนติเมตร',
+      'เลข Group เครื่องส่งและเครื่องรับต้องตั้งให้ตรงกัน',
+      'ต้องสั่งปิดหน้าจอไฟ LED ทั้งหมดก่อนส่งสัญญาณวิทยุ',
+      'บอร์ด Micro:bit ไม่รองรับการส่งข้อความภาษาอังกฤษ',
     ],
     correctIndex: 1,
     explanation:
@@ -458,10 +459,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let steps = 0\ninput.onGesture(Gesture.Shake, () => {\n  steps = 1\n  basic.showNumber(steps)\n})',
     options: [
-      'ต้องเปลี่ยนชื่อตัวแปร steps เป็น x',
-      'ต้องลบ let steps = 0 ออก',
-      'ต้องใช้ steps += 1 (change steps by 1) ไม่ใช่ steps = 1 ที่ตั้งค่าทับเป็น 1 ทุกครั้ง',
-      'ต้องกดปุ่ม A พร้อมเขย่าทุกครั้ง',
+      'ต้องเปลี่ยนชื่อตัวแปรจาก steps เป็นตัวอักษร x แทน',
+      'ต้องลบบรรทัด let steps = 0 ออกจากด้านบนสุดก่อน',
+      'ต้องใช้ steps += 1 แทน steps = 1 เพื่อบวกค่าสะสม',
+      'ต้องกดปุ่ม A ค้างไว้พร้อมกับการเขย่าบอร์ดทุกครั้ง',
     ],
     correctIndex: 2,
     explanation:
@@ -476,10 +477,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'basic.forever(() => {\n  if (input.lightLevel() > 100) {\n    basic.showLeds("# # # # # ...")\n  } else {\n    basic.clearScreen()\n  }\n})',
     options: [
-      'ค่าแสงน้อยคือมืด ต้องเปลี่ยนเงื่อนไขจาก > 100 เป็น < 100 (หรือ < 50)',
-      'เซนเซอร์แสงของ Micro:bit วัดได้เฉพาะอุณหภูมิ',
-      'ต้องเปลี่ยน > 100 เป็น == 255',
-      'ต้องเอาคำสั่ง else ออก',
+      'ต้องเปลี่ยนเงื่อนไขจาก > 100 เป็น < 100 แทน',
+      'เซนเซอร์แสงของบอร์ดวัดได้เฉพาะค่าอุณหภูมิห้อง',
+      'ต้องเปลี่ยนเงื่อนไขจาก > 100 เป็น == 255 แทน',
+      'ต้องลบส่วนคำสั่ง else และ clearScreen ออกไป',
     ],
     correctIndex: 0,
     explanation:
@@ -512,10 +513,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'basic.forever(() => {\n  if (input.temperature() < 35) {\n    music.playTone(523, 200)\n  }\n})',
     options: [
-      'ต้องใช้ input.compassHeading() แทนอุณหภูมิ',
-      'ห้ามใช้ music.playTone ร่วมกับ if',
-      'เครื่องหมายเปรียบเทียบกลับด้าน ต้องใช้ input.temperature() > 35',
-      'ต้องเปลี่ยน 35 เป็น 0',
+      'ต้องเปลี่ยนไปใช้คำสั่ง input.compassHeading() แทน',
+      'ห้ามใช้คำสั่ง music.playTone() ภายในบล็อกเงื่อนไข if',
+      'เครื่องหมายกลับด้าน ต้องแก้เป็น temperature() > 35',
+      'ต้องเปลี่ยนตัวเลขเกณฑ์จาก 35 เป็น 0 องศาเซลเซียส',
     ],
     correctIndex: 2,
     explanation:
@@ -530,10 +531,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let hand = randint(1, 3)\nif (hand == 1) { /* ค้อน */ }\nelse if (hand == 2) { /* กระดาษ */ }\n// ลืมกรณี hand == 3!',
     options: [
-      'เปลี่ยน randint(1, 3) เป็น randint(1, 2)',
-      'เพิ่มบล็อก else { /* แสดงรูปกรรไกร */ } เพื่อรองรับค่า 3',
-      'เพิ่มตัวแปร hand อีกตัว',
-      'ลบบล็อก if ออกทั้งหมด',
+      'เปลี่ยนช่วงสุ่มจาก randint(1, 3) เป็น randint(1, 2)',
+      'เพิ่มบล็อก else { /* รูปกรรไกร */ } รองรับเลข 3',
+      'สร้างตัวแปรชื่อ hand ซ้ำเพิ่มอีกหนึ่งตัวในสคริปต์',
+      'ลบบล็อกเงื่อนไข if และ else if ออกไปให้หมด',
     ],
     correctIndex: 1,
     explanation:
@@ -548,9 +549,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'basic.forever(() => {\n  // แสดงกราฟแท่งจากค่า input.soundLevel() ที่มีค่าสูงสุด 255\n})',
     options: [
-      'basic.showString("BAR")',
-      'radio.sendNumber(255)',
-      'led.unplot(0, 0)',
+      'basic.showString("SOUND_LEVEL_BAR_255")',
+      'radio.sendValue("sound_level_bar", 255)',
+      'led.setBrightness(input.soundLevel())',
       'led.plotBarGraph(input.soundLevel(), 255)',
     ],
     correctIndex: 3,
@@ -568,7 +569,7 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
       'led.unplot(2, 2)',
       'basic.clearScreen()',
       'led.plot(2, 2)',
-      'basic.pause(0)',
+      'basic.pause(500)',
     ],
     correctIndex: 0,
     explanation:
@@ -583,10 +584,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       '// เครื่องส่ง:\nradio.sendString("HELLO")\n// เครื่องรับ:\nradio.onReceivedNumber((receivedNumber) => {\n  basic.showNumber(receivedNumber)\n})',
     options: [
-      'ชนิดข้อมูลไม่ตรงกัน เครื่องส่งส่ง String แต่เครื่องรับรอรับ Number ต้องใช้ radio.onReceivedString',
-      'ต้องเปลี่ยนเลข Group เป็น 500',
-      'ต้องเขย่าเครื่องรับขณะส่ง',
-      'ข้อความ "HELLO" ยาวเกินไป',
+      'ชนิดข้อมูลไม่ตรงกัน เครื่องรับต้องใช้ onReceivedString',
+      'ต้องเปลี่ยนเลขช่องสัญญาณจาก Group 5 เป็น 500 แทน',
+      'ต้องเขย่าเครื่องรับแรงๆ ในขณะที่เครื่องส่งทำงานอยู่',
+      'ข้อความ "HELLO" มีจำนวนตัวอักษรมากเกินขีดจำกัดวิทยุ',
     ],
     correctIndex: 0,
     explanation:
@@ -603,7 +604,7 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     options: [
       'if (count < 0) { count -= 1 }',
       'if (count == 0) { count -= 1 }',
-      'count = -1',
+      'if (count <= 0) { count = -1 }',
       'if (count > 0) { count -= 1 }',
     ],
     correctIndex: 3,
@@ -618,10 +619,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'ทำไมบอร์ด Micro:bit ถึงวัดความสว่าง (lightLevel) ได้ทั้งที่ไม่ได้ต่อเซนเซอร์แสงเพิ่ม?',
     codeSnippet: 'let light = input.lightLevel()',
     options: [
-      'เพราะดึงข้อมูลสภาพอากาศจากอินเทอร์เน็ต',
-      'เพราะวัดจากความดังของไมโครโฟน',
-      'เพราะบอร์ดใช้หลอดไฟ LED 5×5 ด้านหน้าทำหน้าที่ตรวจจับแสงกลับด้านได้ด้วย',
-      'เพราะวัดจากอุณหภูมิของปุ่ม A',
+      'เพราะบอร์ดดึงข้อมูลสภาพอากาศมาจากอินเทอร์เน็ต',
+      'เพราะบอร์ดคำนวณจากระดับความดังของไมโครโฟน',
+      'เพราะหลอดไฟ LED 5×5 ใช้ตรวจจับความสว่างแสงได้ด้วย',
+      'เพราะบอร์ดวัดค่าแสงจากอุณหภูมิของปุ่มกด A และ B',
     ],
     correctIndex: 2,
     explanation:
@@ -637,9 +638,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
       'for (let x = 4; x >= 0; x--) {\n  led.plot(x, 0)\n  basic.pause(200)\n  // ควรทำอะไรก่อนเลื่อนไปช่องถัดไปเพื่อไม่ให้ไฟค้างเป็นหางยาว?\n}',
     options: [
       'led.plot(0, 4)',
-      'led.unplot(x, 0) (หรือ basic.clearScreen())',
+      'led.unplot(x, 0)',
       'radio.sendNumber(x)',
-      'music.playTone(262, 100)',
+      'basic.showNumber(x)',
     ],
     correctIndex: 1,
     explanation:
@@ -654,8 +655,8 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet: '// ใช้คำสั่งในหมวด Pins -> Servo',
     options: [
       'pins.digitalReadPin(DigitalPin.P0)',
-      'basic.showNumber(90)',
-      'radio.setGroup(90)',
+      'pins.analogReadPin(AnalogPin.P0)',
+      'pins.digitalWritePin(DigitalPin.P0, 1)',
       'pins.servoWritePin(AnalogPin.P0, 90)',
     ],
     correctIndex: 3,
@@ -672,8 +673,8 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     options: [
       'led.setBrightness(128)',
       'led.setBrightness(0)',
+      'led.setBrightness(255)',
       'basic.pause(128)',
-      'input.lightLevel()',
     ],
     correctIndex: 0,
     explanation:
@@ -708,8 +709,8 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     options: [
       'แก้เป็น basic.showNumber(i + 1)',
       'แก้เป็น basic.showNumber(i * 5)',
-      'แก้เป็น basic.showNumber(5 - i) เพื่อให้ได้ 5, 4, 3, 2, 1',
-      'เปลี่ยนลูปเป็น forever',
+      'แก้เป็น basic.showNumber(5 - i)',
+      'แก้เป็น basic.showNumber(i - 5)',
     ],
     correctIndex: 2,
     explanation:
@@ -724,9 +725,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet: '// ส่งสัญญาณไฟฟ้าลอจิก HIGH (1) ออกที่ขา P1',
     options: [
       'pins.digitalReadPin(DigitalPin.P1)',
-      'led.plot(1, 0)',
+      'pins.analogReadPin(AnalogPin.P1)',
       'pins.digitalWritePin(DigitalPin.P1, 1)',
-      'radio.sendNumber(1)',
+      'pins.digitalWritePin(DigitalPin.P1, 0)',
     ],
     correctIndex: 2,
     explanation:
@@ -740,9 +741,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'เมื่อนำแม่เหล็กมาใกล้บอร์ด Micro:bit อยากให้แสดงคำเตือน "MAGNET!" ต้องใช้เซนเซอร์ใด?',
     codeSnippet: '// วัดความเข้มสนามแม่เหล็กในหน่วยไมโครเทสลา (µT)',
     options: [
-      'input.lightLevel()',
-      'input.temperature()',
-      'input.soundLevel()',
+      'input.lightLevel() วัดค่าความสว่างแสง',
+      'input.temperature() วัดค่าอุณหภูมิห้อง',
+      'input.soundLevel() วัดระดับความดังเสียง',
       'input.magneticForce(Dimension.Strength)',
     ],
     correctIndex: 3,
@@ -758,10 +759,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'input.onButtonPressed(Button.A, () => {\n  led.toggle(2, 2)\n})',
     options: [
-      'สลับสถานะไฟที่พิกัด (2, 2): ถ้าดับอยู่จะเปิด และถ้าเปิดอยู่จะดับ',
-      'เปิดไฟทุกดวงทั้งหน้าจอพร้อมกัน',
-      'เลื่อนจุดไฟไปทางขวาทีละ 2 ช่อง',
-      'ลบโปรแกรมออกจากบอร์ด',
+      'สลับสถานะไฟที่พิกัด (2, 2) ระหว่างเปิดกับปิด',
+      'เปิดไฟ LED ทั้งหมด 25 ดวงบนหน้าจอพร้อมกัน',
+      'เลื่อนจุดไฟสว่างไปทางด้านขวาทีละ 2 ช่องเสมอ',
+      'ลบโปรแกรมและข้อมูลตัวแปรทั้งหมดออกจากบอร์ด',
     ],
     correctIndex: 0,
     explanation:
@@ -775,10 +776,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'เมื่อเปิดใช้งานเข็มทิศ (Compass) เป็นครั้งแรก หน้าจอ Micro:bit ขึ้นข้อความ "TILT TO FILL SCREEN" เพราะเหตุใด?',
     codeSnippet: 'let heading = input.compassHeading()',
     options: [
-      'บอร์ดเสียต้องส่งซ่อม',
-      'บอร์ดกำลังให้ผู้ใช้ปรับเทียบเข็มทิศ (Calibrate) โดยเอียงบอร์ดให้ไฟติดครบ 25 ดวงเพื่อให้วัดทิศแม่นยำ',
-      'แบตเตอรี่ใกล้หมดต้องรีบชาร์จ',
-      'โค้ดมีข้อผิดพลาดทางไวยากรณ์ (Syntax Error)',
+      'วงจรภายในบอร์ดเสียหายต้องส่งซ่อมแซมทันที',
+      'บอร์ดให้เอียงปรับเทียบเข็มทิศจนไฟติดครบ 25 ดวง',
+      'แบตเตอรี่ของบอร์ดใกล้หมดต้องรีบเปลี่ยนถ่านใหม่',
+      'โค้ดโปรแกรมมีข้อผิดพลาดทางไวยากรณ์ (Syntax Error)',
     ],
     correctIndex: 1,
     explanation:
@@ -794,9 +795,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
       'basic.forever(() => {\n  if ( ? ) {\n    led.plot(0, 2)\n  } else {\n    led.unplot(0, 2)\n  }\n})',
     options: [
       'input.buttonIsPressed(Button.A)',
-      'input.onButtonPressed(Button.A, ...)',
-      'basic.showString("A")',
-      'radio.setGroup(1)',
+      'input.onButtonPressed(Button.A)',
+      'basic.showString("Button.A")',
+      'input.pinIsPressed(TouchPin.P0)',
     ],
     correctIndex: 0,
     explanation:
@@ -811,9 +812,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet: '// ใช้เหตุการณ์ตรวจจับการสัมผัสที่ขา P0',
     options: [
       'pins.servoWritePin(AnalogPin.P0, 0)',
-      'input.onPinPressed(TouchPin.P0, () => { music.playTone(440, 300) })',
-      'basic.showArrow(ArrowNames.East)',
-      'led.setBrightness(0)',
+      'input.onPinPressed(TouchPin.P0, ...)',
+      'pins.digitalWritePin(DigitalPin.P0, 1)',
+      'input.onButtonPressed(Button.A, ...)',
     ],
     correctIndex: 1,
     explanation:
@@ -827,10 +828,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'ในเกมเก็บดาวด้วยตัวละคร Sprite บน Micro:bit (หมวด Game): คำสั่ง game.createSprite(2, 4) ทำหน้าที่อะไร?',
     codeSnippet: 'let player = game.createSprite(2, 4)',
     options: [
-      'เพิ่มคะแนนให้ผู้เล่น 24 แต้ม',
-      'ตั้งเวลาเล่นเกม 24 วินาที',
-      'ลบไฟ LED แถวที่ 4 ทิ้งทั้งหมด',
-      'สร้างจุดตัวละคร (LED Sprite) ไว้ที่ตำแหน่งแถวล่างตรงกลาง พิกัด x=2, y=4',
+      'เพิ่มคะแนนให้ผู้เล่นทันทีจำนวน 24 แต้ม',
+      'ตั้งเวลาการเล่นเกมทั้งหมดไว้ที่ 24 วินาที',
+      'ลบจุดไฟ LED ในแถวที่ 4 ทิ้งทั้งหมดทุกดวง',
+      'สร้างจุดตัวละคร Sprite ที่พิกัด x=2, y=4',
     ],
     correctIndex: 3,
     explanation:
@@ -847,8 +848,8 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     options: [
       'input.onGesture(Gesture.Shake, () => { score += 0 })',
       'input.onGesture(Gesture.Shake, () => { score -= 1 })',
-      'input.onGesture(Gesture.Shake, () => { score = 0; basic.showNumber(score) })',
-      'input.onGesture(Gesture.Shake, () => { basic.clearScreen() })',
+      'input.onGesture(Gesture.Shake, () => { score = 0 })',
+      'input.onGesture(Gesture.Shake, () => { score += 1 })',
     ],
     correctIndex: 2,
     explanation:
@@ -858,7 +859,7 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
 
   // =========================================================================
   // MICRO:BIT — ยาก (Hard) x 24
-  // correctIndex pattern: [2, 3, 1, 0, 0, 2, 3, 1, 1, 0, 3, 2, 0, 1, 2, 3, 3, 0, 1, 2, 1, 2, 0, 3]
+  // correctIndex: [2, 3, 1, 0, 0, 2, 3, 1, 1, 0, 3, 2, 0, 1, 2, 3, 3, 0, 1, 2, 1, 2, 0, 3]
   // =========================================================================
   {
     id: 'microbit_hard_01',
@@ -868,10 +869,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let deg = input.compassHeading()\nif (deg < 45) {\n  basic.showString("N")\n}\n// แต่ช่วง 315°–360° ก็คือทิศเหนือเหมือนกัน!',
     options: [
-      'ต้องใช้ (deg < 45 && deg > 315) ด้วย AND',
-      'ต้องเปลี่ยน 45 เป็น 180',
-      'ต้องใช้เงื่อนไข (deg < 45 || deg > 315) ด้วยตัวดำเนินการ OR (||)',
-      'เข็มทิศมีค่าสูงสุดแค่ 100 องศา',
+      'ใช้เงื่อนไข (deg < 45 && deg > 315) ด้วย AND',
+      'เปลี่ยนตัวเลขเงื่อนไขจาก deg < 45 เป็น deg < 180',
+      'ใช้เงื่อนไข (deg < 45 || deg > 315) ด้วย OR',
+      'เปลี่ยนตัวเลขเงื่อนไขจาก deg < 45 เป็น deg == 350',
     ],
     correctIndex: 2,
     explanation:
@@ -886,10 +887,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'for (let y = 0; y < 4; y++) {\n  for (let x = 0; x < 5; x++) {\n    led.plot(x, y)\n  }\n}',
     options: [
-      'ต้องแก้ x < 5 เป็น x < 4',
-      'ต้องสลับ x กับ y ใน led.plot',
-      'Micro:bit ไม่รองรับลูปซ้อนลูป',
-      'ลูปนอก y < 4 ทำงานแค่แถว 0–3 ต้องแก้เป็น y < 5 (หรือ y <= 4) เพื่อให้ครบ 5 แถว',
+      'ต้องแก้เงื่อนไขลูปในจาก x < 5 เป็น x < 4',
+      'ต้องสลับตำแหน่งตัวแปร x กับ y ใน led.plot',
+      'ต้องแก้ค่าเริ่มต้นของตัวแปร y จาก 0 เป็น 1',
+      'ต้องแก้เงื่อนไขลูปนอกจาก y < 4 เป็น y < 5',
     ],
     correctIndex: 3,
     explanation:
@@ -904,10 +905,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       '// เซนเซอร์ความชื้นดินแบบ Analog ส่งค่า 0–1023\nlet moisture = pins.digitalReadPin(DigitalPin.P0)',
     options: [
-      'ต้องเปลี่ยนไปใช้ขา GND แทน P0',
-      'ต้องใช้ pins.analogReadPin(AnalogPin.P0) เพราะ digitalRead อ่านได้แค่ 0 หรือ 1',
-      'ต้องใช้ radio.receiveNumber() แทน',
-      'Analog Pin อ่านได้เฉพาะค่าลบ',
+      'ต้องย้ายสายสัญญาณไปเสียบที่ขา GND แทนขา P0',
+      'ต้องใช้ pins.analogReadPin(AnalogPin.P0) แทน',
+      'ต้องเปลี่ยนไปใช้คำสั่ง radio.receiveNumber() แทน',
+      'ต้องใช้ pins.digitalWritePin(DigitalPin.P0, 1)',
     ],
     correctIndex: 1,
     explanation:
@@ -922,10 +923,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let armed = false\ninput.onButtonPressed(Button.A, () => { armed = true })\ninput.onGesture(Gesture.Shake, () => {\n  if (armed = false) { music.playTone(880, 500) }\n})',
     options: [
-      'ใน if ใช้เครื่องหมาย = (กำหนดค่า) แทน == และควรเช็ก if (armed == true)',
-      'ห้ามใช้ตัวแปรชนิด Boolean (true/false)',
-      'ต้องลบ input.onButtonPressed ออก',
-      'ต้องตั้งค่า armed เริ่มต้นเป็น 100',
+      'แก้เงื่อนไขจาก armed = false เป็น armed == true',
+      'ห้ามใช้ตัวแปรชนิด Boolean (true/false) ในเงื่อนไข',
+      'ต้องลบบล็อกเหตุการณ์ input.onButtonPressed ออกก่อน',
+      'ต้องกำหนดค่าเริ่มต้นของตัวแปร armed เป็นเลข 100',
     ],
     correctIndex: 0,
     explanation:
@@ -940,10 +941,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       '// เครื่องนักเรียน:\ninput.onButtonPressed(Button.A, () => {\n  radio.sendString("VOTE_A")\n})',
     options: [
-      'เพิ่มตัวแปร Flag เช่น let voted = false แล้วเช็ก if (!voted) ส่งโหวตและตั้ง voted = true',
-      'ลดความสว่างหน้าจอ LED ลง',
-      'เปลี่ยนข้อความเป็น "VOTE_B"',
-      'เปลี่ยนไปใช้ปุ่ม B แทน',
+      'ใช้ตัวแปร Flag "voted" กันการกดส่งคะแนนซ้ำ',
+      'ลดความสว่างของหน้าจอ LED ลงเพื่อลดความเร็วปุ่ม',
+      'เปลี่ยนข้อความที่ส่งจาก "VOTE_A" เป็น "VOTE_B"',
+      'เปลี่ยนปุ่มกดส่งคะแนนจากปุ่ม A ไปใช้ปุ่ม B แทน',
     ],
     correctIndex: 0,
     explanation:
@@ -958,10 +959,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let sum = 0\nlet count = 0\n// เมื่อเก็บข้อมูล 5 ครั้ง:\nlet avg = sum / 10  // ทำไมค่าเฉลี่ยต่ำกว่าความจริงครึ่งหนึ่ง?',
     options: [
-      'ต้องนำ sum คูณ 10 แทนการหาร',
-      'ต้องตั้งค่า sum เริ่มต้นเป็น 100',
-      'ตัวหารควรเป็นตัวแปร count (จำนวนครั้งที่เก็บจริง) และควรดัก count > 0 ก่อนหาร',
-      'ห้ามใช้เครื่องหมาย / ใน Micro:bit',
+      'ต้องนำค่าผลรวม sum มาคูณด้วย 10 แทนการหาร',
+      'ต้องกำหนดค่าเริ่มต้นของตัวแปร sum เป็นเลข 100',
+      'ต้องหารด้วยตัวแปร count และเช็ก count > 0 ก่อน',
+      'ต้องเปลี่ยนเครื่องหมายหาร (/) เป็นเครื่องหมายลบ (-)',
     ],
     correctIndex: 2,
     explanation:
@@ -976,9 +977,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let raw = pins.analogReadPin(AnalogPin.P0)\n// ฟังก์ชันใดในหมวด Math ช่วยแปลงช่วงตัวเลข (Mapping) ได้ตรงที่สุด?',
     options: [
-      'Math.abs(raw)',
-      'randint(0, 100)',
-      'raw + 100',
+      'Math.abs(raw - 1023) * 100',
+      'Math.round(randint(0, 100))',
+      'Math.constrain(raw, 0, 100)',
       'Math.map(raw, 0, 1023, 0, 100)',
     ],
     correctIndex: 3,
@@ -994,10 +995,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       '// เครื่องส่ง:\nradio.sendNumber(input.temperature())\nradio.sendNumber(input.lightLevel())',
     options: [
-      'ต้องส่งค่าเป็นเลขลบทั้งหมด',
-      'เปลี่ยนมาใช้ radio.sendValue("temp", input.temperature()) และ radio.sendValue("light", input.lightLevel()) คู่กับ onReceivedValue',
-      'ต้องซื้อบอร์ดเพิ่มเป็น 4 เครื่อง',
-      'ต้องรอ 10 นาทีระหว่างส่งแต่ละค่า',
+      'เปลี่ยนค่าที่ส่งทั้งหมดให้เป็นตัวเลขติดลบก่อนส่ง',
+      'ใช้ radio.sendValue(ชื่อ, ค่า) คู่กับ onReceivedValue',
+      'เพิ่มจำนวนบอร์ด Micro:bit สำหรับรับค่าเป็น 4 เครื่อง',
+      'ใส่ basic.pause หน่วงเวลา 10 นาทีระหว่างการส่งค่า',
     ],
     correctIndex: 1,
     explanation:
@@ -1012,9 +1013,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'radio.onReceivedNumber((n) => {\n  // อ่านค่าความแรงสัญญาณวิทยุที่รับได้ (RSSI: ประมาณ -128 ถึง -42)\n  let strength = ?\n})',
     options: [
-      'input.lightLevel()',
-      'radio.receivedPacket(RadioPacketProperty.SignalStrength)',
-      'input.compassHeading()',
+      'input.lightLevel() อ่านระดับแสง',
+      'radio.receivedPacket(SignalStrength)',
+      'input.compassHeading() อ่านมุมทิศ',
       'pins.analogReadPin(AnalogPin.P0)',
     ],
     correctIndex: 1,
@@ -1030,10 +1031,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'if (moisture < 400) { pins.digitalWritePin(DigitalPin.P1, 1) }\nelse { pins.digitalWritePin(DigitalPin.P1, 0) }',
     options: [
-      'ใช้หลัก Hysteresis: เปิดปั๊มเมื่อ moisture < 350 และปิดปั๊มเมื่อ moisture > 450 (มีช่วงกันสั่นตรงกลาง)',
-      'ลด basic.pause ให้เหลือ 0 มิลลิวินาที',
-      'เปลี่ยนเกณฑ์ 400 เป็น 401',
-      'ตัดสายไฟปั๊มน้ำออก',
+      'แยกเกณฑ์เปิด (<350) และปิด (>450) แบบ Hysteresis',
+      'ลดเวลาหน่วง basic.pause ให้เหลือ 0 มิลลิวินาที',
+      'ปรับเปลี่ยนค่าเกณฑ์ความชื้นจาก 400 เป็น 401 แทน',
+      'ถอดสายสัญญาณปั๊มน้ำออกจากขา P1 ชั่วคราวก่อน',
     ],
     correctIndex: 0,
     explanation:
@@ -1047,10 +1048,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'ระบบห้องเรียนมีบอร์ดหลายกลุ่มเล่นวิทยุพร้อมกันในห้อง ทำอย่างไรไม่ให้สัญญาณตีกันข้ามกลุ่ม?',
     codeSnippet: '// ทุกกลุ่มตั้ง radio.setGroup(1) และส่งกำลังสูงสุดเหมือนกันหมด',
     options: [
-      'ให้ปิดไฟห้องเรียนทั้งหมด',
-      'ให้ทุกคนกดปุ่ม Reset พร้อมกัน',
-      'ให้หันหน้าจอ LED ชนกัน',
-      'กำหนด radio.setGroup() ให้แต่ละกลุ่มใช้เลขช่องไม่ซ้ำกัน (0–255) และลดกำลังส่งด้วย radio.setTransmitPower() ตามความเหมาะสม',
+      'ปิดหลอดไฟและเครื่องใช้ไฟฟ้าในห้องเรียนทั้งหมด',
+      'ให้นักเรียนทุกกลุ่มกดปุ่ม Reset พร้อมกันก่อนเล่น',
+      'หันหน้าจอ LED ของบอร์ดทุกเครื่องชนกันไว้ตลอด',
+      'แยกเลข radio.setGroup() ไม่ให้ซ้ำกันและลดกำลังส่ง',
     ],
     correctIndex: 3,
     explanation:
@@ -1065,10 +1066,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let x = 2\ninput.onButtonPressed(Button.B, () => {\n  led.unplot(x, 2)\n  x += 1  // พอกดเกิน 4 ค่า x เป็น 5, 6 หลุดขอบจอ!\n  led.plot(x, 2)\n})',
     options: [
-      'ให้เพิ่ม x ทีละ 2 แทน 1',
-      'ให้ลบตัวแปร x ทิ้ง',
-      'เพิ่มเงื่อนไขคุมขอบเขต if (x < 4) { x += 1 } (หรือ Math.constrain(x + 1, 0, 4))',
-      'ให้เปลี่ยน led.plot เป็น led.unplot',
+      'เพิ่มค่า x ทีละ 2 ช่องแทนการเพิ่มทีละ 1 ช่อง',
+      'ลบตัวแปร x ออกจากโปรแกรมแล้วใช้เลขคงที่แทน',
+      'ใส่เงื่อนไขคุมขอบเขต if (x < 4) ก่อนเพิ่มค่า x',
+      'เปลี่ยนคำสั่ง led.plot ให้เป็น led.unplot ทั้งหมด',
     ],
     correctIndex: 2,
     explanation:
@@ -1085,8 +1086,8 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     options: [
       'pins.analogWritePin(AnalogPin.P0, level)',
       'pins.digitalWritePin(DigitalPin.P0, level)',
-      'pins.analogReadPin(AnalogPin.P0)',
-      'led.setBrightness(level)',
+      'pins.analogReadPin(AnalogPin.P0) + level',
+      'led.setBrightness(level) บนหน้าจอบอร์ด',
     ],
     correctIndex: 0,
     explanation:
@@ -1101,10 +1102,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let code = ""\ninput.onButtonPressed(Button.A, () => { code = code + "A" })\n// ถ้า code.length >= 3 แล้วรหัสผิด ควรทำอย่างไร?',
     options: [
-      'เพิ่มตัวอักษร "X" ต่อท้ายไปเรื่อยๆ',
-      'แสดงไอคอน X แล้วล้างค่า code = "" เพื่อรับรหัสชุดใหม่ตั้งแต่ตัวแรก',
-      'เปลี่ยนตัวแปร code เป็นตัวเลข 0',
-      'ลบปุ่ม B ออกจากโปรแกรม',
+      'เพิ่มตัวอักษร "X" ต่อท้ายสตริง code ไปเรื่อยๆ',
+      'แสดงไอคอน X แล้วล้างค่า code = "" เพื่อรับใหม่',
+      'เปลี่ยนชนิดของตัวแปร code ให้กลายเป็นตัวเลข 0',
+      'ลบเหตุการณ์กดปุ่ม B ออกจากโปรแกรมตู้เซฟนี้',
     ],
     correctIndex: 1,
     explanation:
@@ -1119,10 +1120,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'let tiltX = input.acceleration(Dimension.X)\n// ค่า acceleration แกน X อยู่ช่วงประมาณ -1023 (เอียงซ้ายสุด) ถึง +1023 (เอียงขวาสุด)',
     options: [
-      'เมื่อวางราบสนิท tiltX จะมีค่าประมาณ 1023',
+      'เมื่อวางราบสนิท tiltX จะมีค่าประมาณ +1023',
       'เมื่อวางราบสนิท tiltX จะมีค่าประมาณ -1023',
-      'เมื่อวางราบสนิท tiltX จะมีค่าใกล้เคียง 0 (เช่น ช่วง -150 ถึง +150)',
-      'ค่า acceleration มีค่าคงที่เท่ากับ 500 เสมอ',
+      'เมื่อวางราบสนิท tiltX จะมีค่าใกล้เคียง 0',
+      'เมื่อวางราบสนิท tiltX จะมีค่าคงที่เท่ากับ 500',
     ],
     correctIndex: 2,
     explanation:
@@ -1139,7 +1140,7 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
       'temps[3]',
       'temps[4]',
       'temps[1]',
-      'temps[2] (เพราะ Index ของ Array เริ่มนับจาก 0)',
+      'temps[2]',
     ],
     correctIndex: 3,
     explanation:
@@ -1153,9 +1154,9 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'ส่งข้อมูลอุณหภูมิจาก Micro:bit ไปพล็อตกราฟเรียลไทม์บนคอมพิวเตอร์ผ่านสาย USB ควรใช้หมวดคำสั่งใด?',
     codeSnippet: '// ส่งค่าตัวเลขพร้อมชื่อกราฟไปยังหน้าจอ Show Data (Device) ใน MakeCode',
     options: [
-      'radio.sendString("USB")',
+      'radio.sendValue("temp", input.temperature())',
       'basic.showNumber(input.temperature())',
-      'music.playTone(440, 100)',
+      'music.playTone(input.temperature(), 100)',
       'serial.writeValue("temp", input.temperature())',
     ],
     correctIndex: 3,
@@ -1171,10 +1172,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'basic.forever(() => {\n  // ไฟเขียว\n  basic.pause(15000)  // ล็อกลูปนาน 15 วินาที กดปุ่มแล้วต้องรออีกนาน!\n})',
     options: [
-      'แบ่งการรอเป็นช่วงสั้นๆ หรือเช็กตัวแปร Flag (เช่น pedestrianRequest) ด้วยลูปย่อยร่วมกับ input.runningTime()',
-      'เปลี่ยน basic.pause(15000) เป็น basic.pause(60000)',
-      'ลบไฟเหลืองและไฟแดงออกทั้งหมด',
-      'ให้ผู้ใช้ถอดสายไฟแล้วเสียบใหม่แทนการกดปุ่ม',
+      'แบ่งรอเป็นช่วงสั้นๆ และเช็ก Flag ตามเวลาจริง',
+      'เพิ่มเวลา basic.pause(15000) ให้ยาวขึ้นเป็น 60000',
+      'ลบจังหวะไฟสีเหลืองและไฟสีแดงออกจากโปรแกรมทั้งหมด',
+      'ให้ผู้ใช้ถอดสายไฟแล้วเสียบใหม่ทุกครั้งที่ขอข้ามถนน',
     ],
     correctIndex: 0,
     explanation:
@@ -1189,10 +1190,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       '// เครื่องส่ง:\nradio.setTransmitSerialNumber(true)\n// เครื่องรับจะอ่านหมายเลขเฉพาะของบอร์ดผู้ส่งด้วยคำสั่งใด?',
     options: [
-      'input.temperature()',
-      'radio.receivedPacket(RadioPacketProperty.SerialNumber)',
-      'control.deviceName()',
-      'led.brightness()',
+      'input.temperature() อ่านอุณหภูมิบอร์ด',
+      'radio.receivedPacket(SerialNumber)',
+      'control.deviceName() อ่านชื่อเครื่องรับ',
+      'led.brightness() อ่านระดับความสว่างจอ',
     ],
     correctIndex: 1,
     explanation:
@@ -1207,10 +1208,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'for (let y = 0; y < 5; y++) {\n  for (let x = 0; x < 5; x++) {\n    if ( ? ) { led.plot(x, y) }\n  }\n}',
     options: [
-      'x == 2 && y == 2',
+      'x == 2 && y == 2 && x < 5 && y < 5',
       'x > 0 && x < 4 && y > 0 && y < 4',
       'x == 0 || x == 4 || y == 0 || y == 4',
-      'x == y',
+      'x == y || x + y == 4 || x == 2 || y == 2',
     ],
     correctIndex: 2,
     explanation:
@@ -1225,10 +1226,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'while (alarmOn) {\n  led.toggle(2, 2)\n  // ไม่มี basic.pause() เลย!\n}',
     options: [
-      'เพราะ while ใช้ได้เฉพาะกับตัวเลขเท่านั้น',
-      'เพราะลูปทำงานแน่นต่อเนื่อง 100% จน CPU แทบไม่มีจังหวะสลับไปจัดการ Event อื่น และไฟกะพริบเร็วจนตาแยกไม่ออก',
-      'เพราะ led.toggle ใช้ได้ครั้งเดียวต่อวัน',
-      'เพราะตัวแปร alarmOn ต้องตั้งชื่อเป็น x เท่านั้น',
+      'เพราะลูป while รองรับเงื่อนไขที่เป็นตัวเลขเท่านั้น',
+      'เพราะลูปใช้ CPU เต็ม 100% จนสลับไปรับ Event ปุ่มช้า',
+      'เพราะคำสั่ง led.toggle สลับไฟได้เพียงครั้งเดียวเท่านั้น',
+      'เพราะตัวแปร alarmOn ต้องตั้งชื่อเป็นตัวอักษร x เท่านั้น',
     ],
     correctIndex: 1,
     explanation:
@@ -1245,8 +1246,8 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     options: [
       'led.plot(rx, ry)',
       'led.unplot(rx, ry)',
-      'led.point(rx, ry) (คืนค่า true ถ้าติดอยู่, false ถ้าดับอยู่)',
-      'basic.showNumber(rx)',
+      'led.point(rx, ry)',
+      'led.toggle(rx, ry)',
     ],
     correctIndex: 2,
     explanation:
@@ -1261,10 +1262,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     codeSnippet:
       'if (distance < 15) {\n  // ลำดับขั้นตอนอัลกอริทึมใดปลอดภัยและถูกต้องที่สุด?\n}',
     options: [
-      'หยุดมอเตอร์ -> ถอยหลัง 300ms -> หมุนขวา 400ms -> แล้วค่อยเดินหน้าต่อ',
-      'เดินหน้าความเร็วสูงสุดทันทีโดยไม่ต้องหยุด',
-      'ปิดสวิตช์บอร์ดแล้วรอคนมาหยิบ',
-      'หมุนขวาตลอดไปโดยไม่ตรวจสอบเซนเซอร์อีกเลย',
+      'หยุดมอเตอร์ -> ถอยหลัง -> หมุนขวา -> เดินหน้าต่อ',
+      'เร่งความเร็วเดินหน้าเต็มกำลังโดยไม่ต้องหยุดพัก',
+      'สั่งปิดสวิตช์จ่ายไฟบอร์ดแล้วรอคนมาช่วยยกออก',
+      'สั่งหมุนขวาอยู่กับที่ตลอดไปโดยไม่วัดระยะอีกเลย',
     ],
     correctIndex: 0,
     explanation:
@@ -1278,10 +1279,10 @@ export const MICROBIT_BATTLE_QUESTIONS: BattleQuestionItem[] = [
     title: 'ทำระบบเก็บข้อมูล Data Logger ลงหน่วยความจำแฟลชของ Micro:bit V2 เพื่อถอดบอร์ดไปเก็บค่านอกสถานที่โดยไม่ต่อคอมฯ',
     codeSnippet: '// ใช้ส่วนเสริม (Extension) ใดใน MakeCode สำหรับบันทึกข้อมูลแบบตารางลงในบอร์ด V2?',
     options: [
-      'ส่วนเสริม Neopixel',
-      'ส่วนเสริม Servo',
-      'ส่วนเสริม Radio',
-      'ส่วนเสริม datalogger (datalogger.log(datalogger.createCV("temp", input.temperature())))',
+      'ส่วนเสริม neopixel (ควบคุมไฟเส้นสีรุ้ง)',
+      'ส่วนเสริม servo (ควบคุมแขนมอเตอร์)',
+      'ส่วนเสริม sonar (วัดระยะอัลตราโซนิก)',
+      'ส่วนเสริม datalogger (บันทึกข้อมูลในบอร์ด)',
     ],
     correctIndex: 3,
     explanation:

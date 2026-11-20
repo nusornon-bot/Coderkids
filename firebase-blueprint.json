@@ -539,6 +539,14 @@
         "questionIds": {
           "type": "array"
         },
+        "totalParticipants": {
+          "type": "integer",
+          "description": "Snapshot count of total participants when the room was closed."
+        },
+        "finalTopWinners": {
+          "type": "array",
+          "description": "Bounded array (max 3) of top 3 winners and their awarded XP coins when the room closes."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
