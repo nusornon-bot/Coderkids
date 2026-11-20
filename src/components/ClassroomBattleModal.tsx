@@ -967,6 +967,23 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
               </div>
             </div>
 
+            {/* Answer Distribution Balance Summary (A / B / C / D) */}
+            <div className="px-4 py-2.5 rounded-2xl bg-slate-800/50 border border-slate-700/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="font-bold text-slate-300 flex items-center gap-2">
+                <span>🎯 การกระจายคำตอบที่ถูกต้องในคลัง ({bankBreakdown.total} ข้อ):</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[11px]">
+                {(['A', 'B', 'C', 'D'] as const).map((letter, idx) => (
+                  <span
+                    key={letter}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-emerald-300 font-bold"
+                  >
+                    {letter}: {bankBreakdown.byCorrectIndex[idx]} ข้อ
+                  </span>
+                ))}
+              </div>
+            </div>
+
             {/* Filter Controls + Add New Question Button */}
             <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-800/50 p-3 rounded-2xl border border-slate-800">
               <div className="flex flex-wrap items-center gap-2">
@@ -1588,7 +1605,7 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {[5, 8, 10, 15, 20].map((preset) => {
+                  {[5, 8, 10, 15, 20, 30].map((preset) => {
                     const disabled = preset > eligibleQuestions.length;
                     return (
                       <button

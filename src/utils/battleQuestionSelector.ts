@@ -125,6 +125,7 @@ export interface BankBreakdown {
   total: number;
   byPlatform: Record<BattlePlatform, number>;
   byPlatformDifficulty: Record<BattlePlatform, Record<BattleDifficulty, number>>;
+  byCorrectIndex: [number, number, number, number];
 }
 
 export function getBankBreakdownCounts(bank: BattleQuestionItem[]): BankBreakdown {
@@ -135,11 +136,15 @@ export function getBankBreakdownCounts(bank: BattleQuestionItem[]): BankBreakdow
       Scratch: { easy: 0, medium: 0, hard: 0 },
       'Micro:bit': { easy: 0, medium: 0, hard: 0 },
     },
+    byCorrectIndex: [0, 0, 0, 0],
   };
 
   for (const q of bank) {
     result.byPlatform[q.platform] += 1;
     result.byPlatformDifficulty[q.platform][q.difficulty] += 1;
+    if (q.correctIndex >= 0 && q.correctIndex <= 3) {
+      result.byCorrectIndex[q.correctIndex] += 1;
+    }
   }
 
   return result;
