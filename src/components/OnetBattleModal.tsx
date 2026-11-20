@@ -24,6 +24,10 @@ import {
   GraduationCap,
   Search,
   Star,
+  Copy,
+  Check,
+  Cloud,
+  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AudioReaderButton } from './AudioReaderButton.tsx';
@@ -45,13 +49,16 @@ import {
   selectRandomOnetBattleQuestions,
   shuffleOnetQuestionOptions,
 } from '../utils/onetBattleSelector.ts';
+import { LiveClassroomScoreboard } from './LiveClassroomScoreboard.tsx';
+import { sortParticipantsByScoreDesc } from '../utils/liveScoreboardSort.ts';
 import {
   LiveQuizParticipantRecord,
   createOrUpdateLiveRoomInFirestore,
+  getLiveParticipantId,
   getLiveRoomFromFirestore,
   isCloudFirestoreReadyForUser,
   joinOrUpdateLiveParticipantInFirestore,
-  listLiveParticipantsFromFirestore,
+  subscribeLiveParticipantsInFirestore,
 } from '../services/firestoreService.ts';
 
 interface OnetBattleModalProps {
@@ -133,8 +140,14 @@ function saveLocalOnetRoom(room: LocalOnetBattleRoomConfig): void {
   }
 }
 
-function generateOnetPin(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+function generateOnetPin(excludePin?: string): string {
+  let candidate = String(Math.floor(100000 + Math.random() * 900000));
+  let guard = 0;
+  while (excludePin && candidate === excludePin && guard < 10) {
+    candidate = String(Math.floor(100000 + Math.random() * 900000));
+    guard += 1;
+  }
+  return candidate;
 }
 
 export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
@@ -154,8 +167,11 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
   const [joinedRoomCode, setJoinedRoomCode] = useState<string>('');
   const [joinedHostName, setJoinedHostName] = useState<string>('');
   const [isRoomOpenedByTeacher, setIsRoomOpenedByTeacher] = useState<boolean>(false);
+  const [isRoomSyncedToCloud, setIsRoomSyncedToCloud] = useState<boolean>(false);
+  const [copiedPin, setCopiedPin] = useState<boolean>(false);
   const [isOpeningOrJoining, setIsOpeningOrJoining] = useState<boolean>(false);
   const [cloudParticipants, setCloudParticipants] = useState<LiveQuizParticipantRecord[]>([]);
+  const [isScoreboardExpanded, setIsScoreboardExpanded] = useState<boolean>(false);
 
   const [playerNickname, setPlayerNickname] = useState<string>(studentName || 'น้องผู้เข้าสอบ');
   const [isProjectorMode, setIsProjectorMode] = useState<boolean>(false);
@@ -228,30 +244,27 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
     }
   }, [studentName]);
 
-  // Poll live participants when teacher has opened a cloud room or student joined
+  // Real-time Firestore listener for live participants & scores
   useEffect(() => {
     const activeCode = isTeacher ? (isRoomOpenedByTeacher ? gamePin : '') : joinedRoomCode;
-    if (!isOpen || !activeCode || !isCloudFirestoreReadyForUser()) return;
+    if (!isOpen || !activeCode) {
+      return;
+    }
 
-    let cancelled = false;
-    const fetchParticipants = async () => {
-      try {
-        const list = await listLiveParticipantsFromFirestore(activeCode);
-        if (!cancelled) {
-          setCloudParticipants(list);
-        }
-      } catch {
-        // Ignore transient network errors
+    const unsubscribe = subscribeLiveParticipantsInFirestore(
+      activeCode,
+      (list) => {
+        setCloudParticipants(list);
+      },
+      () => {
+        // Keep last known participants gracefully on transient network error
       }
-    };
+    );
 
-    fetchParticipants();
-    const interval = setInterval(fetchParticipants, 4000);
     return () => {
-      cancelled = true;
-      clearInterval(interval);
+      unsubscribe();
     };
-  }, [isOpen, isTeacher, isRoomOpenedByTeacher, gamePin, joinedRoomCode, gameState]);
+  }, [isOpen, isTeacher, isRoomOpenedByTeacher, gamePin, joinedRoomCode]);
 
   // Combined deduplicated O-NET question bank (100 built-in + custom local)
   const fullQuestionBank = useMemo<OnetBattleQuestionItem[]>(() => {
@@ -352,9 +365,10 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
   // Teacher: Publish O-NET battle room PIN + randomized question set to Firestore & local fallback
   const publishTeacherOnetRoom = async (
     drawnQuestions: OnetBattleQuestionItem[],
-    stage: 'lobby' | 'question'
-  ): Promise<boolean> => {
-    const cleanPin = gamePin.trim().toUpperCase();
+    stage: 'lobby' | 'question',
+    explicitRoomCode?: string
+  ): Promise<{ roomCode: string; syncedToCloud: boolean }> => {
+    const cleanPin = (explicitRoomCode || gamePin).trim().toUpperCase();
     const cappedQuestions = drawnQuestions.slice(0, MAX_ROOM_QUESTIONS);
     const questionIds = cappedQuestions.map((q) => q.id);
 
@@ -390,12 +404,14 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
       }
     }
 
+    setGamePin(cleanPin);
     setIsRoomOpenedByTeacher(true);
-    return syncedToCloud;
+    setIsRoomSyncedToCloud(syncedToCloud);
+    return { roomCode: cleanPin, syncedToCloud };
   };
 
-  // Teacher: Open room so students can enter Game PIN
-  const handleTeacherOpenRoomOnly = async () => {
+  // Teacher: Create a brand-new Battle Room with a randomly generated Room Code & save to Firestore
+  const handleCreateBattleRoom = async () => {
     if (!isTeacher) return;
     const drawn = selectRandomOnetBattleQuestions(fullQuestionBank, {
       setFilter: selectedSetFilter,
@@ -413,24 +429,32 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
       return;
     }
 
+    const freshRoomCode = generateOnetPin(isRoomOpenedByTeacher ? gamePin : undefined);
     setIsOpeningOrJoining(true);
     setBankNotice(null);
+    setCopiedPin(false);
+    setCloudParticipants([]);
+
     try {
-      const synced = await publishTeacherOnetRoom(drawn, 'lobby');
+      const { roomCode, syncedToCloud } = await publishTeacherOnetRoom(
+        drawn,
+        'lobby',
+        freshRoomCode
+      );
       setActiveQuestions(drawn);
       setBankNotice({
-        type: 'success',
-        text: synced
-          ? `เปิดห้องประลอง O-NET รหัส ${gamePin} บน Cloud เรียบร้อย! นักเรียนกรอกรหัส ${gamePin} เพื่อเข้าร่วมได้ทันที (${drawn.length} ข้อ)`
-          : `เปิดห้องประลอง O-NET รหัส ${gamePin} เรียบร้อย (${drawn.length} ข้อ) แจ้งรหัส PIN ให้นักเรียนกรอกเข้าร่วมได้เลย`,
+        type: syncedToCloud ? 'success' : 'info',
+        text: syncedToCloud
+          ? `สร้างห้อง Battle รหัส ${roomCode} และบันทึกข้อมูลขึ้น Firestore เรียบร้อย! เด็กๆ สามารถกรอกรหัส ${roomCode} เพื่อร่วมประลอง O-NET พร้อมกันได้ทันที (${drawn.length} ข้อ)`
+          : `สร้างห้อง Battle รหัส ${roomCode} ในเครื่องเรียบร้อย (${drawn.length} ข้อ) · แนะนำให้คุณครูเข้าสู่ระบบด้วย Google เพื่อบันทึกลง Cloud Firestore ให้เด็กๆ เข้าร่วมข้ามเครื่องได้`,
       });
     } finally {
       setIsOpeningOrJoining(false);
     }
   };
 
-  // Teacher: Open room & start playing immediately
-  const handleTeacherStartGame = async () => {
+  // Teacher: Update existing open room's question set in Firestore (keeping the same Room Code)
+  const handleUpdateCurrentRoom = async () => {
     if (!isTeacher) return;
     const drawn = selectRandomOnetBattleQuestions(fullQuestionBank, {
       setFilter: selectedSetFilter,
@@ -451,7 +475,58 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
     setIsOpeningOrJoining(true);
     setBankNotice(null);
     try {
-      await publishTeacherOnetRoom(drawn, 'question');
+      const { roomCode, syncedToCloud } = await publishTeacherOnetRoom(drawn, 'lobby', gamePin);
+      setActiveQuestions(drawn);
+      setBankNotice({
+        type: 'success',
+        text: syncedToCloud
+          ? `อัปเดตชุดข้อสอบห้องรหัส ${roomCode} บน Firestore เรียบร้อย (${drawn.length} ข้อ)`
+          : `อัปเดตชุดข้อสอบห้องรหัส ${roomCode} เรียบร้อย (${drawn.length} ข้อ)`,
+      });
+    } finally {
+      setIsOpeningOrJoining(false);
+    }
+  };
+
+  const handleCopyRoomCode = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(gamePin);
+        setCopiedPin(true);
+        setTimeout(() => setCopiedPin(false), 2000);
+      }
+    } catch {
+      // Ignore clipboard permission errors in restricted iframes
+    }
+  };
+
+  // Teacher: Open (or reuse active) room & start playing immediately
+  const handleTeacherStartGame = async () => {
+    if (!isTeacher) return;
+    const drawn =
+      isRoomOpenedByTeacher && activeQuestions.length > 0
+        ? activeQuestions
+        : selectRandomOnetBattleQuestions(fullQuestionBank, {
+            setFilter: selectedSetFilter,
+            categoryFilter: selectedCategoryFilter,
+            difficultyFilter: selectedDifficulty,
+            count: effectiveQuestionCount || 5,
+            shuffleOptions: shuffleChoicesEnabled,
+          });
+
+    if (drawn.length === 0) {
+      setBankNotice({
+        type: 'error',
+        text: 'ไม่พบข้อสอบ O-NET ที่ตรงกับเงื่อนไขที่เลือก กรุณาปรับตัวกรองใหม่',
+      });
+      return;
+    }
+
+    const targetRoomCode = isRoomOpenedByTeacher ? gamePin : generateOnetPin();
+    setIsOpeningOrJoining(true);
+    setBankNotice(null);
+    try {
+      await publishTeacherOnetRoom(drawn, 'question', targetRoomCode);
       setActiveQuestions(drawn);
       setActiveView('arena');
       setGameState('playing');
@@ -490,29 +565,27 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
       let foundRoom = false;
       let isWrongBattleMode = false;
 
-      // 1. Check Cloud Firestore first
-      if (isCloudFirestoreReadyForUser()) {
-        try {
-          const cloudRoom = await getLiveRoomFromFirestore(enteredPin);
-          if (cloudRoom && cloudRoom.status === 'active') {
-            const ids = cloudRoom.questionIds || [];
-            const isOnetRoom =
-              cloudRoom.title.toUpperCase().includes('O-NET') ||
-              ids.some((id) => id.startsWith('onet_'));
+      // 1. Always check Cloud Firestore first (works for both Google-signed-in and Student Profile accounts)
+      try {
+        const cloudRoom = await getLiveRoomFromFirestore(enteredPin);
+        if (cloudRoom && cloudRoom.status === 'active') {
+          const ids = cloudRoom.questionIds || [];
+          const isOnetRoom =
+            cloudRoom.title.toUpperCase().includes('O-NET') ||
+            ids.some((id) => id.startsWith('onet_'));
 
-            if (!isOnetRoom) {
-              isWrongBattleMode = true;
-            } else {
-              foundRoom = true;
-              hostName = cloudRoom.hostName || 'คุณครู';
-              roomDifficulty = cloudRoom.difficulty || 'all';
-              roomCount = cloudRoom.questionCount || 10;
-              roomQuestionIds = ids;
-            }
+          if (!isOnetRoom) {
+            isWrongBattleMode = true;
+          } else {
+            foundRoom = true;
+            hostName = cloudRoom.hostName || 'คุณครู';
+            roomDifficulty = cloudRoom.difficulty || 'all';
+            roomCount = cloudRoom.questionCount || 10;
+            roomQuestionIds = ids;
           }
-        } catch {
-          // Fall back to local room check below
         }
+      } catch {
+        // Fall back to local room check below
       }
 
       if (isWrongBattleMode) {
@@ -568,19 +641,17 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
         return;
       }
 
-      if (isCloudFirestoreReadyForUser()) {
-        try {
-          await joinOrUpdateLiveParticipantInFirestore({
-            roomCode: enteredPin,
-            displayName: playerNickname || studentName || 'นักเรียน',
-            avatar: '🎓',
-            score: 0,
-            streak: 0,
-            lastAnswerIndex: -1,
-          });
-        } catch {
-          // Allow gameplay even if cloud write fails
-        }
+      try {
+        await joinOrUpdateLiveParticipantInFirestore({
+          roomCode: enteredPin,
+          displayName: playerNickname || studentName || 'นักเรียน',
+          avatar: '🎓',
+          score: 0,
+          streak: 0,
+          lastAnswerIndex: -1,
+        });
+      } catch {
+        // Allow gameplay even if cloud write fails (e.g., local-only room)
       }
 
       setJoinedRoomCode(enteredPin);
@@ -634,7 +705,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
     }
 
     const activeCode = isTeacher ? (isRoomOpenedByTeacher ? gamePin : '') : joinedRoomCode;
-    if (activeCode && isCloudFirestoreReadyForUser()) {
+    if (activeCode) {
       joinOrUpdateLiveParticipantInFirestore({
         roomCode: activeCode,
         displayName: playerNickname || studentName || 'ผู้เรียน',
@@ -744,17 +815,21 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
     });
   };
 
+  const currentParticipantId = getLiveParticipantId();
+
   const podiumEntries =
     cloudParticipants.length > 0
-      ? cloudParticipants.slice(0, 8).map((p, idx) => ({
-          rank: idx + 1,
-          name:
-            p.displayName === (playerNickname || studentName)
-              ? `${p.displayName} (คุณ)`
-              : p.displayName,
-          score: p.score,
-          isYou: p.displayName === (playerNickname || studentName),
-        }))
+      ? sortParticipantsByScoreDesc(cloudParticipants).map((p, idx) => {
+          const isYou =
+            p.userId === currentParticipantId ||
+            p.displayName === (playerNickname || studentName);
+          return {
+            rank: idx + 1,
+            name: isYou ? `${p.displayName} (คุณ)` : p.displayName,
+            score: p.score,
+            isYou,
+          };
+        })
       : [
           { name: `${playerNickname} (คุณ)`, score, isYou: true },
           {
@@ -1363,43 +1438,92 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
         {/* VIEW B2: TEACHER-ONLY LOBBY WITH O-NET SET & ROOM CREATOR        */}
         {/* ================================================================ */}
         {isTeacher && activeView === 'arena' && gameState === 'lobby' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start py-2">
-            {/* Left Column: PIN, Room Status & Start Buttons */}
-            <div className="lg:col-span-5 text-center space-y-5 bg-slate-800/40 p-5 rounded-2xl border border-slate-800">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 mx-auto flex items-center justify-center shadow-lg shadow-amber-500/20">
-                <GraduationCap className="w-8 h-8 text-white" />
-              </div>
+          <div className="space-y-5 py-2">
+            {isRoomOpenedByTeacher && isScoreboardExpanded && (
+              <LiveClassroomScoreboard
+                participants={cloudParticipants}
+                roomCode={gamePin}
+                accent="amber"
+                expanded
+                onToggleExpand={() => setIsScoreboardExpanded(false)}
+                currentParticipantId={currentParticipantId}
+                title={`กระดานคะแนน O-NET สดแบบเรียลไทม์ · ห้อง PIN ${gamePin}`}
+              />
+            )}
 
-              <div>
-                <div className="text-xs text-slate-400 mb-1.5 flex items-center justify-center gap-1.5">
-                  <span>รหัสเข้าร่วมห้องเรียน O-NET (Game PIN)</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGamePin(generateOnetPin());
-                      setIsRoomOpenedByTeacher(false);
-                      setCloudParticipants([]);
-                    }}
-                    className="text-slate-400 hover:text-amber-300 p-1 rounded-md hover:bg-slate-800 cursor-pointer"
-                    title="สุ่มรหัส PIN ใหม่"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-widest font-mono bg-slate-900/90 py-2.5 px-5 rounded-2xl border border-amber-500/30 inline-block">
-                  {gamePin}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: PIN, Room Status & Start Buttons */}
+              <div className="lg:col-span-5 text-center space-y-5 bg-slate-800/40 p-5 rounded-2xl border border-slate-800">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 mx-auto flex items-center justify-center shadow-lg shadow-amber-500/20">
+                  <GraduationCap className="w-8 h-8 text-white" />
                 </div>
 
-                {isRoomOpenedByTeacher && (
-                  <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
-                    <Radio className="w-3.5 h-3.5 animate-pulse" />
-                    <span>ห้อง O-NET เปิดแล้ว</span>
-                    <span className="text-slate-400">·</span>
-                    <Users className="w-3.5 h-3.5" />
-                    <span>ผู้เข้าร่วม {cloudParticipants.length} คน</span>
+                <div>
+                  <div className="text-xs text-slate-400 mb-1.5 flex items-center justify-center gap-1.5">
+                    <span>รหัสห้องประลอง O-NET (Room Code)</span>
+                    {isRoomOpenedByTeacher && (
+                      <button
+                        type="button"
+                        onClick={handleCopyRoomCode}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold text-amber-300 transition-colors cursor-pointer"
+                        title="คัดลอกรหัสห้อง"
+                      >
+                        {copiedPin ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-300">คัดลอกแล้ว</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>คัดลอก</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
+
+                  {isRoomOpenedByTeacher ? (
+                    <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-widest font-mono bg-slate-900/90 py-2.5 px-5 rounded-2xl border border-amber-500/40 shadow-inner inline-block">
+                      {gamePin}
+                    </div>
+                  ) : (
+                    <div className="py-3 px-4 rounded-2xl bg-slate-900/80 border border-dashed border-slate-700 text-xs text-slate-400">
+                      กดปุ่ม <strong className="text-emerald-300">"สร้างห้อง Battle"</strong>{' '}
+                      เพื่อสุ่มรหัสห้อง (Room Code) และบันทึกลง Firestore
+                    </div>
+                  )}
+
+                  {isRoomOpenedByTeacher && (
+                    <div className="mt-2.5 flex flex-col items-center gap-2.5">
+                      <div className="flex flex-wrap items-center justify-center gap-1.5">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
+                          <Radio className="w-3.5 h-3.5 animate-pulse" />
+                          <span>ห้องเปิดแล้ว</span>
+                          <span className="text-slate-400">·</span>
+                          <Users className="w-3.5 h-3.5" />
+                          <span>ผู้เข้าร่วม {cloudParticipants.length} คน</span>
+                        </div>
+                        {isRoomSyncedToCloud && (
+                          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-[10px] font-bold text-sky-300">
+                            <Cloud className="w-3 h-3" />
+                            <span>Firestore</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {!isScoreboardExpanded && (
+                        <LiveClassroomScoreboard
+                          participants={cloudParticipants}
+                          roomCode={gamePin}
+                          accent="amber"
+                          onToggleExpand={() => setIsScoreboardExpanded(true)}
+                          currentParticipantId={currentParticipantId}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
 
               <div className="space-y-1.5 text-left">
                 <label className="block text-xs text-slate-400 font-medium">
@@ -1434,25 +1558,43 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
                 <button
                   type="button"
                   disabled={effectiveQuestionCount === 0 || isOpeningOrJoining}
-                  onClick={handleTeacherOpenRoomOnly}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={handleCreateBattleRoom}
+                  className="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-40 text-white font-black text-sm sm:text-base rounded-2xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Radio className="w-4 h-4" />
+                  <Sparkles className="w-4 h-4" />
                   <span>
-                    {isRoomOpenedByTeacher
-                      ? `อัปเดตชุดข้อสอบห้อง PIN ${gamePin}`
-                      : `เปิดห้องให้นักเรียนกรอก PIN (${gamePin})`}
+                    {isOpeningOrJoining
+                      ? 'กำลังสร้างห้องและบันทึกลง Firestore...'
+                      : isRoomOpenedByTeacher
+                      ? 'สร้างห้อง Battle ใหม่ (สุ่มรหัสใหม่)'
+                      : 'สร้างห้อง Battle'}
                   </span>
                 </button>
+
+                {isRoomOpenedByTeacher && (
+                  <button
+                    type="button"
+                    disabled={effectiveQuestionCount === 0 || isOpeningOrJoining}
+                    onClick={handleUpdateCurrentRoom}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>อัปเดตชุดข้อสอบห้องเดิม ({gamePin})</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
                   disabled={effectiveQuestionCount === 0 || isOpeningOrJoining}
                   onClick={handleTeacherStartGame}
-                  className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-40 text-slate-950 font-black text-sm sm:text-base rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 disabled:opacity-40 text-slate-950 font-black text-sm rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Play className="w-5 h-5 fill-current" />
-                  <span>เปิดห้องและเริ่มประลอง O-NET ({effectiveQuestionCount} ข้อ)</span>
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>
+                    {isRoomOpenedByTeacher
+                      ? `เริ่มประลอง O-NET หน้าจอครู (${activeQuestions.length || effectiveQuestionCount} ข้อ)`
+                      : `สร้างห้องและเริ่มประลองทันที (${effectiveQuestionCount} ข้อ)`}
+                  </span>
                 </button>
               </div>
             </div>
@@ -1661,6 +1803,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
                 </button>
               </div>
             </div>
+            </div>
           </div>
         )}
 
@@ -1782,6 +1925,19 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
                 );
               })}
             </div>
+            {/* Live Classroom Scoreboard for Teacher during active rounds */}
+            {isTeacher && isRoomOpenedByTeacher && (
+              <div className="pt-2">
+                <LiveClassroomScoreboard
+                  participants={cloudParticipants}
+                  roomCode={gamePin}
+                  accent="amber"
+                  compact
+                  currentParticipantId={currentParticipantId}
+                  title={`คะแนน O-NET นักเรียนเรียลไทม์ (PIN ${gamePin})`}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -1838,6 +1994,17 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
               </span>
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            {isTeacher && isRoomOpenedByTeacher && (
+              <LiveClassroomScoreboard
+                participants={cloudParticipants}
+                roomCode={gamePin}
+                accent="amber"
+                compact
+                currentParticipantId={currentParticipantId}
+                title={`อัปเดตคะแนน O-NET นักเรียนสด (PIN ${gamePin})`}
+              />
+            )}
           </div>
         )}
 
@@ -1871,28 +2038,40 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
             </div>
 
             <div className="bg-slate-800/80 p-5 rounded-2xl border border-slate-700 max-w-md mx-auto text-left space-y-2.5">
-              <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">
-                🏆 ตารางคะแนนห้องประลอง O-NET (Classroom Leaderboard)
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                  🏆 ตารางคะแนนห้องประลอง O-NET (Real-Time)
+                </div>
+                {cloudParticipants.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
+                    <Radio className="w-2.5 h-2.5 animate-pulse" />
+                    {cloudParticipants.length} คน
+                  </span>
+                )}
               </div>
 
-              {podiumEntries.map((user) => (
-                <div
-                  key={`${user.rank}-${user.name}`}
-                  className={`p-3 rounded-xl flex items-center justify-between text-xs font-semibold ${
-                    user.isYou
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      : 'bg-slate-900/60 text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center font-bold text-[10px]">
-                      {user.rank}
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {podiumEntries.map((user) => (
+                  <div
+                    key={`${user.rank}-${user.name}`}
+                    className={`p-3 rounded-xl flex items-center justify-between text-xs font-semibold ${
+                      user.isYou
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'bg-slate-900/60 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center font-bold text-[10px] shrink-0">
+                        {user.rank}
+                      </span>
+                      <span className="truncate">{user.name}</span>
+                    </div>
+                    <span className="font-mono text-emerald-400 shrink-0">
+                      {user.score.toLocaleString()} pts
                     </span>
-                    <span>{user.name}</span>
                   </div>
-                  <span className="font-mono text-emerald-400">{user.score} pts</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2.5 max-w-lg mx-auto">

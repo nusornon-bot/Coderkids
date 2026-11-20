@@ -41,16 +41,20 @@ import {
   selectRandomBattleQuestions,
   shuffleQuestionOptions,
 } from '../utils/battleQuestionSelector.ts';
+import { LiveClassroomScoreboard } from './LiveClassroomScoreboard.tsx';
+import { sortParticipantsByScoreDesc } from '../utils/liveScoreboardSort.ts';
 import {
   LiveQuizParticipantRecord,
   createOrUpdateLiveRoomInFirestore,
   deleteBattleQuestionFromFirestore,
+  getBattleQuestionByIdFromFirestore,
+  getLiveParticipantId,
   getLiveRoomFromFirestore,
   isCloudFirestoreReadyForUser,
   joinOrUpdateLiveParticipantInFirestore,
   listBattleQuestionsFromFirestore,
-  listLiveParticipantsFromFirestore,
   saveBattleQuestionToFirestore,
+  subscribeLiveParticipantsInFirestore,
 } from '../services/firestoreService.ts';
 
 interface ClassroomBattleModalProps {
@@ -151,6 +155,7 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
   const [isRoomOpenedByTeacher, setIsRoomOpenedByTeacher] = useState<boolean>(false);
   const [isOpeningOrJoining, setIsOpeningOrJoining] = useState<boolean>(false);
   const [cloudParticipants, setCloudParticipants] = useState<LiveQuizParticipantRecord[]>([]);
+  const [isScoreboardExpanded, setIsScoreboardExpanded] = useState<boolean>(false);
 
   const [playerNickname, setPlayerNickname] = useState<string>(studentName || 'น้องโค้ดเดอร์');
   const [isProjectorMode, setIsProjectorMode] = useState<boolean>(false);
@@ -238,30 +243,27 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
     };
   }, [isOpen]);
 
-  // Poll live participants when teacher has opened a cloud room or student is on podium
+  // Real-time Firestore listener for live participants & scores
   useEffect(() => {
     const activeCode = isTeacher ? (isRoomOpenedByTeacher ? gamePin : '') : joinedRoomCode;
-    if (!isOpen || !activeCode || !isCloudFirestoreReadyForUser()) return;
+    if (!isOpen || !activeCode) {
+      return;
+    }
 
-    let cancelled = false;
-    const fetchParticipants = async () => {
-      try {
-        const list = await listLiveParticipantsFromFirestore(activeCode);
-        if (!cancelled) {
-          setCloudParticipants(list);
-        }
-      } catch {
-        // Ignore transient network errors
+    const unsubscribe = subscribeLiveParticipantsInFirestore(
+      activeCode,
+      (list) => {
+        setCloudParticipants(list);
+      },
+      () => {
+        // Keep last known participants gracefully on transient network error
       }
-    };
+    );
 
-    fetchParticipants();
-    const interval = setInterval(fetchParticipants, 4000);
     return () => {
-      cancelled = true;
-      clearInterval(interval);
+      unsubscribe();
     };
-  }, [isOpen, isTeacher, isRoomOpenedByTeacher, gamePin, joinedRoomCode, gameState]);
+  }, [isOpen, isTeacher, isRoomOpenedByTeacher, gamePin, joinedRoomCode]);
 
   // Combined deduplicated question bank
   const fullQuestionBank = useMemo<BattleQuestionItem[]>(() => {
@@ -454,22 +456,37 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
       let roomQuestionIds: string[] = [];
       let hostName = 'คุณครู';
       let foundRoom = false;
+      let isWrongBattleMode = false;
 
-      // 1. Check Cloud Firestore first
-      if (isCloudFirestoreReadyForUser()) {
-        try {
-          const cloudRoom = await getLiveRoomFromFirestore(enteredPin);
-          if (cloudRoom && cloudRoom.status === 'active') {
+      // 1. Always check Cloud Firestore first (works for both Google-signed-in and Student Profile accounts)
+      try {
+        const cloudRoom = await getLiveRoomFromFirestore(enteredPin);
+        if (cloudRoom && cloudRoom.status === 'active') {
+          const ids = cloudRoom.questionIds || [];
+          const isOnetRoom =
+            cloudRoom.title.toUpperCase().includes('O-NET') ||
+            ids.some((id) => id.startsWith('onet_'));
+          if (isOnetRoom) {
+            isWrongBattleMode = true;
+          } else {
             foundRoom = true;
             hostName = cloudRoom.hostName || 'คุณครู';
             roomPlatform = cloudRoom.platformSet || 'mixed';
             roomDifficulty = cloudRoom.difficulty || 'all';
             roomCount = cloudRoom.questionCount || 5;
-            roomQuestionIds = cloudRoom.questionIds || [];
+            roomQuestionIds = ids;
           }
-        } catch {
-          // Fall back to local room check below
         }
+      } catch {
+        // Fall back to local room check below
+      }
+
+      if (isWrongBattleMode) {
+        setBankNotice({
+          type: 'error',
+          text: `รหัส "${enteredPin}" เป็นห้องของ Live Classroom O-NET Battle กรุณาเข้าผ่านเมนู O-NET Battle หรือขอรหัส Coding Battle จากคุณครู`,
+        });
+        return;
       }
 
       // 2. Fallback check in local room store (e.g., same-device classroom preview / offline)
@@ -510,6 +527,22 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
       }
 
       const bankById = new Map(latestBank.map((q) => [q.id, q]));
+
+      // For students without Google Auth, fetch any teacher-created Cloud question IDs directly
+      const missingQuestionIds = roomQuestionIds.filter((id) => !bankById.has(id));
+      if (missingQuestionIds.length > 0) {
+        const fetchedMissing = await Promise.all(
+          missingQuestionIds.map((id) =>
+            getBattleQuestionByIdFromFirestore(id).catch(() => null)
+          )
+        );
+        for (const item of fetchedMissing) {
+          if (item) {
+            bankById.set(item.id, item);
+          }
+        }
+      }
+
       let roomQuestions: BattleQuestionItem[] = roomQuestionIds
         .map((id) => bankById.get(id))
         .filter((q): q is BattleQuestionItem => Boolean(q))
@@ -532,20 +565,18 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
         return;
       }
 
-      // Register student in Cloud room participants if signed in
-      if (isCloudFirestoreReadyForUser()) {
-        try {
-          await joinOrUpdateLiveParticipantInFirestore({
-            roomCode: enteredPin,
-            displayName: playerNickname || studentName || 'นักเรียน',
-            avatar: '⚡',
-            score: 0,
-            streak: 0,
-            lastAnswerIndex: -1,
-          });
-        } catch {
-          // Allow gameplay even if cloud write fails
-        }
+      // Register student in Cloud room participants (works for both Google and Student Profile logins)
+      try {
+        await joinOrUpdateLiveParticipantInFirestore({
+          roomCode: enteredPin,
+          displayName: playerNickname || studentName || 'นักเรียน',
+          avatar: '⚡',
+          score: 0,
+          streak: 0,
+          lastAnswerIndex: -1,
+        });
+      } catch {
+        // Allow gameplay even if cloud write fails (e.g., local-only room)
       }
 
       setJoinedRoomCode(enteredPin);
@@ -599,7 +630,7 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
 
     // Sync student's live score to Firestore room participants if joined via PIN
     const activeCode = isTeacher ? (isRoomOpenedByTeacher ? gamePin : '') : joinedRoomCode;
-    if (activeCode && isCloudFirestoreReadyForUser()) {
+    if (activeCode) {
       joinOrUpdateLiveParticipantInFirestore({
         roomCode: activeCode,
         displayName: playerNickname || studentName || 'ผู้เรียน',
@@ -769,20 +800,26 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
       ? 'ผสมทุกระดับ (ง่าย–ยาก)'
       : `ระดับ${DIFFICULTY_META[selectedDifficulty].label}`;
 
-  // Use real Cloud participants when available; otherwise fall back to classroom simulation
+  const currentParticipantId = getLiveParticipantId();
+
+  // Use real Cloud participants sorted strictly high-to-low when available
   const podiumEntries =
     cloudParticipants.length > 0
-      ? cloudParticipants.slice(0, 8).map((p, idx) => ({
-          rank: idx + 1,
-          name:
-            p.displayName === (playerNickname || studentName)
-              ? `${p.displayName} (คุณ)`
-              : p.displayName,
-          score: p.score,
-          isYou: p.displayName === (playerNickname || studentName),
-        }))
+      ? sortParticipantsByScoreDesc(cloudParticipants).map((p, idx) => {
+          const isYou =
+            p.userId === currentParticipantId ||
+            p.displayName === (playerNickname || studentName);
+          return {
+            id: p.userId,
+            rank: idx + 1,
+            name: isYou ? `${p.displayName} (คุณ)` : p.displayName,
+            score: p.score,
+            streak: p.streak,
+            isYou,
+          };
+        })
       : [
-          { name: `${playerNickname} (คุณ)`, score, isYou: true },
+          { id: 'self', name: `${playerNickname} (คุณ)`, score, streak, isYou: true },
           {
             name: 'ต้นกล้า (ป.5/1)',
             score: Math.max(120, Math.round(activeQuestions.length * 68)),
@@ -1398,43 +1435,69 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
         {/* VIEW B2: TEACHER-ONLY LOBBY WITH EXAM SET & ROOM CREATOR         */}
         {/* ================================================================ */}
         {isTeacher && activeView === 'arena' && gameState === 'lobby' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start py-2">
-            {/* Left Column: PIN, Room Status & Start Buttons */}
-            <div className="lg:col-span-5 text-center space-y-5 bg-slate-800/40 p-5 rounded-2xl border border-slate-800">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-indigo-600 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                <Zap className="w-8 h-8 text-white" />
-              </div>
+          <div className="space-y-5 py-2">
+            {isRoomOpenedByTeacher && isScoreboardExpanded && (
+              <LiveClassroomScoreboard
+                participants={cloudParticipants}
+                roomCode={gamePin}
+                accent="indigo"
+                expanded
+                onToggleExpand={() => setIsScoreboardExpanded(false)}
+                currentParticipantId={currentParticipantId}
+                title={`กระดานคะแนนสดแบบเรียลไทม์ · ห้อง PIN ${gamePin}`}
+              />
+            )}
 
-              <div>
-                <div className="text-xs text-slate-400 mb-1.5 flex items-center justify-center gap-1.5">
-                  <span>รหัสเข้าร่วมห้องเรียน (Game PIN)</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGamePin(generatePin());
-                      setIsRoomOpenedByTeacher(false);
-                      setCloudParticipants([]);
-                    }}
-                    className="text-slate-400 hover:text-amber-300 p-1 rounded-md hover:bg-slate-800 cursor-pointer"
-                    title="สุ่มรหัส PIN ใหม่"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-widest font-mono bg-slate-900/90 py-2.5 px-5 rounded-2xl border border-slate-700 inline-block">
-                  {gamePin}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: PIN, Room Status & Start Buttons */}
+              <div className="lg:col-span-5 text-center space-y-5 bg-slate-800/40 p-5 rounded-2xl border border-slate-800">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-indigo-600 mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                  <Zap className="w-8 h-8 text-white" />
                 </div>
 
-                {isRoomOpenedByTeacher && (
-                  <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
-                    <Radio className="w-3.5 h-3.5 animate-pulse" />
-                    <span>ห้องเปิดแล้ว</span>
-                    <span className="text-slate-400">·</span>
-                    <Users className="w-3.5 h-3.5" />
-                    <span>ผู้เข้าร่วม {cloudParticipants.length} คน</span>
+                <div>
+                  <div className="text-xs text-slate-400 mb-1.5 flex items-center justify-center gap-1.5">
+                    <span>รหัสเข้าร่วมห้องเรียน (Game PIN)</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGamePin(generatePin());
+                        setIsRoomOpenedByTeacher(false);
+                        setIsScoreboardExpanded(false);
+                        setCloudParticipants([]);
+                      }}
+                      className="text-slate-400 hover:text-amber-300 p-1 rounded-md hover:bg-slate-800 cursor-pointer"
+                      title="สุ่มรหัส PIN ใหม่"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                )}
-              </div>
+                  <div className="text-3xl sm:text-4xl font-black text-amber-400 tracking-widest font-mono bg-slate-900/90 py-2.5 px-5 rounded-2xl border border-slate-700 inline-block">
+                    {gamePin}
+                  </div>
+
+                  {isRoomOpenedByTeacher && (
+                    <div className="mt-2.5 flex flex-col items-center gap-2.5">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[11px] font-bold text-emerald-300">
+                        <Radio className="w-3.5 h-3.5 animate-pulse" />
+                        <span>ห้องเปิดแล้ว</span>
+                        <span className="text-slate-400">·</span>
+                        <Users className="w-3.5 h-3.5" />
+                        <span>ผู้เข้าร่วม {cloudParticipants.length} คน</span>
+                      </div>
+
+                      {!isScoreboardExpanded && (
+                        <LiveClassroomScoreboard
+                          participants={cloudParticipants}
+                          roomCode={gamePin}
+                          accent="indigo"
+                          onToggleExpand={() => setIsScoreboardExpanded(true)}
+                          currentParticipantId={currentParticipantId}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
 
               <div className="space-y-1.5 text-left">
                 <label className="block text-xs text-slate-400 font-medium">ชื่อคุณครูผู้คุมห้อง:</label>
@@ -1670,6 +1733,7 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
                 </button>
               </div>
             </div>
+            </div>
           </div>
         )}
 
@@ -1775,6 +1839,19 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
                 );
               })}
             </div>
+            {/* Live Classroom Scoreboard for Teacher during active rounds */}
+            {isTeacher && isRoomOpenedByTeacher && (
+              <div className="pt-2">
+                <LiveClassroomScoreboard
+                  participants={cloudParticipants}
+                  roomCode={gamePin}
+                  accent="indigo"
+                  compact
+                  currentParticipantId={currentParticipantId}
+                  title={`คะแนนนักเรียนเรียลไทม์ (PIN ${gamePin})`}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -1824,6 +1901,17 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
               </span>
               <ArrowRight className="w-4 h-4" />
             </button>
+
+            {isTeacher && isRoomOpenedByTeacher && (
+              <LiveClassroomScoreboard
+                participants={cloudParticipants}
+                roomCode={gamePin}
+                accent="indigo"
+                compact
+                currentParticipantId={currentParticipantId}
+                title={`อัปเดตคะแนนนักเรียนสด (PIN ${gamePin})`}
+              />
+            )}
           </div>
         )}
 
@@ -1849,28 +1937,40 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
             </div>
 
             <div className="bg-slate-800/80 p-5 rounded-2xl border border-slate-700 max-w-md mx-auto text-left space-y-2.5">
-              <div className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">
-                🏆 ตารางคะแนนรวมในห้องเรียน (Classroom Leaderboard)
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">
+                  🏆 ตารางคะแนนรวมในห้องเรียน (Real-Time)
+                </div>
+                {cloudParticipants.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-[10px] font-bold text-emerald-300">
+                    <Radio className="w-2.5 h-2.5 animate-pulse" />
+                    {cloudParticipants.length} คน
+                  </span>
+                )}
               </div>
 
-              {podiumEntries.map((user) => (
-                <div
-                  key={`${user.rank}-${user.name}`}
-                  className={`p-3 rounded-xl flex items-center justify-between text-xs font-semibold ${
-                    user.isYou
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                      : 'bg-slate-900/60 text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center font-bold text-[10px]">
-                      {user.rank}
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {podiumEntries.map((user) => (
+                  <div
+                    key={`${user.rank}-${user.name}`}
+                    className={`p-3 rounded-xl flex items-center justify-between text-xs font-semibold ${
+                      user.isYou
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'bg-slate-900/60 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center font-bold text-[10px] shrink-0">
+                        {user.rank}
+                      </span>
+                      <span className="truncate">{user.name}</span>
+                    </div>
+                    <span className="font-mono text-emerald-400 shrink-0">
+                      {user.score.toLocaleString()} pts
                     </span>
-                    <span>{user.name}</span>
                   </div>
-                  <span className="font-mono text-emerald-400">{user.score} pts</span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2.5 max-w-lg mx-auto">

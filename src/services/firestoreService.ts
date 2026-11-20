@@ -7,6 +7,7 @@ import {
   getDocFromServer,
   getDocs,
   setDoc,
+  updateDoc,
   addDoc,
   deleteDoc,
   collection,
@@ -14,12 +15,14 @@ import {
   where,
   orderBy,
   limit,
+  onSnapshot,
   serverTimestamp,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { UserProfile } from '../types/index.ts';
 import type { EditorNode } from '../components/Module2Thinking/flowchartUtils.ts';
 import { KNOWN_ADMIN_EMAILS } from './googleSheetsService.ts';
+import { sortParticipantsByScoreDesc } from '../utils/liveScoreboardSort.ts';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -632,6 +635,7 @@ export interface LiveQuizParticipantRecord {
   score: number;
   streak: number;
   lastAnswerIndex: number;
+  updatedAtMs?: number;
 }
 
 export async function createOrUpdateLiveRoomInFirestore(params: {
@@ -707,13 +711,77 @@ export async function createOrUpdateLiveRoomInFirestore(params: {
   }
 }
 
+const GUEST_PARTICIPANT_STORAGE_KEY = 'coderkids_live_guest_pid_v1';
+let inMemoryGuestParticipantId: string | null = null;
+
+function isValidGuestParticipantId(id: string): boolean {
+  return id.length >= 14 && id.length <= 72 && /^guest_[a-zA-Z0-9_-]+$/.test(id);
+}
+
+/**
+ * Returns the active Firebase UID for verified users, or a stable guest participant ID
+ * (`guest_<timestamp>_<rand>`) so students signed in via Student Profile / ID can join
+ * teacher-opened Cloud Live Rooms and sync live scores to the classroom leaderboard.
+ */
+export function getLiveParticipantId(): string {
+  const user = firebaseAuth.currentUser;
+  if (user && user.emailVerified && isSafeUid(user.uid)) {
+    return user.uid;
+  }
+
+  if (inMemoryGuestParticipantId && isValidGuestParticipantId(inMemoryGuestParticipantId)) {
+    return inMemoryGuestParticipantId;
+  }
+
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem(GUEST_PARTICIPANT_STORAGE_KEY);
+      if (saved && isValidGuestParticipantId(saved)) {
+        inMemoryGuestParticipantId = saved;
+        return saved;
+      }
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const saved = sessionStorage.getItem(GUEST_PARTICIPANT_STORAGE_KEY);
+      if (saved && isValidGuestParticipantId(saved)) {
+        inMemoryGuestParticipantId = saved;
+        return saved;
+      }
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+
+  const timePart = Date.now().toString(36);
+  const randPart = Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+  const generated = `guest_${timePart}_${randPart}`;
+  inMemoryGuestParticipantId = generated;
+
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(GUEST_PARTICIPANT_STORAGE_KEY, generated);
+    }
+  } catch {
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(GUEST_PARTICIPANT_STORAGE_KEY, generated);
+      }
+    } catch {
+      // Fall back to in-memory ID for current session
+    }
+  }
+
+  return generated;
+}
+
 export async function getLiveRoomFromFirestore(
   roomCode: string
 ): Promise<LiveQuizRoomRecord | null> {
-  const user = firebaseAuth.currentUser;
-  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
-    return null;
-  }
   const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
   if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
     return null;
@@ -764,35 +832,39 @@ export async function joinOrUpdateLiveParticipantInFirestore(params: {
   streak: number;
   lastAnswerIndex: number;
 }): Promise<boolean> {
-  const user = firebaseAuth.currentUser;
-  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
-    return false;
-  }
   const cleanCode = clampStr(params.roomCode, 12, '').toUpperCase();
   if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
     return false;
   }
 
-  const path = `liveRooms/${cleanCode}/participants/${user.uid}`;
+  const participantId = getLiveParticipantId();
+  const path = `liveRooms/${cleanCode}/participants/${participantId}`;
   try {
-    const ref = doc(db, 'liveRooms', cleanCode, 'participants', user.uid);
+    const ref = doc(db, 'liveRooms', cleanCode, 'participants', participantId);
     const snap = await getDoc(ref);
+    const mutableFields = {
+      displayName: clampStr(params.displayName, 120, 'ผู้เรียน') || 'ผู้เรียน',
+      avatar: clampStr(params.avatar, 16, '🐱') || '🐱',
+      score: Math.max(0, Math.min(100000, Math.round(params.score || 0))),
+      streak: Math.max(0, Math.min(100, Math.round(params.streak || 0))),
+      lastAnswerIndex: Math.max(-1, Math.min(10, Math.round(params.lastAnswerIndex ?? -1))),
+      updatedAt: serverTimestamp(),
+    };
 
-    await setDoc(
-      ref,
-      {
-        roomCode: cleanCode,
-        userId: user.uid,
-        displayName: clampStr(params.displayName, 120, 'ผู้เรียน') || 'ผู้เรียน',
-        avatar: clampStr(params.avatar, 16, '🐱') || '🐱',
-        score: Math.max(0, Math.min(100000, Math.round(params.score || 0))),
-        streak: Math.max(0, Math.min(100, Math.round(params.streak || 0))),
-        lastAnswerIndex: Math.max(-1, Math.min(10, Math.round(params.lastAnswerIndex ?? -1))),
-        createdAt: snap.exists() ? snap.data()?.createdAt || serverTimestamp() : serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: false }
-    );
+    if (snap.exists()) {
+      await updateDoc(ref, mutableFields);
+    } else {
+      await setDoc(
+        ref,
+        {
+          roomCode: cleanCode,
+          userId: participantId,
+          ...mutableFields,
+          createdAt: serverTimestamp(),
+        },
+        { merge: false }
+      );
+    }
     return true;
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
@@ -802,10 +874,6 @@ export async function joinOrUpdateLiveParticipantInFirestore(params: {
 export async function listLiveParticipantsFromFirestore(
   roomCode: string
 ): Promise<LiveQuizParticipantRecord[]> {
-  const user = firebaseAuth.currentUser;
-  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
-    return [];
-  }
   const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
   if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
     return [];
@@ -820,6 +888,8 @@ export async function listLiveParticipantsFromFirestore(
     const snap = await getDocs(q);
     const list: LiveQuizParticipantRecord[] = snap.docs.map((d) => {
       const data = d.data();
+      const updatedMs =
+        typeof data.updatedAt?.toMillis === 'function' ? data.updatedAt.toMillis() : undefined;
       return {
         roomCode: cleanCode,
         userId: String(data.userId || d.id),
@@ -828,13 +898,67 @@ export async function listLiveParticipantsFromFirestore(
         score: typeof data.score === 'number' ? data.score : 0,
         streak: typeof data.streak === 'number' ? data.streak : 0,
         lastAnswerIndex: typeof data.lastAnswerIndex === 'number' ? data.lastAnswerIndex : -1,
+        updatedAtMs: updatedMs,
       };
     });
-    list.sort((a, b) => b.score - a.score);
-    return list;
+    return sortParticipantsByScoreDesc(list);
   } catch (error) {
     handleFirestoreError(error, OperationType.LIST, path);
   }
+}
+
+/**
+ * Real-time Firestore listener for all participants & scores in an active Live Classroom room.
+ * Automatically updates whenever any student joins or submits an answer.
+ */
+export function subscribeLiveParticipantsInFirestore(
+  roomCode: string,
+  onUpdate: (participants: LiveQuizParticipantRecord[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const path = `liveRooms/${cleanCode}/participants`;
+  const q = query(
+    collection(db, 'liveRooms', cleanCode, 'participants'),
+    where('roomCode', '==', cleanCode),
+    limit(50)
+  );
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: LiveQuizParticipantRecord[] = snap.docs.map((d) => {
+        const data = d.data();
+        const updatedMs =
+          typeof data.updatedAt?.toMillis === 'function' ? data.updatedAt.toMillis() : undefined;
+        return {
+          roomCode: cleanCode,
+          userId: String(data.userId || d.id),
+          displayName: String(data.displayName || 'ผู้เรียน'),
+          avatar: String(data.avatar || '🐱'),
+          score: typeof data.score === 'number' ? data.score : 0,
+          streak: typeof data.streak === 'number' ? data.streak : 0,
+          lastAnswerIndex: typeof data.lastAnswerIndex === 'number' ? data.lastAnswerIndex : -1,
+          updatedAtMs: updatedMs,
+        };
+      });
+      onUpdate(sortParticipantsByScoreDesc(list));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, path);
+      } catch (handledErr) {
+        if (onError) {
+          onError(handledErr);
+        }
+      }
+    }
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -851,6 +975,53 @@ export interface CloudBattleQuestionRecord {
   explanation: string;
   createdByName: string;
   source: 'cloud';
+}
+
+export async function getBattleQuestionByIdFromFirestore(
+  questionId: string
+): Promise<CloudBattleQuestionRecord | null> {
+  const cleanId = clampStr(questionId, 128, '');
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(cleanId)) {
+    return null;
+  }
+  const path = `battleQuestions/${cleanId}`;
+  try {
+    const snap = await getDoc(doc(db, 'battleQuestions', cleanId));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    const opts = Array.isArray(data.options) ? data.options : [];
+    if (opts.length !== 4) return null;
+    const platformVal = data.platform === 'Micro:bit' ? 'Micro:bit' : 'Scratch';
+    const diffVal =
+      data.difficulty === 'easy' || data.difficulty === 'hard'
+        ? data.difficulty
+        : 'medium';
+    const correctIdx =
+      typeof data.correctIndex === 'number' &&
+      data.correctIndex >= 0 &&
+      data.correctIndex <= 3
+        ? (Math.floor(data.correctIndex) as 0 | 1 | 2 | 3)
+        : 0;
+    return {
+      id: snap.id,
+      platform: platformVal as 'Scratch' | 'Micro:bit',
+      difficulty: diffVal as 'easy' | 'medium' | 'hard',
+      title: String(data.title || ''),
+      codeSnippet: String(data.codeSnippet || ''),
+      options: [
+        String(opts[0] || ''),
+        String(opts[1] || ''),
+        String(opts[2] || ''),
+        String(opts[3] || ''),
+      ] as [string, string, string, string],
+      correctIndex: correctIdx,
+      explanation: String(data.explanation || ''),
+      createdByName: String(data.createdByName || 'คุณครู'),
+      source: 'cloud',
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+  }
 }
 
 export async function listBattleQuestionsFromFirestore(): Promise<CloudBattleQuestionRecord[]> {

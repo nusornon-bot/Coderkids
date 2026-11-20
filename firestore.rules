@@ -36,6 +36,15 @@ service cloud.firestore {
       return code is string && code.size() >= 4 && code.size() <= 12 && code.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isGuestParticipantId(id) {
+      return id is string && id.size() >= 14 && id.size() <= 72 && id.matches('^guest_[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isActiveLiveRoom(roomCode) {
+      return exists(/databases/$(database)/documents/liveRooms/$(roomCode)) &&
+        get(/databases/$(database)/documents/liveRooms/$(roomCode)).data.status == 'active';
+    }
+
     function isOwner(userId) {
       return isEmailVerified() && request.auth.uid == userId;
     }
@@ -761,7 +770,11 @@ service cloud.firestore {
     // Live Classroom Quiz Battle Rooms & Participants
     // -------------------------------------------------------------------------
     match /liveRooms/{roomCode} {
-      allow get: if isValidRoomCode(roomCode) && isEmailVerified();
+      allow get: if isValidRoomCode(roomCode) && (
+        isEmailVerified() ||
+        resource == null ||
+        existing().status == 'active'
+      );
       allow list: if isEmailVerified() && resource.data.status == 'active';
       allow create: if isValidRoomCode(roomCode) &&
         isEmailVerified() &&
@@ -798,16 +811,18 @@ service cloud.firestore {
       );
 
       match /participants/{participantId} {
-        allow get: if isValidRoomCode(roomCode) && isValidId(participantId) && isEmailVerified() &&
-          exists(/databases/$(database)/documents/liveRooms/$(roomCode));
-        allow list: if isEmailVerified() && resource.data.roomCode == roomCode;
+        allow get: if isValidRoomCode(roomCode) && isValidId(participantId) && (
+          isEmailVerified() ||
+          isGuestParticipantId(participantId)
+        ) && exists(/databases/$(database)/documents/liveRooms/$(roomCode));
+        allow list: if isValidRoomCode(roomCode) && resource.data.roomCode == roomCode;
         allow create: if isValidRoomCode(roomCode) &&
           isValidId(participantId) &&
-          isOwner(participantId) &&
+          (isOwner(participantId) || isGuestParticipantId(participantId)) &&
           isValidLiveQuizParticipant(incoming(), roomCode, participantId) &&
           incoming().createdAt == request.time &&
           incoming().updatedAt == request.time &&
-          exists(/databases/$(database)/documents/liveRooms/$(roomCode));
+          isActiveLiveRoom(roomCode);
         allow update: if isValidRoomCode(roomCode) &&
           isValidId(participantId) &&
           isValidLiveQuizParticipant(incoming(), roomCode, participantId) &&
@@ -817,7 +832,8 @@ service cloud.firestore {
           incoming().updatedAt == request.time && (
             isAdmin() ||
             (
-              isOwner(participantId) &&
+              (isOwner(participantId) || isGuestParticipantId(participantId)) &&
+              isActiveLiveRoom(roomCode) &&
               incoming().diff(existing()).affectedKeys().hasOnly([
                 'displayName',
                 'avatar',
@@ -873,7 +889,8 @@ service cloud.firestore {
     // Live Classroom Coding Battle Question Bank (Scratch & Micro:bit)
     // -------------------------------------------------------------------------
     match /battleQuestions/{questionId} {
-      allow get: if isValidId(questionId) && isEmailVerified() && (
+      allow get: if isValidId(questionId) && (
+        resource == null ||
         existing().status == 'active' ||
         isAdmin()
       );
