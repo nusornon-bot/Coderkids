@@ -27,6 +27,10 @@ import {
   clearBattleRoomJoinInStorage,
   getDuplicateJoinAlertMessage,
 } from '../utils/battleJoinGuard.ts';
+import {
+  TeamBattleLiveScoreboard,
+  type TeamScoreboardEntry,
+} from './TeamBattleLiveScoreboard.tsx';
 import confetti from 'canvas-confetti';
 
 interface BattleQuestion {
@@ -132,15 +136,7 @@ const BATTLE_QUESTIONS: BattleQuestion[] = [
   },
 ];
 
-interface TeamData {
-  id: string;
-  name: string;
-  emoji: string;
-  color: string;
-  bgGradient: string;
-  score: number;
-  streak: number;
-}
+type TeamData = TeamScoreboardEntry;
 
 export interface TeamBattleArenaProps {
   onAwardPoints: (points: number, reason: string) => void;
@@ -162,6 +158,9 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
       bgGradient: 'from-amber-500 to-orange-500',
       score: 120,
       streak: 3,
+      correctCount: 5,
+      lastScoreDelta: 0,
+      lastUpdatedAtMs: 1000,
     },
     {
       id: 'team_rocket',
@@ -171,6 +170,9 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
       bgGradient: 'from-indigo-500 to-purple-600',
       score: 140,
       streak: 4,
+      correctCount: 6,
+      lastScoreDelta: 0,
+      lastUpdatedAtMs: 900,
     },
     {
       id: 'team_robot',
@@ -180,6 +182,9 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
       bgGradient: 'from-sky-500 to-blue-600',
       score: 110,
       streak: 2,
+      correctCount: 4,
+      lastScoreDelta: 0,
+      lastUpdatedAtMs: 1100,
     },
     {
       id: 'team_shield',
@@ -189,11 +194,15 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
       bgGradient: 'from-emerald-500 to-teal-600',
       score: 130,
       streak: 3,
+      correctCount: 5,
+      lastScoreDelta: 0,
+      lastUpdatedAtMs: 950,
     },
   ]);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isBigScreen, setIsBigScreen] = useState(false);
+  const [isScoreboardExpanded, setIsScoreboardExpanded] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(20);
   const [timerRunning, setTimerRunning] = useState(false);
   const [revealedAnswer, setRevealedAnswer] = useState(false);
@@ -309,6 +318,7 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
   };
 
   const handleAwardTeam = (teamId: string, isCorrect: boolean) => {
+    const now = Date.now();
     if (isCorrect) {
       soundEffects.playSuccess();
       confetti({
@@ -318,8 +328,15 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
       setTeams((prev) =>
         prev.map((t) =>
           t.id === teamId
-            ? { ...t, score: t.score + currentQ.points, streak: t.streak + 1 }
-            : t
+            ? {
+                ...t,
+                score: t.score + currentQ.points,
+                streak: t.streak + 1,
+                correctCount: (t.correctCount ?? 0) + 1,
+                lastScoreDelta: currentQ.points,
+                lastUpdatedAtMs: now,
+              }
+            : { ...t, lastScoreDelta: 0 }
         )
       );
       setRevealedAnswer(true);
@@ -328,7 +345,9 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
       soundEffects.playError();
       setTeams((prev) =>
         prev.map((t) =>
-          t.id === teamId ? { ...t, streak: 0 } : t
+          t.id === teamId
+            ? { ...t, streak: 0, lastScoreDelta: 0, lastUpdatedAtMs: now }
+            : t
         )
       );
     }
@@ -565,8 +584,32 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
         })}
       </div>
 
-      {/* Question & Arena Stage */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
+      {/* Live Arena Split: Question Stage + Real-Time Live Team Scoreboard */}
+      <div
+        className={`grid gap-6 items-start ${
+          isScoreboardExpanded ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-12'
+        }`}
+      >
+        {isScoreboardExpanded && (
+          <TeamBattleLiveScoreboard
+            teams={teams}
+            roomCode={joinedRoomCode}
+            joinedTeamId={joinedTeamId}
+            activeAnsweringTeamId={activeAnsweringTeam}
+            currentRoundNumber={currentQuestionIndex + 1}
+            totalRounds={BATTLE_QUESTIONS.length}
+            isBigScreen={isBigScreen}
+            expanded
+            onToggleExpand={() => setIsScoreboardExpanded(false)}
+          />
+        )}
+
+        {/* Question & Arena Stage */}
+        <div
+          className={`${
+            isScoreboardExpanded ? '' : 'xl:col-span-7'
+          } p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-6`}
+        >
         
         {/* Stage Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -719,6 +762,23 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
           </button>
         </div>
 
+      </div>
+
+        {!isScoreboardExpanded && (
+          <div className="xl:col-span-5">
+            <TeamBattleLiveScoreboard
+              teams={teams}
+              roomCode={joinedRoomCode}
+              joinedTeamId={joinedTeamId}
+              activeAnsweringTeamId={activeAnsweringTeam}
+              currentRoundNumber={currentQuestionIndex + 1}
+              totalRounds={BATTLE_QUESTIONS.length}
+              isBigScreen={isBigScreen}
+              expanded={false}
+              onToggleExpand={() => setIsScoreboardExpanded(true)}
+            />
+          </div>
+        )}
       </div>
 
     </div>

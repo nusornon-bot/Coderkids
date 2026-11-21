@@ -22,7 +22,6 @@ export const VALID_MAIN_TABS = new Set([
   'digitalLibrary',
   'stemProjects',
   'binaryLab',
-  'bebrasArena',
   'aiPromptLab',
   'microbitDataLogger',
   'musicLab',

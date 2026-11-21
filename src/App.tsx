@@ -88,7 +88,6 @@ const StemProjectHub = lazyNamed(() => import('./components/StemProjectHub.tsx')
 const BinaryPixelArtLab = lazyNamed(() => import('./components/BinaryPixelArtLab.tsx'), 'BinaryPixelArtLab');
 const RubricAssessmentModal = lazyNamed(() => import('./components/RubricAssessmentModal.tsx'), 'RubricAssessmentModal');
 const ParentTeacherKitModal = lazyNamed(() => import('./components/ParentTeacherKitModal.tsx'), 'ParentTeacherKitModal');
-const BebrasArena = lazyNamed(() => import('./components/BebrasArena.tsx'), 'BebrasArena');
 const AiPromptLab = lazyNamed(() => import('./components/AiPromptLab.tsx'), 'AiPromptLab');
 const MicrobitDataLogger = lazyNamed(() => import('./components/MicrobitDataLogger.tsx'), 'MicrobitDataLogger');
 const ClassroomBattleModal = lazyNamed(() => import('./components/ClassroomBattleModal.tsx'), 'ClassroomBattleModal');
@@ -1855,7 +1854,6 @@ export default function App() {
               {activeTab === 'buddySystem' && '👥 ระบบคู่หูเรียนรู้ & แผงควบคุมส่งอิโมจิให้กำลังใจ (Buddy System)'}
               {activeTab === 'stemProjects' && '🚀 คลังโครงงาน STEM / STEAM Project Hub & Project Canvas A4'}
               {activeTab === 'binaryLab' && '👾 ห้องแล็บเลขฐานสอง Binary Pixel Art 8×8 & รหัสลับสายลับ ASCII'}
-              {activeTab === 'bebrasArena' && '🦫 เวทีประลองการคิดเชิงคำนวณมาตรฐานสากล Bebras Thailand Arena'}
               {activeTab === 'aiPromptLab' && '🤖 ห้องทดลองปัญญาประดิษฐ์ Kids AI & Safe Prompting Lab'}
               {activeTab === 'microbitDataLogger' && '📈 บันทึกข้อมูลและพล็อตกราฟวิทยาศาสตร์ Micro:bit IoT Data Logger'}
               {activeTab === 'pdpaConsent' && '📜 เครื่องมือสร้างหนังสือยินยอม PDPA & นโยบายความเป็นส่วนตัวสำหรับโครงงานดิจิทัล'}
@@ -2447,15 +2445,6 @@ export default function App() {
         {/* ----------------- VIEW: BINARY PIXEL ART & SECRET CIPHER LAB ----------------- */}
         {activeTab === 'binaryLab' && (
           <BinaryPixelArtLab
-            onBack={() => setActiveTab('dashboard')}
-            addPoints={addPoints}
-            onCelebrate={handleTriggerManualCelebration}
-          />
-        )}
-
-        {/* ----------------- VIEW: BEBRAS THAILAND ARENA ----------------- */}
-        {activeTab === 'bebrasArena' && (
-          <BebrasArena
             onBack={() => setActiveTab('dashboard')}
             addPoints={addPoints}
             onCelebrate={handleTriggerManualCelebration}

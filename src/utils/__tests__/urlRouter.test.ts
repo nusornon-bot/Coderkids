@@ -34,8 +34,9 @@ describe('urlRouter.parseRouteFromUrl', () => {
     });
   });
 
-  it('returns null for unknown or empty tab', () => {
+  it('returns null for unknown, removed, or empty tab', () => {
     expect(parseRouteFromUrl('')).toBeNull();
     expect(parseRouteFromUrl('?tab=unknownModule')).toBeNull();
+    expect(parseRouteFromUrl('?tab=bebrasArena')).toBeNull();
   });
 });

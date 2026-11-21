@@ -443,7 +443,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             }`}
           >
             <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>2. ฝึกแล็บ &amp; มินิเกม (21)</span>
+            <span>2. ฝึกแล็บ &amp; มินิเกม (20)</span>
           </button>
 
           <button
@@ -898,7 +898,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       { step: '1', label: 'สืบค้นขั้นสูง & กฎหมาย PDPA', badge: 'ว 4.2 ป.6/3–4', tab: 'safety', sub: 'searchLab' },
                       { step: '2', label: 'Binary Search & โจทย์ O-NET', badge: 'ว 4.2 ป.6/1', tab: 'thinking', sub: 'logicLab' },
                       { step: '3', label: 'Micro:bit & Python Playground', badge: 'ว 4.2 ป.6/2', tab: 'juniorPlayground', sub: undefined },
-                      { step: '4', label: 'เวทีประลอง Bebras & AI Lab', badge: 'ท้าทาย ป.6', tab: 'bebrasArena', sub: undefined },
+                      { step: '4', label: 'ห้องปฏิบัติการ AI & Machine Learning Lab', badge: 'ท้าทาย ป.6', tab: 'kidsAILab', sub: undefined },
                     ]
                 ).map((item) => (
                   <button
@@ -1167,13 +1167,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </section>
       )}
 
-      {/* ----------------- ขั้นที่ 2: ฝึกทักษะปฏิบัติการ & สังเวียนประลองโค้ด (ครบ 21 ระบบ) ----------------- */}
+      {/* ----------------- ขั้นที่ 2: ฝึกทักษะปฏิบัติการ & สังเวียนประลองโค้ด (ครบ 20 ระบบ) ----------------- */}
       {(activeCategory === 'all' || activeCategory === 'labs') && (
         <section className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
             <div>
               <div className="text-xs font-bold text-amber-600 dark:text-amber-400">
-                ขั้นตอนที่ 2 ของการเรียนรู้ · ฝึกแก้โจทย์และลงมือปฏิบัติให้คล่องแคล่ว (ครบทั้ง 21 ระบบแล็บ &amp; มินิเกม)
+                ขั้นตอนที่ 2 ของการเรียนรู้ · ฝึกแก้โจทย์และลงมือปฏิบัติให้คล่องแคล่ว (ครบทั้ง 20 ระบบแล็บ &amp; มินิเกม)
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">
                 มินิแล็บฝึกทักษะ &amp; สังเวียนประลองการคิดเชิงคำนวณ
@@ -1186,32 +1186,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           {/* 3 สังเวียนหลักยอดนิยม */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div
-              onClick={() => onNavigate('bebrasArena')}
-              className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-400 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-11 h-11 rounded-2xl bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xl">
-                    <Brain className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                    ฝึกคิดเชิงคำนวณ · 8 ภารกิจ
-                  </span>
-                </div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                  Bebras Thailand Arena
-                </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  ฝึกแก้ปัญหาเชาวน์ปัญญา 4 เสาหลักการคิดเชิงคำนวณ: เขื่อนบีเวอร์ สับรางรถไฟ ถอดรหัสลูป และแยกส่วนปัญหา
-                </p>
-              </div>
-              <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
-                <span>เข้าฝึกโจทย์ Bebras</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
             <div
               onClick={() => (onOpenClassroomBattle ? onOpenClassroomBattle() : onNavigate('classroomBattle'))}
               className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-400 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
@@ -1293,32 +1267,32 @@ export const Dashboard: React.FC<DashboardProps> = ({
             )}
           </div>
 
-          {/* ครบทั้ง 21 ระบบในเมนู "แล็บ & มินิเกม" แบ่งตาม 5 ขั้นตอนการเรียนรู้ */}
+          {/* ครบทั้ง 20 ระบบในเมนู "แล็บ & มินิเกม" แบ่งตาม 5 ขั้นตอนการเรียนรู้ */}
           <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-7 shadow-sm space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                   <Zap className="w-5 h-5 text-amber-500" />
-                  <span>รวมทุกระบบในเมนู &ldquo;แล็บ &amp; มินิเกม&rdquo; (ครบทั้ง 21 ระบบ)</span>
+                  <span>รวมทุกระบบในเมนู &ldquo;แล็บ &amp; มินิเกม&rdquo; (ครบทั้ง 20 ระบบ)</span>
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   คลิกเลือกระบบแล็บปฏิบัติการหรือมินิเกมที่ต้องการฝึกฝนได้ทันทีตามขั้นตอนการเรียนรู้
                 </p>
               </div>
               <span className="inline-flex items-center px-3 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-bold shrink-0">
-                21 ระบบปฏิบัติการ &amp; มินิเกม
+                20 ระบบปฏิบัติการ &amp; มินิเกม
               </span>
             </div>
 
-            {/* หมวดย่อยที่ 1: ฝึกคิดเชิงคำนวณ & อัลกอริทึม (1–4) */}
+            {/* หมวดย่อยที่ 1: ฝึกคิดเชิงคำนวณ & อัลกอริทึม (1–3) */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-extrabold text-amber-600 dark:text-amber-400">
-                  ขั้นที่ 1 · ฝึกคิดเชิงคำนวณ &amp; อัลกอริทึม (ระบบที่ 1–4)
+                  ขั้นที่ 1 · ฝึกคิดเชิงคำนวณ &amp; อัลกอริทึม (ระบบที่ 1–3)
                 </div>
                 <span className="text-[11px] text-slate-400">ปูพื้นฐานตรรกะก่อนลงมือเขียนโค้ด</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <button
                   type="button"
                   onClick={() => onNavigate('mazeRunner')}
@@ -1348,33 +1322,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => onNavigate('bebrasArena')}
-                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-slate-200 dark:border-slate-700 hover:border-amber-400 transition-all text-left flex flex-col justify-between group cursor-pointer"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center text-base">
-                        🦫
-                      </div>
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
-                        8 ภารกิจ
-                      </span>
-                    </div>
-                    <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">
-                      2. Bebras Thailand Arena
-                    </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                      โจทย์เชาวน์ปัญญาการคิดเชิงคำนวณมาตรฐานสากล ฝึกแก้ปัญหาแบบไม่ต้องเขียนโค้ด
-                    </p>
-                  </div>
-                  <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-amber-600 dark:text-amber-400">
-                    <span>เข้าสังเวียน Bebras</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </div>
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => onNavigate('binaryLab')}
                   className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border border-slate-200 dark:border-slate-700 hover:border-emerald-400 transition-all text-left flex flex-col justify-between group cursor-pointer"
                 >
@@ -1388,7 +1335,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                      3. Binary Pixel Art &amp; รหัสลับ ASCII
+                      2. Binary Pixel Art &amp; รหัสลับ ASCII
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ระบายภาพพิกเซล 8×8 ด้วยรหัสเลขฐานสอง (0 และ 1) และถอดรหัสข้อความลับสายลับ
@@ -1415,7 +1362,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                      4. คลังใบงาน Unplugged Coding
+                      3. คลังใบงาน Unplugged Coding
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ทำแบบฝึกหัดผังงานและอัลกอริทึมแบบไม่ใช้คอมพิวเตอร์ หรือสั่งพิมพ์ใบงาน A4 พร้อมเฉลย
@@ -1429,11 +1376,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* หมวดย่อยที่ 2: ฝึกเขียนโค้ด & แก้บั๊กโปรแกรม (5–8) */}
+            {/* หมวดย่อยที่ 2: ฝึกเขียนโค้ด & แก้บั๊กโปรแกรม (4–7) */}
             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-extrabold text-indigo-600 dark:text-indigo-400">
-                  ขั้นที่ 2 · ฝึกเขียนโค้ด &amp; แก้บั๊กโปรแกรม (ระบบที่ 5–8)
+                  ขั้นที่ 2 · ฝึกเขียนโค้ด &amp; แก้บั๊กโปรแกรม (ระบบที่ 4–7)
                 </div>
                 <span className="text-[11px] text-slate-400">ฝึกเขียนโค้ดจริง ไล่การทำงานทีละบรรทัด และล่าบั๊ก</span>
               </div>
@@ -1453,7 +1400,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                      5. Junior Code Playground
+                      4. Junior Code Playground
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ห้องทดลองรันโค้ด Python &amp; JavaScript สำหรับผู้เริ่มต้น พร้อมโจทย์ฝึกหัดตรวจคำตอบอัตโนมัติ
@@ -1480,7 +1427,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-violet-600 dark:group-hover:text-violet-400">
-                      6. จำลองโค้ดทีละขั้น (Code Tracer)
+                      5. จำลองโค้ดทีละขั้น (Code Tracer)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ดูการเปลี่ยนค่าตัวแปร เงื่อนไข If-Else และรอบการทำงานของ Loop แบบ Step-by-Step
@@ -1507,7 +1454,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400">
-                      7. ภารกิจล่าบั๊กประจำวัน (Bug Hunter)
+                      6. ภารกิจล่าบั๊กประจำวัน (Bug Hunter)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ค้นหาจุดผิดพลาดในบล็อกคำสั่ง Scratch และโค้ด Python แล้วแก้ไขให้ทำงานถูกต้อง
@@ -1534,7 +1481,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400">
-                      8. Kids Code Typer (ฝึกพิมพ์โค้ด)
+                      7. Kids Code Typer (ฝึกพิมพ์โค้ด)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ฝึกพิมพ์คำศัพท์โค้ดดิ้ง Python, Scratch, Micro:bit และคำศัพท์ดิจิทัลวัดความเร็ว WPM
@@ -1548,11 +1495,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* หมวดย่อยที่ 3: ฮาร์ดแวร์ 3D, IoT & โครงงาน STEM (9–13) */}
+            {/* หมวดย่อยที่ 3: ฮาร์ดแวร์ 3D, IoT & โครงงาน STEM (8–12) */}
             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-extrabold text-teal-600 dark:text-teal-400">
-                  ขั้นที่ 3 · ฮาร์ดแวร์ 3D, IoT &amp; โครงงาน STEM (ระบบที่ 9–13)
+                  ขั้นที่ 3 · ฮาร์ดแวร์ 3D, IoT &amp; โครงงาน STEM (ระบบที่ 8–12)
                 </div>
                 <span className="text-[11px] text-slate-400">สำรวจบอร์ดสมองกล 3 มิติ บันทึกค่าเซนเซอร์ และสร้างโครงงาน</span>
               </div>
@@ -1572,7 +1519,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400">
-                      9. คลัง e-Book &amp; ฮาร์ดแวร์ 3D
+                      8. คลัง e-Book &amp; ฮาร์ดแวร์ 3D
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       อ่านหนังสืออิเล็กทรอนิกส์ 12 เล่มพร้อมแบบทดสอบท้ายเล่ม &amp; สำรวจบอร์ด 3D 360°
@@ -1599,7 +1546,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">
-                      10. Micro:bit Music Lab
+                      9. Micro:bit Music Lab
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       แต่งทำนองดนตรี 16 จังหวะ ดูคลื่นความถี่เสียง และแปลงเป็นโค้ด MakeCode/Python
@@ -1626,7 +1573,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400">
-                      11. IoT Data Logger &amp; Science
+                      10. IoT Data Logger &amp; Science
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       บันทึกข้อมูลเซนเซอร์อุณหภูมิ แสง เสียง ความเร่ง และพล็อตกราฟวิทยาศาสตร์
@@ -1653,7 +1600,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
-                      12. คลังโครงงาน STEM Project Hub
+                      11. คลังโครงงาน STEM Project Hub
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       คลังโครงงานต้นแบบ 12 โครงงาน พร้อมวงจร โค้ดตัวอย่าง และใบงาน Canvas A4
@@ -1680,7 +1627,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                      13. โครงงานสะเต็มศึกษา (STEM 5E)
+                      12. โครงงานสะเต็มศึกษา (STEM 5E)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       บูรณาการ 4 ศาสตร์ S-T-E-M พร้อมจำลองการทำงานของเซนเซอร์และพิมพ์ใบงาน
@@ -1694,11 +1641,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* หมวดย่อยที่ 4: ปัญญาประดิษฐ์ & รู้เท่าทัน AI (14–15) */}
+            {/* หมวดย่อยที่ 4: ปัญญาประดิษฐ์ & รู้เท่าทัน AI (13–14) */}
             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-extrabold text-purple-600 dark:text-purple-400">
-                  ขั้นที่ 4 · ปัญญาประดิษฐ์ &amp; รู้เท่าทัน AI (ระบบที่ 14–15)
+                  ขั้นที่ 4 · ปัญญาประดิษฐ์ &amp; รู้เท่าทัน AI (ระบบที่ 13–14)
                 </div>
                 <span className="text-[11px] text-slate-400">ฝึกเทรนโมเดล AI และเรียนรู้การเขียนคำสั่ง Prompt อย่างปลอดภัย</span>
               </div>
@@ -1718,7 +1665,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">
-                      14. Kids AI &amp; Machine Learning Lab (ฝึกสอน AI แยกประเภทข้อมูล)
+                      13. Kids AI &amp; Machine Learning Lab (ฝึกสอน AI แยกประเภทข้อมูล)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ทดลองป้อนข้อมูลตัวอย่าง (Training Data) ฝึกสอนโมเดล AI คัดแยกขยะรีไซเคิล ท่าทาง และอารมณ์ข้อความ
@@ -1745,7 +1692,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400">
-                      15. Kids AI &amp; Safe Prompting Lab (เขียน Prompt &amp; รู้ทัน Deepfake)
+                      14. Kids AI &amp; Safe Prompting Lab (เขียน Prompt &amp; รู้ทัน Deepfake)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ฝึกตั้งคำถามสั่งงาน AI อย่างปลอดภัย ไม่เปิดเผยข้อมูลส่วนตัว และฝึกสังเกตภาพ/เสียงสังเคราะห์ Deepfake
@@ -1759,11 +1706,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
-            {/* หมวดย่อยที่ 5: ประลองความเร็ว, ส่งงาน & สะสมรางวัล (16–21) */}
+            {/* หมวดย่อยที่ 5: ประลองความเร็ว, ส่งงาน & สะสมรางวัล (15–20) */}
             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-extrabold text-rose-600 dark:text-rose-400">
-                  ขั้นที่ 5 · ประลองความเร็ว, ส่งงาน &amp; สะสมรางวัล (ระบบที่ 16–21)
+                  ขั้นที่ 5 · ประลองความเร็ว, ส่งงาน &amp; สะสมรางวัล (ระบบที่ 15–20)
                 </div>
                 <span className="text-[11px] text-slate-400">ร่วมทีมแข่งขันในชั้นเรียน ส่งการบ้าน และสะสมการ์ด/อวตาร</span>
               </div>
@@ -1783,7 +1730,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400">
-                      16. Pair Programming Arena
+                      15. Pair Programming Arena
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       คู่หูเขียนโค้ด (Driver &amp; Navigator) 2 ผู้เล่นบนหน้าจอเดียวกัน สลับบทบาทแก้โจทย์อัลกอริทึม
@@ -1810,7 +1757,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400">
-                      17. สนามประลองทีม (Team Battle Arena)
+                      16. สนามประลองทีม (Team Battle Arena)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       แบ่งกลุ่ม 4 ทีมแข่งขันตอบคำถามวิทยาการคำนวณสดหน้าชั้นเรียนสำหรับขึ้นจอโปรเจกเตอร์
@@ -1837,7 +1784,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400">
-                      18. Live Classroom Battle
+                      17. Live Classroom Battle
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       แข่งขันแก้บั๊กและตอบโจทย์โค้ดดิ้งแบบจับเวลาในชั้นเรียน สะสมคะแนนโบนัสพิเศษ
@@ -1864,7 +1811,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">
-                      18.5 Live Classroom O-NET Battle
+                      17.5 Live Classroom O-NET Battle
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ประลองคลังข้อสอบ O-NET ป.6 สดในชั้นเรียนด้วย Game PIN สุ่มข้อสอบจาก 10 ชุดมาตรฐาน
@@ -1891,7 +1838,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">
-                      19. การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)
+                      18. การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       สะสมการ์ดนักบุกเบิกคอมพิวเตอร์ระดับโลกและฮีโร่โค้ดดิ้ง 12 ใบตามระดับ XP ของผู้เรียน
@@ -1918,7 +1865,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-pink-600 dark:group-hover:text-pink-400">
-                      20. ร้านค้าอวตาร (Avatar Shop)
+                      19. ร้านค้าอวตาร (Avatar Shop)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       นำแต้มจากการเรียนและทำภารกิจมาแลกกรอบโปรไฟล์ ฉายา และอวตารสุดเท่ประจำตัว
@@ -1945,7 +1892,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400">
-                      21. กล่องส่งการบ้าน (Homework Dropzone)
+                      20. กล่องส่งการบ้าน (Homework Dropzone)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                       ส่งลิงก์ชิ้นงาน Scratch / Micro:bit หรือสรุปงานประจำคาบเรียน พร้อมรับคำชมจากคุณครู

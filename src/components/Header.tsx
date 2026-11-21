@@ -212,7 +212,6 @@ export const Header: React.FC<HeaderProps> = ({
     'digitalLibrary',
     'stemProjects',
     'binaryLab',
-    'bebrasArena',
     'aiPromptLab',
     'microbitDataLogger',
     'musicLab',
@@ -459,7 +458,7 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className="overflow-y-auto space-y-1 pr-1 overscroll-contain custom-scrollbar flex-1">
                     {/* กลุ่มที่ 1: คิดเชิงคำนวณ & อัลกอริทึม */}
                     <div className="px-2.5 pt-1.5 pb-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                      ขั้นที่ 1 · ฝึกคิดเชิงคำนวณ &amp; อัลกอริทึม (1–4)
+                      ขั้นที่ 1 · ฝึกคิดเชิงคำนวณ &amp; อัลกอริทึม (1–3)
                     </div>
 
                     {onOpenMazeRunner && (
@@ -481,26 +480,6 @@ export const Header: React.FC<HeaderProps> = ({
                     )}
 
                     <button
-                      onClick={() => handleSelectTab('bebrasArena')}
-                      className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
-                        activeTab === 'bebrasArena'
-                          ? 'bg-amber-50 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 font-bold'
-                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-200'
-                      }`}
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center shrink-0 text-sm">
-                        🦫
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
-                          <span className="truncate">2. Bebras Thailand Arena</span>
-                          <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">8 ภารกิจ</span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">โจทย์มาตรฐานสากล 4 เสาหลักการคิดเชิงคำนวณ</div>
-                      </div>
-                    </button>
-
-                    <button
                       onClick={() => handleSelectTab('binaryLab')}
                       className={`w-full flex items-center gap-3 p-2 rounded-xl text-left transition-all cursor-pointer ${
                         activeTab === 'binaryLab'
@@ -513,7 +492,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
-                          <span className="truncate">3. Binary Pixel Art &amp; รหัสลับ ASCII</span>
+                          <span className="truncate">2. Binary Pixel Art &amp; รหัสลับ ASCII</span>
                           <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">10 ภาพ</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">เรียนรู้เลขฐานสอง 0/1 และถอดรหัสภาพ 8×8</div>
@@ -530,7 +509,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-400">
-                            <span className="truncate">4. คลังใบงาน Unplugged Coding</span>
+                            <span className="truncate">3. คลังใบงาน Unplugged Coding</span>
                             <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">8 ใบงาน</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">กิจกรรมฝึกคิดเชิงคำนวณแบบไม่ใช้คอมพิวเตอร์</div>
@@ -540,7 +519,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* กลุ่มที่ 2: ฝึกเขียนโค้ด & แก้บั๊กโปรแกรม */}
                     <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
-                      ขั้นที่ 2 · ฝึกเขียนโค้ด &amp; แก้บั๊กโปรแกรม (5–8)
+                      ขั้นที่ 2 · ฝึกเขียนโค้ด &amp; แก้บั๊กโปรแกรม (4–7)
                     </div>
 
                     <button
@@ -556,7 +535,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
-                          <span className="truncate">5. Junior Code Playground</span>
+                          <span className="truncate">4. Junior Code Playground</span>
                           <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">8 โจทย์</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ทดลองรันบล็อกคำสั่ง, Python &amp; Micro:bit JS</div>
@@ -573,7 +552,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-cyan-700 dark:text-cyan-300">
-                            <span className="truncate">6. จำลองโค้ดทีละขั้น (Code Tracer)</span>
+                            <span className="truncate">5. จำลองโค้ดทีละขั้น (Code Tracer)</span>
                             <span className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400 shrink-0">6 โจทย์</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ติดตามค่าตัวแปร ลูป และเงื่อนไขทีละบรรทัด</div>
@@ -591,7 +570,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-rose-600 dark:text-rose-400">
-                            <span className="truncate">7. ภารกิจล่าบั๊กประจำวัน (+15 EXP)</span>
+                            <span className="truncate">6. ภารกิจล่าบั๊กประจำวัน (+15 EXP)</span>
                             <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 shrink-0">6 ด่าน</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ค้นหาและแก้ไขข้อผิดพลาดในโปรแกรม</div>
@@ -609,7 +588,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
-                            <span className="truncate">8. Kids Code Typer (ฝึกพิมพ์โค้ด)</span>
+                            <span className="truncate">7. Kids Code Typer (ฝึกพิมพ์โค้ด)</span>
                             <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">40 ชุด</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ฝึกพิมพ์คำสั่งโค้ดและวงเล็บ 3 ระดับความยาก</div>
@@ -619,7 +598,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* กลุ่มที่ 3: ฮาร์ดแวร์ 3D, IoT & โครงงาน STEM */}
                     <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-teal-600 dark:text-teal-400">
-                      ขั้นที่ 3 · ฮาร์ดแวร์ 3D, IoT &amp; โครงงาน STEM (9–13)
+                      ขั้นที่ 3 · ฮาร์ดแวร์ 3D, IoT &amp; โครงงาน STEM (8–12)
                     </div>
 
                     <button
@@ -635,7 +614,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
-                          <span className="truncate">9. คลัง e-Book &amp; ฮาร์ดแวร์ 3D</span>
+                          <span className="truncate">8. คลัง e-Book &amp; ฮาร์ดแวร์ 3D</span>
                           <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">12+12</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">สำรวจโมเดล 3D หมุน 360° &amp; หนังสือเรียน ว 4.2</div>
@@ -655,7 +634,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
-                          <span className="truncate">10. Micro:bit Music Lab</span>
+                          <span className="truncate">9. Micro:bit Music Lab</span>
                           <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">20 เพลง</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แต่งทำนองเพลง 16 จังหวะ &amp; แปลงโค้ด MakeCode</div>
@@ -675,7 +654,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
-                          <span className="truncate">11. IoT Data Logger &amp; Science</span>
+                          <span className="truncate">10. IoT Data Logger &amp; Science</span>
                           <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">8 ช่อง</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">อ่านค่าเซนเซอร์สด 8 ช่อง &amp; บันทึกการทดลองวิทย์</div>
@@ -695,7 +674,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
-                          <span className="truncate">12. คลังโครงงาน STEM Project Hub</span>
+                          <span className="truncate">11. คลังโครงงาน STEM Project Hub</span>
                           <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">12 โครงงาน</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">โครงงานต้นแบบ IoT + ใบงาน Project Canvas A4</div>
@@ -712,7 +691,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
-                            <span className="truncate">13. โครงงานสะเต็มศึกษา (STEM 5E)</span>
+                            <span className="truncate">12. โครงงานสะเต็มศึกษา (STEM 5E)</span>
                             <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">10 ชุด</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">จำลองโครงงาน 5E แปลงผักอัจฉริยะ &amp; หุ่นยนต์</div>
@@ -722,7 +701,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* กลุ่มที่ 4: ปัญญาประดิษฐ์ (AI Literacy) */}
                     <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-purple-600 dark:text-purple-400">
-                      ขั้นที่ 4 · ปัญญาประดิษฐ์ &amp; รู้เท่าทัน AI (14–15)
+                      ขั้นที่ 4 · ปัญญาประดิษฐ์ &amp; รู้เท่าทัน AI (13–14)
                     </div>
 
                     <button
@@ -738,7 +717,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
-                          <span className="truncate">14. Kids AI Lab (ฝึกสอน AI)</span>
+                          <span className="truncate">13. Kids AI Lab (ฝึกสอน AI)</span>
                           <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">18+8</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">เทรนโมเดล AI แยกประเภทข้อมูล &amp; คัดแยกขยะ</div>
@@ -758,7 +737,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
-                          <span className="truncate">15. Kids AI &amp; Safe Prompting</span>
+                          <span className="truncate">14. Kids AI &amp; Safe Prompting</span>
                           <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">8+14</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ฝึกเขียนคำสั่ง Prompt ปลอดภัย &amp; รู้ทัน Deepfake</div>
@@ -767,7 +746,7 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* กลุ่มที่ 5: ประลองความเร็ว, ส่งงาน & สะสมรางวัล */}
                     <div className="px-2.5 pt-2.5 pb-1 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-rose-600 dark:text-rose-400">
-                      ขั้นที่ 5 · ประลองความเร็ว, ส่งงาน &amp; สะสมรางวัล (16–21)
+                      ขั้นที่ 5 · ประลองความเร็ว, ส่งงาน &amp; สะสมรางวัล (15–20)
                     </div>
 
                     {onOpenPairArena && (
@@ -780,7 +759,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-rose-700 dark:text-rose-300">
-                            <span className="truncate">16. Pair Programming Arena</span>
+                            <span className="truncate">15. Pair Programming Arena</span>
                             <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 shrink-0">8 ด่าน</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ฝึกเขียนโค้ดคู่หู คนขับ-ผู้นำทาง บนจอเดียวกัน</div>
@@ -801,7 +780,7 @@ export const Header: React.FC<HeaderProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-rose-700 dark:text-rose-300">
-                          <span className="truncate">17. สนามประลองทีม (Team Battle)</span>
+                          <span className="truncate">16. สนามประลองทีม (Team Battle)</span>
                           <span className="text-[10px] font-mono text-rose-600 dark:text-rose-400 shrink-0">10 ข้อ</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แข่งขันตอบคำถามวิทยาการคำนวณ 4 ทีม</div>
@@ -818,7 +797,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-400">
-                            <span className="truncate">18. Live Classroom Battle</span>
+                            <span className="truncate">17. Live Classroom Battle</span>
                             <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">144 ข้อ</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">แข่งแก้บั๊กและโค้ดดิ้งสดในชั้นเรียน</div>
@@ -836,7 +815,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-orange-700 dark:text-orange-400">
-                            <span className="truncate">18.5 Live Classroom O-NET Battle</span>
+                            <span className="truncate">17.5 Live Classroom O-NET Battle</span>
                             <span className="text-[10px] font-mono text-orange-600 dark:text-orange-400 shrink-0">100 ข้อ</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ประลองคลังข้อสอบ O-NET ป.6 สดด้วย PIN</div>
@@ -854,7 +833,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-pink-700 dark:text-pink-300">
-                            <span className="truncate">19. การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)</span>
+                            <span className="truncate">18. การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)</span>
                             <span className="text-[10px] font-mono text-pink-600 dark:text-pink-400 shrink-0">12 ใบ</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">สมุดสะสมการ์ดพลังความรู้ 3D &amp; พิมพ์ A4</div>
@@ -872,7 +851,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-purple-700 dark:text-purple-300">
-                            <span className="truncate">20. ร้านค้าอวตาร (Avatar Shop)</span>
+                            <span className="truncate">19. ร้านค้าอวตาร (Avatar Shop)</span>
                             <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">22 ไอเทม</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">นำแต้มมาแลกหมวก แว่นตา และสัตว์เลี้ยงคู่ใจ</div>
@@ -890,7 +869,7 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-teal-700 dark:text-teal-300">
-                            <span className="truncate">21. กล่องส่งการบ้าน (Homework)</span>
+                            <span className="truncate">20. กล่องส่งการบ้าน (Homework)</span>
                             <span className="text-[10px] font-mono text-teal-600 dark:text-teal-400 shrink-0">12 หัวข้อ</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ส่งภาพใบงานและแฟ้มสะสมผลงานประจำบท</div>
@@ -1868,7 +1847,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Category 2: แล็บ & มินิเกม (เรียงตามลำดับการฝึกทักษะ 1–21) */}
+            {/* Category 2: แล็บ & มินิเกม (เรียงตามลำดับการฝึกทักษะ 1–20) */}
             <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-3 border border-slate-200/80 dark:border-slate-800">
               <div className="text-xs font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
@@ -1888,21 +1867,12 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
                 <button
-                  onClick={() => handleSelectTab('bebrasArena')}
-                  className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
-                    activeTab === 'bebrasArena' ? 'bg-amber-600 text-white' : 'text-amber-700 dark:text-amber-300 hover:bg-amber-100/60'
-                  }`}
-                >
-                  <span>2. 🦫 Bebras Thailand Arena</span>
-                  <span className="text-[10px] font-mono">8 ภารกิจ</span>
-                </button>
-                <button
                   onClick={() => handleSelectTab('binaryLab')}
                   className={`w-full text-left p-2.5 rounded-xl text-xs font-semibold flex items-center justify-between ${
                     activeTab === 'binaryLab' ? 'bg-emerald-600 text-white' : 'text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60'
                   }`}
                 >
-                  <span>3. 👾 Binary Pixel Art &amp; รหัสลับ ASCII</span>
+                  <span>2. 👾 Binary Pixel Art &amp; รหัสลับ ASCII</span>
                   <span className="text-[10px] font-mono">10 ภาพ</span>
                 </button>
                 {onOpenUnpluggedWorksheets && (
@@ -1910,7 +1880,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenUnpluggedWorksheets)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
                   >
-                    <span>4. 📄 คลังใบงาน Unplugged Coding</span>
+                    <span>3. 📄 คลังใบงาน Unplugged Coding</span>
                     <span className="text-[10px] font-mono">8 ใบงาน</span>
                   </button>
                 )}
@@ -1920,7 +1890,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'juniorPlayground' ? 'bg-purple-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
                   }`}
                 >
-                  <span>5. 💻 Junior Code Playground</span>
+                  <span>4. 💻 Junior Code Playground</span>
                   <span className="text-[10px] font-mono">8 โจทย์</span>
                 </button>
                 {onOpenCodeTracer && (
@@ -1928,7 +1898,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenCodeTracer)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100/60 flex items-center justify-between"
                   >
-                    <span>6. 🔍 จำลองโค้ดทีละขั้น (Code Tracer)</span>
+                    <span>5. 🔍 จำลองโค้ดทีละขั้น (Code Tracer)</span>
                     <span className="text-[10px] font-mono">6 โจทย์</span>
                   </button>
                 )}
@@ -1937,7 +1907,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenBugHunter)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100/60 flex items-center justify-between"
                   >
-                    <span>7. 🐞 ภารกิจล่าบั๊กประจำวัน (+15 EXP)</span>
+                    <span>6. 🐞 ภารกิจล่าบั๊กประจำวัน (+15 EXP)</span>
                     <span className="text-[10px] font-mono">6 ด่าน</span>
                   </button>
                 )}
@@ -1946,7 +1916,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenCodeTyper)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60 flex items-center justify-between"
                   >
-                    <span>8. ⌨️ Kids Code Typer (ฝึกพิมพ์โค้ด)</span>
+                    <span>7. ⌨️ Kids Code Typer (ฝึกพิมพ์โค้ด)</span>
                     <span className="text-[10px] font-mono">40 ชุด</span>
                   </button>
                 )}
@@ -1956,7 +1926,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'digitalLibrary' ? 'bg-teal-600 text-white' : 'text-teal-700 dark:text-teal-300 hover:bg-teal-100/60'
                   }`}
                 >
-                  <span>9. 📖 คลัง e-Book &amp; ฮาร์ดแวร์ 3D</span>
+                  <span>8. 📖 คลัง e-Book &amp; ฮาร์ดแวร์ 3D</span>
                   <span className="text-[10px] font-mono">12+12</span>
                 </button>
                 <button
@@ -1965,7 +1935,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'musicLab' ? 'bg-purple-600 text-white' : 'text-purple-700 dark:text-purple-300 hover:bg-purple-100/60'
                   }`}
                 >
-                  <span>10. 🎵 Micro:bit Music Lab</span>
+                  <span>9. 🎵 Micro:bit Music Lab</span>
                   <span className="text-[10px] font-mono">20 เพลง</span>
                 </button>
                 <button
@@ -1974,7 +1944,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'microbitDataLogger' ? 'bg-teal-600 text-white' : 'text-teal-700 dark:text-teal-300 hover:bg-teal-100/60'
                   }`}
                 >
-                  <span>11. 📈 IoT Data Logger &amp; Science</span>
+                  <span>10. 📈 IoT Data Logger &amp; Science</span>
                   <span className="text-[10px] font-mono">8 ช่อง</span>
                 </button>
                 <button
@@ -1983,7 +1953,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'stemProjects' ? 'bg-indigo-600 text-white' : 'text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100/60'
                   }`}
                 >
-                  <span>12. 🚀 คลังโครงงาน STEM Project Hub</span>
+                  <span>11. 🚀 คลังโครงงาน STEM Project Hub</span>
                   <span className="text-[10px] font-mono">12 โครงงาน</span>
                 </button>
                 {onOpenStemPacks && (
@@ -1991,7 +1961,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenStemPacks)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
                   >
-                    <span>13. 🧪 โครงงานสะเต็มศึกษา (STEM 5E)</span>
+                    <span>12. 🧪 โครงงานสะเต็มศึกษา (STEM 5E)</span>
                     <span className="text-[10px] font-mono">10 ชุด</span>
                   </button>
                 )}
@@ -2001,7 +1971,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'kidsAILab' ? 'bg-purple-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-200/60'
                   }`}
                 >
-                  <span>14. 🧠 Kids AI Lab (ฝึกสอน AI)</span>
+                  <span>13. 🧠 Kids AI Lab (ฝึกสอน AI)</span>
                   <span className="text-[10px] font-mono">18+8</span>
                 </button>
                 <button
@@ -2010,7 +1980,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'aiPromptLab' ? 'bg-purple-600 text-white' : 'text-purple-700 dark:text-purple-300 hover:bg-purple-100/60'
                   }`}
                 >
-                  <span>15. 🤖 Kids AI &amp; Safe Prompting</span>
+                  <span>14. 🤖 Kids AI &amp; Safe Prompting</span>
                   <span className="text-[10px] font-mono">8+14</span>
                 </button>
                 {onOpenPairArena && (
@@ -2018,7 +1988,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenPairArena)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100/60 flex items-center justify-between"
                   >
-                    <span>16. 👥 Pair Programming Arena</span>
+                    <span>15. 👥 Pair Programming Arena</span>
                     <span className="text-[10px] font-mono">8 ด่าน</span>
                   </button>
                 )}
@@ -2028,7 +1998,7 @@ export const Header: React.FC<HeaderProps> = ({
                     activeTab === 'teamBattle' ? 'bg-rose-600 text-white' : 'text-rose-700 dark:text-rose-300 hover:bg-rose-100/60'
                   }`}
                 >
-                  <span>17. ⚔️ สนามประลองทีม (Team Battle)</span>
+                  <span>16. ⚔️ สนามประลองทีม (Team Battle)</span>
                   <span className="text-[10px] font-mono">10 ข้อ</span>
                 </button>
                 {onOpenClassroomBattle && (
@@ -2036,7 +2006,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenClassroomBattle)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
                   >
-                    <span>18. ⚡ Live Classroom Battle</span>
+                    <span>17. ⚡ Live Classroom Battle</span>
                     <span className="text-[10px] font-mono">144 ข้อ</span>
                   </button>
                 )}
@@ -2045,7 +2015,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenOnetBattle)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-orange-700 dark:text-orange-300 hover:bg-orange-100/60 flex items-center justify-between"
                   >
-                    <span>18.5 🎓 Live Classroom O-NET Battle</span>
+                    <span>17.5 🎓 Live Classroom O-NET Battle</span>
                     <span className="text-[10px] font-mono">100 ข้อ</span>
                   </button>
                 )}
@@ -2054,7 +2024,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenHeroCards)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
                   >
-                    <span>19. 🃏 การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)</span>
+                    <span>18. 🃏 การ์ดพลังฮีโร่โค้ดดิ้ง (Hero Cards)</span>
                     <span className="text-[10px] font-mono">12 ใบ</span>
                   </button>
                 )}
@@ -2063,7 +2033,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenAvatarShop)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-100/60 flex items-center justify-between"
                   >
-                    <span>20. 🛍️ ร้านค้าอวตาร (Avatar Shop)</span>
+                    <span>19. 🛍️ ร้านค้าอวตาร (Avatar Shop)</span>
                     <span className="text-[10px] font-mono">22 ไอเทม</span>
                   </button>
                 )}
@@ -2072,7 +2042,7 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => handleAction(onOpenHomeworkDropzone)}
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-100/60 flex items-center justify-between"
                   >
-                    <span>21. 📂 กล่องส่งการบ้าน (Homework)</span>
+                    <span>20. 📂 กล่องส่งการบ้าน (Homework)</span>
                     <span className="text-[10px] font-mono">12 หัวข้อ</span>
                   </button>
                 )}

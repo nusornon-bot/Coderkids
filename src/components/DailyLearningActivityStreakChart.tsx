@@ -93,7 +93,6 @@ export const DailyLearningActivityStreakChart: React.FC<DailyLearningActivityStr
       'Password Lab',
       'Block Maze Runner',
       'Binary Pixel Art',
-      'Bebras Thailand Arena',
       'VR Hardware Lab',
       'Smart Exam Simulator',
       'Showcase & Peer Review',
