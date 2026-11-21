@@ -14,8 +14,19 @@ import {
   Pause,
   Award,
   Crown,
+  KeyRound,
+  AlertTriangle,
+  CheckCircle2,
+  LogOut,
 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects.ts';
+import {
+  normalizeBattleRoomCode,
+  hasJoinedBattleRoomInStorage,
+  markBattleRoomJoinedInStorage,
+  clearBattleRoomJoinInStorage,
+  getDuplicateJoinAlertMessage,
+} from '../utils/battleJoinGuard.ts';
 import confetti from 'canvas-confetti';
 
 interface BattleQuestion {
@@ -134,9 +145,14 @@ interface TeamData {
 export interface TeamBattleArenaProps {
   onAwardPoints: (points: number, reason: string) => void;
   onBack?: () => void;
+  initialRoomCode?: string;
 }
 
-export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({ onAwardPoints, onBack }) => {
+export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
+  onAwardPoints,
+  onBack,
+  initialRoomCode = 'TEAM-401',
+}) => {
   const [teams, setTeams] = useState<TeamData[]>([
     {
       id: 'team_lion',
@@ -183,6 +199,21 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({ onAwardPoints,
   const [revealedAnswer, setRevealedAnswer] = useState(false);
   const [activeAnsweringTeam, setActiveAnsweringTeam] = useState<string | null>(null);
 
+  // Room Join & LocalStorage Duplicate-Join Guard
+  const [roomCodeInput, setRoomCodeInput] = useState<string>(() =>
+    normalizeBattleRoomCode(initialRoomCode) || 'TEAM-401'
+  );
+  const [selectedJoinTeamId, setSelectedJoinTeamId] = useState<string>('team_lion');
+  const [joinedRoomCode, setJoinedRoomCode] = useState<string>(() => {
+    const cleanInitial = normalizeBattleRoomCode(initialRoomCode) || 'TEAM-401';
+    return hasJoinedBattleRoomInStorage('team', cleanInitial) ? cleanInitial : '';
+  });
+  const [joinedTeamId, setJoinedTeamId] = useState<string | null>(null);
+  const [joinNotice, setJoinNotice] = useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
+
   // Timer
   useEffect(() => {
     if (!timerRunning || timerSeconds <= 0) return;
@@ -224,6 +255,57 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({ onAwardPoints,
     soundEffects.playCheer();
     setActiveAnsweringTeam(teamId);
     setTimerRunning(false);
+  };
+
+  const handleJoinBattleRoom = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = normalizeBattleRoomCode(roomCodeInput);
+    if (cleanCode.length < 4) {
+      soundEffects.playError();
+      setJoinNotice({
+        type: 'error',
+        text: 'กรุณากรอกรหัสห้องประลองอย่างน้อย 4 ตัวอักษร',
+      });
+      return;
+    }
+
+    if (hasJoinedBattleRoomInStorage('team', cleanCode)) {
+      soundEffects.playError();
+      setJoinedRoomCode(cleanCode);
+      setJoinNotice({
+        type: 'error',
+        text: getDuplicateJoinAlertMessage(cleanCode, false),
+      });
+      return;
+    }
+
+    const chosenTeam = teams.find((t) => t.id === selectedJoinTeamId) || teams[0];
+    markBattleRoomJoinedInStorage('team', cleanCode, chosenTeam.name);
+    setJoinedRoomCode(cleanCode);
+    setJoinedTeamId(chosenTeam.id);
+    soundEffects.playSuccess();
+    setJoinNotice({
+      type: 'success',
+      text: `เข้าร่วมห้องประลองรหัส ${cleanCode} กับ${chosenTeam.name} เรียบร้อยแล้ว`,
+    });
+  };
+
+  const handleCancelJoinBattleRoom = () => {
+    const cleanInputCode = normalizeBattleRoomCode(roomCodeInput);
+    const targetCode = joinedRoomCode || cleanInputCode;
+    if (targetCode) {
+      clearBattleRoomJoinInStorage('team', targetCode);
+    }
+    if (cleanInputCode && cleanInputCode !== targetCode) {
+      clearBattleRoomJoinInStorage('team', cleanInputCode);
+    }
+    setJoinedRoomCode('');
+    setJoinedTeamId(null);
+    soundEffects.playClick();
+    setJoinNotice({
+      type: 'success',
+      text: `ยกเลิกการเข้าร่วม${targetCode ? `ห้อง ${targetCode} ` : ''}และล้างค่า LocalStorage เรียบร้อยแล้ว สามารถเข้าร่วมห้องประลองใหม่ได้ทันที`,
+    });
   };
 
   const handleAwardTeam = (teamId: string, isCorrect: boolean) => {
@@ -280,13 +362,19 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({ onAwardPoints,
             ⚔️
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
                 สนามประลองปัญญาเป็นทีม (Team Battle Arena)
               </h2>
               <span className="text-[10px] bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300 font-bold px-2 py-0.5 rounded-full">
                 Classroom Co-op
               </span>
+              {joinedRoomCode && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-200 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-700">
+                  <KeyRound className="w-3 h-3" />
+                  <span>รหัสห้องประลอง: {joinedRoomCode}</span>
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               รวมกลุ่มแข่งความเร็ว ตอบโจทย์วิทยาการคำนวณบนสมาร์ตบอร์ดห้องเรียน
@@ -324,6 +412,109 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({ onAwardPoints,
             <span>{isBigScreen ? 'ย่อหน้าต่าง' : 'โหมดฉายจอใหญ่ (Projector)'}</span>
           </button>
         </div>
+      </div>
+
+      {/* Room Join Panel with LocalStorage Duplicate-Join Check */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+        <form
+          onSubmit={handleJoinBattleRoom}
+          className="flex flex-col lg:flex-row lg:items-center justify-between gap-3"
+        >
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+              <KeyRound className="w-4 h-4 text-amber-500" />
+              <span>รหัสห้องประลอง:</span>
+            </div>
+            <input
+              type="text"
+              maxLength={12}
+              value={roomCodeInput}
+              onChange={(e) => {
+                setRoomCodeInput(normalizeBattleRoomCode(e.target.value));
+                if (joinNotice?.type === 'error') {
+                  setJoinNotice(null);
+                }
+              }}
+              placeholder="เช่น TEAM-401"
+              className="w-36 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 font-mono text-sm font-black tracking-wider text-indigo-700 dark:text-amber-300 outline-none focus:border-indigo-500"
+            />
+            <div className="flex flex-wrap items-center gap-1.5">
+              {teams.map((team) => {
+                const isSelected = selectedJoinTeamId === team.id;
+                return (
+                  <button
+                    key={team.id}
+                    type="button"
+                    onClick={() => setSelectedJoinTeamId(team.id)}
+                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-xs'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <span>{team.emoji}</span>
+                    <span className="hidden sm:inline">{team.name.replace('ทีม', '')}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {joinedTeamId && joinedRoomCode && (
+              <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-3 py-1.5 rounded-xl">
+                ทีมของคุณ: {teams.find((t) => t.id === joinedTeamId)?.emoji}{' '}
+                {teams.find((t) => t.id === joinedTeamId)?.name}
+              </span>
+            )}
+            <button
+              type="submit"
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>เข้าร่วมห้องประลอง</span>
+            </button>
+            {(joinedRoomCode || hasJoinedBattleRoomInStorage('team', roomCodeInput)) && (
+              <button
+                type="button"
+                onClick={handleCancelJoinBattleRoom}
+                className="px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-200 border border-rose-300 dark:border-rose-700 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                title="ล้างสถานะการเข้าร่วมใน LocalStorage เพื่อเลือกหรือเข้าร่วมห้องใหม่"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>ยกเลิกการเข้าร่วม</span>
+              </button>
+            )}
+          </div>
+        </form>
+
+        {joinNotice && (
+          <div
+            role="alert"
+            className={`px-4 py-2.5 rounded-2xl border text-xs font-bold flex items-center justify-between gap-2 animate-in fade-in ${
+              joinNotice.type === 'error'
+                ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-700 text-rose-700 dark:text-rose-200'
+                : 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {joinNotice.type === 'error' ? (
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+              )}
+              <span>{joinNotice.text}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setJoinNotice(null)}
+              className="opacity-70 hover:opacity-100 cursor-pointer"
+              aria-label="ปิดการแจ้งเตือน"
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Team Leaderboard Podiums (4 Teams) */}

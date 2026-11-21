@@ -1112,14 +1112,42 @@ export async function closeLiveRoomAndClearParticipantsInFirestore(
   }
 }
 
-export async function joinOrUpdateLiveParticipantInFirestore(params: {
-  roomCode: string;
-  displayName: string;
-  avatar: string;
-  score: number;
-  streak: number;
-  lastAnswerIndex: number;
-}): Promise<boolean> {
+export async function hasParticipantJoinedLiveRoomInFirestore(
+  roomCode: string
+): Promise<boolean> {
+  const cleanCode = clampStr(roomCode, 12, '').toUpperCase();
+  if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
+    return false;
+  }
+
+  const participantId = getLiveParticipantId();
+  try {
+    const ref = doc(db, 'liveRooms', cleanCode, 'participants', participantId);
+    let snap;
+    try {
+      snap = await getDocFromServer(ref);
+    } catch {
+      snap = await getDoc(ref);
+    }
+    return snap.exists();
+  } catch {
+    return false;
+  }
+}
+
+export async function joinOrUpdateLiveParticipantInFirestore(
+  params: {
+    roomCode: string;
+    displayName: string;
+    avatar: string;
+    score: number;
+    streak: number;
+    lastAnswerIndex: number;
+  },
+  options?: {
+    preventDuplicateCreate?: boolean;
+  }
+): Promise<boolean> {
   const cleanCode = clampStr(params.roomCode, 12, '').toUpperCase();
   if (!/^[a-zA-Z0-9_-]{4,12}$/.test(cleanCode)) {
     return false;
@@ -1145,6 +1173,9 @@ export async function joinOrUpdateLiveParticipantInFirestore(params: {
     };
 
     if (snap.exists()) {
+      if (options?.preventDuplicateCreate) {
+        return false;
+      }
       await updateDoc(ref, mutableFields);
     } else {
       await setDoc(

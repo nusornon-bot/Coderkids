@@ -61,11 +61,17 @@ import {
   markClosedRoomRewardClaimed,
 } from '../utils/battleCloseSummary.ts';
 import {
+  hasJoinedBattleRoomInStorage,
+  markBattleRoomJoinedInStorage,
+  getDuplicateJoinAlertMessage,
+} from '../utils/battleJoinGuard.ts';
+import {
   LiveQuizParticipantRecord,
   closeLiveRoomAndClearParticipantsInFirestore,
   createOrUpdateLiveRoomInFirestore,
   getLiveParticipantId,
   getLiveRoomFromFirestore,
+  hasParticipantJoinedLiveRoomInFirestore,
   isCloudFirestoreReadyForUser,
   joinOrUpdateLiveParticipantInFirestore,
   resetLiveRoomScoresInFirestore,
@@ -279,6 +285,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
   const latestParticipantsRef = useRef<LiveQuizParticipantRecord[]>(cloudParticipants);
   const latestScoreRef = useRef<number>(score);
   const latestNicknameRef = useRef<string>(playerNickname || studentName || 'นักเรียน');
+  const awardedXpRoomRef = useRef<string | null>(null);
   latestParticipantsRef.current = cloudParticipants;
   latestScoreRef.current = score;
   latestNicknameRef.current = playerNickname || studentName || 'นักเรียน';
@@ -796,6 +803,14 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
       return;
     }
 
+    if (hasJoinedBattleRoomInStorage('onet', enteredPin)) {
+      setBankNotice({
+        type: 'error',
+        text: getDuplicateJoinAlertMessage(enteredPin, true),
+      });
+      return;
+    }
+
     setIsOpeningOrJoining(true);
     setBankNotice(null);
 
@@ -896,19 +911,49 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
         return;
       }
 
-      try {
-        await joinOrUpdateLiveParticipantInFirestore({
-          roomCode: enteredPin,
-          displayName: playerNickname || studentName || 'นักเรียน',
-          avatar: '🎓',
-          score: 0,
-          streak: 0,
-          lastAnswerIndex: -1,
+      const alreadyJoinedInCloud = await hasParticipantJoinedLiveRoomInFirestore(enteredPin).catch(
+        () => false
+      );
+      if (alreadyJoinedInCloud) {
+        markBattleRoomJoinedInStorage('onet', enteredPin, playerNickname || studentName);
+        setBankNotice({
+          type: 'error',
+          text: getDuplicateJoinAlertMessage(enteredPin, true),
         });
+        return;
+      }
+
+      let duplicateBlockedByCloud = false;
+      try {
+        const joinedOk = await joinOrUpdateLiveParticipantInFirestore(
+          {
+            roomCode: enteredPin,
+            displayName: playerNickname || studentName || 'นักเรียน',
+            avatar: '🎓',
+            score: 0,
+            streak: 0,
+            lastAnswerIndex: -1,
+          },
+          { preventDuplicateCreate: true }
+        );
+        if (!joinedOk) {
+          duplicateBlockedByCloud = true;
+        }
       } catch {
         // Allow gameplay even if cloud write fails (e.g., local-only room)
       }
 
+      if (duplicateBlockedByCloud) {
+        markBattleRoomJoinedInStorage('onet', enteredPin, playerNickname || studentName);
+        setBankNotice({
+          type: 'error',
+          text: getDuplicateJoinAlertMessage(enteredPin, true),
+        });
+        return;
+      }
+
+      markBattleRoomJoinedInStorage('onet', enteredPin, playerNickname || studentName);
+      awardedXpRoomRef.current = null;
       setJoinedRoomCode(enteredPin);
       setJoinedHostName(hostName);
       setSelectedDifficulty(roomDifficulty);
@@ -989,11 +1034,19 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
       soundEffects.play('victory');
       setGameState('podium');
       const earnedXP = Math.max(15, Math.round(score / 6));
-      addPoints(
-        earnedXP,
-        `ประลองสด O-NET Battle ${setLabelText} (${correctCount}/${activeQuestions.length} ข้อ, ${score} pts)`,
-        'thinking'
-      );
+      const xpRoomKey = isTeacher
+        ? isRoomOpenedByTeacher
+          ? gamePin
+          : '__solo_teacher__'
+        : joinedRoomCode || '__solo_student__';
+      if (awardedXpRoomRef.current !== xpRoomKey) {
+        awardedXpRoomRef.current = xpRoomKey;
+        addPoints(
+          earnedXP,
+          `ประลองสด O-NET Battle ${setLabelText} (${correctCount}/${activeQuestions.length} ข้อ, ${score} pts)`,
+          'thinking'
+        );
+      }
       onCelebrate(
         correctCount === activeQuestions.length ? 'quiz_perfect' : 'points_milestone',
         'แชมป์สังเวียน Live Classroom O-NET!',
@@ -1140,6 +1193,16 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {!isTeacher &&
+              (joinedRoomCode || (gameState === 'closedSummary' && closedSummary?.roomCode)) && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-bold">
+                <KeyRound className="w-3.5 h-3.5 shrink-0" />
+                <span>รหัสห้องประลอง:</span>
+                <span className="font-mono font-black tracking-wider text-amber-200">
+                  {joinedRoomCode || closedSummary?.roomCode}
+                </span>
+              </div>
+            )}
             {/* Teacher-only controls: Question Bank switcher & Projector Mode */}
             {isTeacher &&
               (gameState === 'lobby' || gameState === 'podium' || gameState === 'closedSummary') && (
@@ -2164,8 +2227,9 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
                   ข้อที่ {currentRound + 1} / {activeQuestions.length}
                 </span>
                 {!isTeacher && joinedRoomCode && (
-                  <span className="text-[11px] font-mono font-bold text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                    PIN: {joinedRoomCode}
+                  <span className="text-[11px] font-mono font-bold text-amber-200 bg-amber-500/15 px-3 py-1 rounded-full border border-amber-400/40 inline-flex items-center gap-1.5">
+                    <KeyRound className="w-3 h-3" />
+                    <span>รหัสห้องประลอง: {joinedRoomCode}</span>
                   </span>
                 )}
                 {streak > 1 && (
@@ -2291,6 +2355,14 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
         {/* ================================================================ */}
         {activeView === 'arena' && gameState === 'roundResult' && currentQ && (
           <div className="space-y-5 py-4 max-w-2xl mx-auto">
+            {!isTeacher && joinedRoomCode && (
+              <div className="flex justify-center">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-200 text-xs font-bold font-mono">
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>รหัสห้องประลอง: {joinedRoomCode}</span>
+                </span>
+              </div>
+            )}
             <div className="text-center">
               {selectedOption === currentQ.correctIndex ? (
                 <div className="inline-flex items-center gap-2 text-emerald-400 font-bold text-lg bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20">
