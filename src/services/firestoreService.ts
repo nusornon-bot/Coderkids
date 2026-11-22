@@ -19,10 +19,22 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { UserProfile } from '../types/index.ts';
+import {
+  UserProfile,
+  VirtualClassroomRoom,
+  ClassroomAssignment,
+  ClassScheduleItem,
+  DigitalLessonMaterial,
+  ClassroomPost,
+} from '../types/index.ts';
 import type { EditorNode } from '../components/Module2Thinking/flowchartUtils.ts';
 import { KNOWN_ADMIN_EMAILS } from './googleSheetsService.ts';
 import { sortParticipantsByScoreDesc } from '../utils/liveScoreboardSort.ts';
+import {
+  isValidVirtualRoomCode,
+  normalizeVirtualRoomCode,
+  type VirtualClassroomSubmissionRecord,
+} from '../utils/virtualClassroomSync.ts';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -1481,5 +1493,953 @@ export async function deleteBattleQuestionFromFirestore(questionId: string): Pro
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Virtual Classrooms Cloud Sync (/virtualClassrooms/{roomCode} & subcollections)
+// ---------------------------------------------------------------------------
+export interface VirtualClassroomMemberRecord {
+  roomCode: string;
+  memberId: string;
+  displayName: string;
+  avatarEmoji: string;
+  role: 'student' | 'teacher';
+}
+
+function formatThaiTimestamp(ts: unknown): string {
+  const dateObj =
+    ts && typeof (ts as { toDate?: () => Date }).toDate === 'function'
+      ? (ts as { toDate: () => Date }).toDate()
+      : new Date();
+  try {
+    return dateObj.toLocaleDateString('th-TH', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return 'วันนี้';
+  }
+}
+
+function formatThaiTimeAgo(ts: unknown): string {
+  const dateObj =
+    ts && typeof (ts as { toDate?: () => Date }).toDate === 'function'
+      ? (ts as { toDate: () => Date }).toDate()
+      : new Date();
+  try {
+    return dateObj.toLocaleDateString('th-TH', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return 'เมื่อสักครู่';
+  }
+}
+
+function parseVirtualClassroomDoc(
+  roomCode: string,
+  data: Record<string, unknown>
+): VirtualClassroomRoom {
+  return {
+    id: `room_${roomCode}`,
+    code: roomCode,
+    name: String(data.name || `ห้องเรียน ${roomCode}`),
+    teacherName: String(data.teacherName || 'คุณครูผู้สอน'),
+    grade: String(data.grade || 'ประถมศึกษาปีที่ 4/1'),
+    school: String(data.school || 'โรงเรียนอนุบาลนราธิวาส'),
+    description: String(data.description || 'ห้องเรียนวิทยาการคำนวณออนไลน์'),
+    createdAt: formatThaiTimestamp(data.createdAt),
+    studentsCount:
+      typeof data.studentsCount === 'number' && Number.isFinite(data.studentsCount)
+        ? Math.max(1, Math.round(data.studentsCount))
+        : 1,
+  };
+}
+
+export async function createOrUpdateVirtualClassroomInFirestore(params: {
+  code: string;
+  name: string;
+  teacherName: string;
+  grade: string;
+  school: string;
+  description?: string;
+  studentsCount?: number;
+}): Promise<VirtualClassroomRoom | null> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return null;
+  }
+
+  const cleanCode = normalizeVirtualRoomCode(params.code);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    return null;
+  }
+
+  const path = `virtualClassrooms/${cleanCode}`;
+  try {
+    const ref = doc(db, 'virtualClassrooms', cleanCode);
+    let snap;
+    try {
+      snap = await getDocFromServer(ref);
+    } catch {
+      snap = await getDoc(ref);
+    }
+
+    const mutablePayload: Record<string, unknown> = {
+      name: clampStr(params.name, 140, `ห้องเรียน ${cleanCode}`) || `ห้องเรียน ${cleanCode}`,
+      teacherName: clampStr(params.teacherName, 120, 'คุณครูผู้สอน') || 'คุณครูผู้สอน',
+      grade: clampStr(params.grade, 80, 'ประถมศึกษาปีที่ 4/1') || 'ประถมศึกษาปีที่ 4/1',
+      school: clampStr(params.school, 120, 'โรงเรียนอนุบาลนราธิวาส') || 'โรงเรียนอนุบาลนราธิวาส',
+      description: clampStr(params.description, 500, 'ห้องเรียนวิทยาการคำนวณออนไลน์'),
+      studentsCount: Math.max(0, Math.min(1000, Math.round(params.studentsCount ?? 1))),
+      status: 'active',
+      updatedAt: serverTimestamp(),
+    };
+
+    if (snap.exists()) {
+      await updateDoc(ref, mutablePayload);
+    } else {
+      await setDoc(
+        ref,
+        {
+          roomCode: cleanCode,
+          hostUid: user.uid,
+          ...mutablePayload,
+          createdAt: serverTimestamp(),
+        },
+        { merge: false }
+      );
+    }
+
+    return {
+      id: `room_${cleanCode}`,
+      code: cleanCode,
+      name: String(mutablePayload.name),
+      teacherName: String(mutablePayload.teacherName),
+      grade: String(mutablePayload.grade),
+      school: String(mutablePayload.school),
+      description: String(mutablePayload.description || ''),
+      createdAt: 'วันนี้',
+      studentsCount: Number(mutablePayload.studentsCount || 1),
+    };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function getVirtualClassroomFromFirestore(
+  roomCode: string
+): Promise<VirtualClassroomRoom | null> {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    return null;
+  }
+
+  const path = `virtualClassrooms/${cleanCode}`;
+  try {
+    const ref = doc(db, 'virtualClassrooms', cleanCode);
+    let snap;
+    try {
+      snap = await getDocFromServer(ref);
+    } catch {
+      snap = await getDoc(ref);
+    }
+    if (!snap.exists()) return null;
+    const data = snap.data() as Record<string, unknown>;
+    if (data.status === 'archived') return null;
+    return parseVirtualClassroomDoc(cleanCode, data);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+  }
+}
+
+export async function listVirtualClassroomsFromFirestore(): Promise<VirtualClassroomRoom[]> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return [];
+  }
+
+  const path = 'virtualClassrooms';
+  try {
+    const q = query(
+      collection(db, 'virtualClassrooms'),
+      where('status', '==', 'active'),
+      limit(50)
+    );
+    const snap = await getDocs(q);
+    const items: Array<VirtualClassroomRoom & { _sortMs: number }> = snap.docs.map((d) => {
+      const data = d.data() as Record<string, unknown>;
+      const roomCode = normalizeVirtualRoomCode(String(data.roomCode || d.id));
+      const ts =
+        (data.updatedAt as { toDate?: () => Date })?.toDate?.() ||
+        (data.createdAt as { toDate?: () => Date })?.toDate?.() ||
+        new Date();
+      return {
+        ...parseVirtualClassroomDoc(roomCode, data),
+        _sortMs: ts.getTime(),
+      };
+    });
+    items.sort((a, b) => b._sortMs - a._sortMs);
+    return items.map(({ _sortMs, ...rest }) => rest);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+  }
+}
+
+export function subscribeVirtualClassroomInFirestore(
+  roomCode: string,
+  onUpdate: (room: VirtualClassroomRoom | null) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    onUpdate(null);
+    return () => {};
+  }
+
+  const path = `virtualClassrooms/${cleanCode}`;
+  return onSnapshot(
+    doc(db, 'virtualClassrooms', cleanCode),
+    (snap) => {
+      if (!snap.exists()) {
+        onUpdate(null);
+        return;
+      }
+      const data = snap.data() as Record<string, unknown>;
+      if (data.status === 'archived') {
+        onUpdate(null);
+        return;
+      }
+      onUpdate(parseVirtualClassroomDoc(cleanCode, data));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.GET, path);
+      } catch (handledErr) {
+        if (onError) onError(handledErr);
+      }
+    }
+  );
+}
+
+export async function joinVirtualClassroomMemberInFirestore(params: {
+  roomCode: string;
+  displayName: string;
+  avatarEmoji: string;
+  role: 'student' | 'teacher';
+}): Promise<boolean> {
+  const cleanCode = normalizeVirtualRoomCode(params.roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    return false;
+  }
+
+  const memberId = getLiveParticipantId();
+  const safeRole: 'student' | 'teacher' =
+    params.role === 'teacher' && isCloudFirestoreReadyForUser() ? 'teacher' : 'student';
+  const path = `virtualClassrooms/${cleanCode}/members/${memberId}`;
+
+  try {
+    const roomSnap = await getDoc(doc(db, 'virtualClassrooms', cleanCode));
+    if (!roomSnap.exists() || roomSnap.data()?.status === 'archived') {
+      return false;
+    }
+
+    const ref = doc(db, 'virtualClassrooms', cleanCode, 'members', memberId);
+    let snap;
+    try {
+      snap = await getDocFromServer(ref);
+    } catch {
+      snap = await getDoc(ref);
+    }
+
+    const displayName = clampStr(params.displayName, 120, 'ผู้เรียน Coder Kids') || 'ผู้เรียน Coder Kids';
+    const avatarEmoji = clampStr(params.avatarEmoji, 16, '🐱') || '🐱';
+
+    if (snap.exists()) {
+      await updateDoc(ref, {
+        displayName,
+        avatarEmoji,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(
+        ref,
+        {
+          roomCode: cleanCode,
+          memberId,
+          displayName,
+          avatarEmoji,
+          role: safeRole,
+          joinedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: false }
+      );
+    }
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export function subscribeVirtualClassroomMembersInFirestore(
+  roomCode: string,
+  onUpdate: (members: VirtualClassroomMemberRecord[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/members`;
+  const q = query(
+    collection(db, 'virtualClassrooms', cleanCode, 'members'),
+    where('roomCode', '==', cleanCode),
+    limit(100)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const members: VirtualClassroomMemberRecord[] = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          roomCode: cleanCode,
+          memberId: String(data.memberId || d.id),
+          displayName: String(data.displayName || 'ผู้เรียน'),
+          avatarEmoji: String(data.avatarEmoji || '🐱'),
+          role: data.role === 'teacher' ? 'teacher' : 'student',
+        };
+      });
+      onUpdate(members);
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, path);
+      } catch (handledErr) {
+        if (onError) onError(handledErr);
+      }
+    }
+  );
+}
+
+export async function createVirtualClassroomAssignmentInFirestore(
+  roomCode: string,
+  assignment: Omit<ClassroomAssignment, 'status'>
+): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(assignment.id)) {
+    return false;
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/assignments/${assignment.id}`;
+  try {
+    const ref = doc(db, 'virtualClassrooms', cleanCode, 'assignments', assignment.id);
+    const reward = Math.max(5, Math.min(50, Math.round(assignment.rewardPoints || 30)));
+    const maxScore = Math.max(1, Math.min(100, Math.round(assignment.maxScore || reward)));
+    await setDoc(
+      ref,
+      {
+        roomCode: cleanCode,
+        title: clampStr(assignment.title, 200, 'การบ้านวิทยาการคำนวณ') || 'การบ้านวิทยาการคำนวณ',
+        moduleKey: assignment.moduleKey || 'codingLab',
+        dueDate: clampStr(assignment.dueDate, 80, 'ศุกร์นี้ 18:00 น.') || 'ศุกร์นี้ 18:00 น.',
+        teacherNote: clampStr(assignment.teacherNote, 1000, ''),
+        rewardPoints: reward,
+        maxScore,
+        createdByUid: user.uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: false }
+    );
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export function subscribeVirtualClassroomAssignmentsInFirestore(
+  roomCode: string,
+  onUpdate: (assignments: ClassroomAssignment[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/assignments`;
+  const q = query(
+    collection(db, 'virtualClassrooms', cleanCode, 'assignments'),
+    where('roomCode', '==', cleanCode),
+    limit(50)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items: Array<ClassroomAssignment & { _sortMs: number }> = snap.docs.map((d) => {
+        const data = d.data();
+        const ts = data.createdAt?.toDate?.() || new Date();
+        const mod = data.moduleKey;
+        const safeMod =
+          mod === 'safety' || mod === 'thinking' || mod === 'codingLab' || mod === 'showcase'
+            ? mod
+            : 'general';
+        const rewardPoints =
+          typeof data.rewardPoints === 'number' ? Math.max(5, Math.min(50, data.rewardPoints)) : 30;
+        return {
+          id: d.id,
+          title: String(data.title || 'การบ้าน'),
+          moduleKey: safeMod,
+          dueDate: String(data.dueDate || 'ศุกร์นี้ 18:00 น.'),
+          teacherNote: String(data.teacherNote || ''),
+          rewardPoints,
+          maxScore: typeof data.maxScore === 'number' ? data.maxScore : rewardPoints,
+          status: 'pending' as const,
+          targetRoomCode: cleanCode,
+          _sortMs: ts.getTime(),
+        };
+      });
+      items.sort((a, b) => b._sortMs - a._sortMs);
+      onUpdate(items.map(({ _sortMs, ...rest }) => rest));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, path);
+      } catch (handledErr) {
+        if (onError) onError(handledErr);
+      }
+    }
+  );
+}
+
+export async function submitVirtualClassroomHomeworkInFirestore(
+  roomCode: string,
+  params: {
+    assignmentId: string;
+    studentName: string;
+    submissionText: string;
+    submissionUrl?: string;
+    submissionFileName?: string;
+  }
+): Promise<boolean> {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(params.assignmentId)) {
+    return false;
+  }
+
+  const studentMemberId = getLiveParticipantId();
+  const submissionId = `${params.assignmentId}__${studentMemberId}`.slice(0, 128);
+  const path = `virtualClassrooms/${cleanCode}/submissions/${submissionId}`;
+
+  try {
+    const ref = doc(db, 'virtualClassrooms', cleanCode, 'submissions', submissionId);
+    const payload: Record<string, unknown> = {
+      roomCode: cleanCode,
+      assignmentId: params.assignmentId,
+      studentMemberId,
+      studentName: clampStr(params.studentName, 120, 'นักเรียน Coder Kids') || 'นักเรียน Coder Kids',
+      submissionText: clampStr(params.submissionText, 1000, 'นักเรียนส่งงานผ่านระบบเรียบร้อยแล้ว'),
+      status: 'submitted',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const cleanUrl = clampStr(params.submissionUrl, 400, '');
+    if (cleanUrl) payload.submissionUrl = cleanUrl;
+    const cleanFile = clampStr(params.submissionFileName, 200, '');
+    if (cleanFile) payload.submissionFileName = cleanFile;
+
+    await setDoc(ref, payload, { merge: false });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function gradeVirtualClassroomSubmissionInFirestore(
+  roomCode: string,
+  submissionId: string,
+  params: { score: number; teacherFeedback: string }
+): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(submissionId)) {
+    return false;
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/submissions/${submissionId}`;
+  try {
+    const ref = doc(db, 'virtualClassrooms', cleanCode, 'submissions', submissionId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return false;
+    await updateDoc(ref, {
+      status: 'graded',
+      score: Math.max(0, Math.min(100, Math.round(params.score || 0))),
+      teacherFeedback: clampStr(
+        params.teacherFeedback,
+        600,
+        'ยอดเยี่ยมมาก ผลงานถูกต้องและมีความคิดสร้างสรรค์'
+      ),
+      updatedAt: serverTimestamp(),
+    });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export function subscribeVirtualClassroomSubmissionsInFirestore(
+  roomCode: string,
+  isTeacher: boolean,
+  onUpdate: (submissions: VirtualClassroomSubmissionRecord[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const studentMemberId = getLiveParticipantId();
+  const path = `virtualClassrooms/${cleanCode}/submissions`;
+  const q = isTeacher
+    ? query(
+        collection(db, 'virtualClassrooms', cleanCode, 'submissions'),
+        where('roomCode', '==', cleanCode),
+        limit(100)
+      )
+    : query(
+        collection(db, 'virtualClassrooms', cleanCode, 'submissions'),
+        where('roomCode', '==', cleanCode),
+        where('studentMemberId', '==', studentMemberId),
+        limit(50)
+      );
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const records: Array<VirtualClassroomSubmissionRecord & { _sortMs: number }> = snap.docs.map((d) => {
+        const data = d.data();
+        const ts = data.updatedAt?.toDate?.() || data.createdAt?.toDate?.() || new Date();
+        return {
+          id: d.id,
+          roomCode: cleanCode,
+          assignmentId: String(data.assignmentId || ''),
+          studentMemberId: String(data.studentMemberId || ''),
+          studentName: String(data.studentName || 'นักเรียน'),
+          submissionText: String(data.submissionText || ''),
+          ...(data.submissionUrl ? { submissionUrl: String(data.submissionUrl) } : {}),
+          ...(data.submissionFileName ? { submissionFileName: String(data.submissionFileName) } : {}),
+          status: data.status === 'graded' ? 'graded' : 'submitted',
+          ...(typeof data.score === 'number' ? { score: data.score } : {}),
+          ...(data.teacherFeedback ? { teacherFeedback: String(data.teacherFeedback) } : {}),
+          submittedAt: formatThaiTimeAgo(data.updatedAt || data.createdAt),
+          _sortMs: ts.getTime(),
+        };
+      });
+      records.sort((a, b) => b._sortMs - a._sortMs);
+      onUpdate(records.map(({ _sortMs, ...rest }) => rest));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, path);
+      } catch (handledErr) {
+        if (onError) onError(handledErr);
+      }
+    }
+  );
+}
+
+export async function createVirtualClassroomScheduleInFirestore(
+  roomCode: string,
+  schedule: ClassScheduleItem
+): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(schedule.id)) {
+    return false;
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/schedules/${schedule.id}`;
+  try {
+    const payload: Record<string, unknown> = {
+      roomCode: cleanCode,
+      dayOfWeek: schedule.dayOfWeek,
+      dayLabel: clampStr(schedule.dayLabel, 40, 'วันจันทร์') || 'วันจันทร์',
+      startTime: clampStr(schedule.startTime, 20, '09:00') || '09:00',
+      endTime: clampStr(schedule.endTime, 20, '10:00') || '10:00',
+      period: Math.max(1, Math.min(12, Math.round(schedule.period || 1))),
+      subjectCode: clampStr(schedule.subjectCode, 40, 'ว14101') || 'ว14101',
+      subjectName: clampStr(schedule.subjectName, 120, 'วิทยาการคำนวณ') || 'วิทยาการคำนวณ',
+      topic: clampStr(schedule.topic, 200, 'บทเรียนวิทยาการคำนวณ') || 'บทเรียนวิทยาการคำนวณ',
+      unitTitle: clampStr(schedule.unitTitle, 140, 'หน่วยการเรียนรู้'),
+      roomLocation: clampStr(schedule.roomLocation, 120, 'ห้องคอมพิวเตอร์'),
+      teacherName: clampStr(schedule.teacherName, 120, 'คุณครูผู้สอน'),
+      colorTheme: clampStr(schedule.colorTheme, 80, 'from-indigo-600 to-purple-700'),
+      createdByUid: user.uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const cleanMeet = clampStr(schedule.onlineMeetUrl, 400, '');
+    if (cleanMeet) payload.onlineMeetUrl = cleanMeet;
+
+    await setDoc(doc(db, 'virtualClassrooms', cleanCode, 'schedules', schedule.id), payload, {
+      merge: false,
+    });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export function subscribeVirtualClassroomSchedulesInFirestore(
+  roomCode: string,
+  onUpdate: (schedules: ClassScheduleItem[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/schedules`;
+  const q = query(
+    collection(db, 'virtualClassrooms', cleanCode, 'schedules'),
+    where('roomCode', '==', cleanCode),
+    limit(50)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: ClassScheduleItem[] = snap.docs.map((d) => {
+        const data = d.data();
+        const dayVal =
+          data.dayOfWeek === 'tuesday' ||
+          data.dayOfWeek === 'wednesday' ||
+          data.dayOfWeek === 'thursday' ||
+          data.dayOfWeek === 'friday'
+            ? data.dayOfWeek
+            : 'monday';
+        return {
+          id: d.id,
+          roomCode: cleanCode,
+          dayOfWeek: dayVal,
+          dayLabel: String(data.dayLabel || 'วันจันทร์'),
+          startTime: String(data.startTime || '09:00'),
+          endTime: String(data.endTime || '10:00'),
+          period: typeof data.period === 'number' ? data.period : 1,
+          subjectCode: String(data.subjectCode || 'ว14101'),
+          subjectName: String(data.subjectName || 'วิทยาการคำนวณ'),
+          topic: String(data.topic || ''),
+          unitTitle: String(data.unitTitle || ''),
+          roomLocation: String(data.roomLocation || 'ห้องปฏิบัติการคอมพิวเตอร์'),
+          teacherName: String(data.teacherName || 'คุณครูผู้สอน'),
+          ...(data.onlineMeetUrl ? { onlineMeetUrl: String(data.onlineMeetUrl) } : {}),
+          colorTheme: String(data.colorTheme || 'from-indigo-600 to-purple-700'),
+        };
+      });
+      onUpdate(list);
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, path);
+      } catch (handledErr) {
+        if (onError) onError(handledErr);
+      }
+    }
+  );
+}
+
+export async function createVirtualClassroomMaterialInFirestore(
+  roomCode: string,
+  material: DigitalLessonMaterial
+): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(material.id)) {
+    return false;
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/materials/${material.id}`;
+  try {
+    const cleanTags = Array.isArray(material.tags)
+      ? material.tags
+          .map((t) => clampStr(t, 40, ''))
+          .filter(Boolean)
+          .slice(0, 15)
+      : [];
+
+    const payload: Record<string, unknown> = {
+      roomCode: cleanCode,
+      title: clampStr(material.title, 200, 'สื่อการเรียนรู้') || 'สื่อการเรียนรู้',
+      description: clampStr(material.description, 800, ''),
+      fileType: material.fileType || 'pdf',
+      fileTypeLabel: clampStr(material.fileTypeLabel, 80, 'ไฟล์ดิจิทัล') || 'ไฟล์ดิจิทัล',
+      fileName: clampStr(material.fileName, 160, 'lesson.pdf') || 'lesson.pdf',
+      fileSize: clampStr(material.fileSize, 40, '2.5 MB'),
+      uploadedBy: clampStr(material.uploadedBy, 120, 'คุณครูผู้สอน') || 'คุณครูผู้สอน',
+      unitTopic: clampStr(material.unitTopic, 160, 'หน่วยการเรียนรู้'),
+      tags: cleanTags,
+      previewSnippet: clampStr(material.previewSnippet, 2000, ''),
+      downloadsCount: Math.max(0, Math.round(material.downloadsCount || 1)),
+      createdByUid: user.uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const cleanExternalUrl = clampStr(material.externalUrl, 400, '');
+    if (cleanExternalUrl) payload.externalUrl = cleanExternalUrl;
+
+    await setDoc(doc(db, 'virtualClassrooms', cleanCode, 'materials', material.id), payload, {
+      merge: false,
+    });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function deleteVirtualClassroomMaterialInFirestore(
+  roomCode: string,
+  materialId: string
+): Promise<boolean> {
+  const user = firebaseAuth.currentUser;
+  if (!user || !user.emailVerified || !isSafeUid(user.uid)) {
+    return false;
+  }
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(materialId)) {
+    return false;
+  }
+  const path = `virtualClassrooms/${cleanCode}/materials/${materialId}`;
+  try {
+    await deleteDoc(doc(db, 'virtualClassrooms', cleanCode, 'materials', materialId));
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function incrementVirtualClassroomMaterialDownloadInFirestore(
+  roomCode: string,
+  materialId: string
+): Promise<boolean> {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(materialId)) {
+    return false;
+  }
+  const path = `virtualClassrooms/${cleanCode}/materials/${materialId}`;
+  try {
+    const ref = doc(db, 'virtualClassrooms', cleanCode, 'materials', materialId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return false;
+    const curr = Number(snap.data()?.downloadsCount || 0);
+    await updateDoc(ref, {
+      downloadsCount: Math.max(1, curr + 1),
+      updatedAt: serverTimestamp(),
+    });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export function subscribeVirtualClassroomMaterialsInFirestore(
+  roomCode: string,
+  onUpdate: (materials: DigitalLessonMaterial[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/materials`;
+  const q = query(
+    collection(db, 'virtualClassrooms', cleanCode, 'materials'),
+    where('roomCode', '==', cleanCode),
+    limit(50)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: Array<DigitalLessonMaterial & { _sortMs: number }> = snap.docs.map((d) => {
+        const data = d.data();
+        const ts = data.createdAt?.toDate?.() || new Date();
+        const fType = data.fileType;
+        const safeType =
+          fType === 'slides' ||
+          fType === 'worksheet' ||
+          fType === 'code' ||
+          fType === 'video' ||
+          fType === 'link'
+            ? fType
+            : 'pdf';
+        return {
+          id: d.id,
+          roomCode: cleanCode,
+          title: String(data.title || 'สื่อบทเรียน'),
+          description: String(data.description || ''),
+          fileType: safeType,
+          fileTypeLabel: String(data.fileTypeLabel || 'ไฟล์ดิจิทัล'),
+          fileName: String(data.fileName || 'lesson.pdf'),
+          fileSize: String(data.fileSize || '2.5 MB'),
+          downloadUrl: `#download-${d.id}`,
+          ...(data.externalUrl ? { externalUrl: String(data.externalUrl) } : {}),
+          uploadDate: formatThaiTimestamp(data.createdAt),
+          uploadedBy: String(data.uploadedBy || 'คุณครูผู้สอน'),
+          unitTopic: String(data.unitTopic || 'หน่วยการเรียนรู้'),
+          tags: Array.isArray(data.tags) ? data.tags.map((t: unknown) => String(t)) : [],
+          previewSnippet: String(data.previewSnippet || ''),
+          downloadsCount: typeof data.downloadsCount === 'number' ? data.downloadsCount : 1,
+          _sortMs: ts.getTime(),
+        };
+      });
+      list.sort((a, b) => b._sortMs - a._sortMs);
+      onUpdate(list.map(({ _sortMs, ...rest }) => rest));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, path);
+      } catch (handledErr) {
+        if (onError) onError(handledErr);
+      }
+    }
+  );
+}
+
+export async function createVirtualClassroomPostInFirestore(
+  roomCode: string,
+  params: {
+    postId: string;
+    authorName: string;
+    authorRole: 'teacher' | 'student';
+    content: string;
+    badge?: string;
+  }
+): Promise<boolean> {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(params.postId)) {
+    return false;
+  }
+
+  const authorId = getLiveParticipantId();
+  const safeRole: 'teacher' | 'student' =
+    params.authorRole === 'teacher' && isCloudFirestoreReadyForUser() ? 'teacher' : 'student';
+  const path = `virtualClassrooms/${cleanCode}/posts/${params.postId}`;
+
+  try {
+    const payload: Record<string, unknown> = {
+      roomCode: cleanCode,
+      authorId,
+      authorName: clampStr(params.authorName, 120, 'นักเรียน') || 'นักเรียน',
+      authorRole: safeRole,
+      content: clampStr(params.content, 1000, '') || '-',
+      likes: 1,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const cleanBadge = clampStr(params.badge, 60, '');
+    if (cleanBadge) payload.badge = cleanBadge;
+
+    await setDoc(doc(db, 'virtualClassrooms', cleanCode, 'posts', params.postId), payload, {
+      merge: false,
+    });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function likeVirtualClassroomPostInFirestore(
+  roomCode: string,
+  postId: string
+): Promise<boolean> {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode) || !isSafeUid(postId)) {
+    return false;
+  }
+  const path = `virtualClassrooms/${cleanCode}/posts/${postId}`;
+  try {
+    const ref = doc(db, 'virtualClassrooms', cleanCode, 'posts', postId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return false;
+    const curr = Number(snap.data()?.likes || 0);
+    await updateDoc(ref, {
+      likes: Math.max(1, curr + 1),
+      updatedAt: serverTimestamp(),
+    });
+    return true;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export function subscribeVirtualClassroomPostsInFirestore(
+  roomCode: string,
+  onUpdate: (posts: ClassroomPost[]) => void,
+  onError?: (error: unknown) => void
+): () => void {
+  const cleanCode = normalizeVirtualRoomCode(roomCode);
+  if (!isValidVirtualRoomCode(cleanCode)) {
+    onUpdate([]);
+    return () => {};
+  }
+
+  const path = `virtualClassrooms/${cleanCode}/posts`;
+  const q = query(
+    collection(db, 'virtualClassrooms', cleanCode, 'posts'),
+    where('roomCode', '==', cleanCode),
+    limit(50)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list: Array<ClassroomPost & { _sortMs: number }> = snap.docs.map((d) => {
+        const data = d.data();
+        const ts = data.createdAt?.toDate?.() || new Date();
+        return {
+          id: d.id,
+          authorName: String(data.authorName || 'นักเรียน'),
+          authorRole: data.authorRole === 'teacher' ? 'teacher' : 'student',
+          content: String(data.content || ''),
+          timestamp: formatThaiTimeAgo(data.createdAt),
+          likes: typeof data.likes === 'number' ? data.likes : 1,
+          ...(data.badge ? { badge: String(data.badge) } : {}),
+          _sortMs: ts.getTime(),
+        };
+      });
+      list.sort((a, b) => b._sortMs - a._sortMs);
+      onUpdate(list.map(({ _sortMs, ...rest }) => rest));
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, path);
+      } catch (handledErr) {
+        if (onError) onError(handledErr);
+      }
+    }
+  );
+}
+
 
 

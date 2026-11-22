@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ClassroomAssignment,
   ClassroomPost,
@@ -16,8 +16,39 @@ import {
   CLASS_SCHEDULE_ITEMS,
   INITIAL_DIGITAL_LESSON_MATERIALS,
 } from '../data/learningData.ts';
-import { TARGET_SPREADSHEET_ID } from '../services/googleSheetsService.ts';
 import { soundEffects } from '../utils/soundEffects.ts';
+import {
+  isCloudFirestoreReadyForUser,
+  createOrUpdateVirtualClassroomInFirestore,
+  getVirtualClassroomFromFirestore,
+  listVirtualClassroomsFromFirestore,
+  subscribeVirtualClassroomInFirestore,
+  joinVirtualClassroomMemberInFirestore,
+  subscribeVirtualClassroomMembersInFirestore,
+  createVirtualClassroomAssignmentInFirestore,
+  subscribeVirtualClassroomAssignmentsInFirestore,
+  submitVirtualClassroomHomeworkInFirestore,
+  gradeVirtualClassroomSubmissionInFirestore,
+  subscribeVirtualClassroomSubmissionsInFirestore,
+  createVirtualClassroomScheduleInFirestore,
+  subscribeVirtualClassroomSchedulesInFirestore,
+  createVirtualClassroomMaterialInFirestore,
+  deleteVirtualClassroomMaterialInFirestore,
+  incrementVirtualClassroomMaterialDownloadInFirestore,
+  subscribeVirtualClassroomMaterialsInFirestore,
+  createVirtualClassroomPostInFirestore,
+  likeVirtualClassroomPostInFirestore,
+  subscribeVirtualClassroomPostsInFirestore,
+  type VirtualClassroomMemberRecord,
+} from '../services/firestoreService.ts';
+import {
+  normalizeVirtualRoomCode,
+  isValidVirtualRoomCode,
+  isBuiltInDefaultRoomCode,
+  mergeVirtualClassrooms,
+  mergeAssignmentsWithSubmissions,
+  type VirtualClassroomSubmissionRecord,
+} from '../utils/virtualClassroomSync.ts';
 import {
   Users,
   BookOpen,
@@ -27,12 +58,9 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
-  Sparkles,
   Heart,
   Plus,
-  LogIn,
   KeyRound,
-  FileSpreadsheet,
   ExternalLink,
   ShieldCheck,
   School,
@@ -51,15 +79,11 @@ import {
   FileCode,
   Layers,
   Search,
-  Filter,
   CheckSquare,
-  AlertTriangle,
   Radio,
-  Edit,
   Trash2,
-  FileDown,
-  ChevronRight,
   Laptop,
+  Loader2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -110,24 +134,119 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   }, [classrooms]);
 
   // Current Active Classroom Code
-  const [activeRoomCode, setActiveRoomCode] = useState<string>(
-    profile?.enrolledClassroomCode || classrooms[0]?.code || 'COD-2026'
+  const [activeRoomCode, setActiveRoomCode] = useState<string>(() =>
+    normalizeVirtualRoomCode(profile?.enrolledClassroomCode || classrooms[0]?.code || 'COD-2026')
   );
 
-  // Active Room Object
-  const currentRoom =
-    classrooms.find((r) => r.code.toUpperCase() === activeRoomCode.toUpperCase()) ||
-    classrooms[0] || {
-      id: 'room_1',
-      code: 'COD-2026',
-      name: 'ห้องเรียนวิทยาการคำนวณ ป.4/1',
-      teacherName: 'ครูสมคิด & ครูอารีย์',
-      grade: 'ประถมศึกษาปีที่ 4/1',
-      school: 'โรงเรียนอนุบาลนราธิวาส',
-      description: 'พื้นที่เรียนรู้การเขียนโค้ด Scratch, บอร์ด Micro:bit และการคิดเชิงคำนวณ',
-      createdAt: '10 มีนาคม 2026',
-      studentsCount: 28,
+  // Cloud Firestore real-time state for active classroom
+  const [cloudRoomExists, setCloudRoomExists] = useState<boolean>(false);
+  const [cloudMembers, setCloudMembers] = useState<VirtualClassroomMemberRecord[]>([]);
+  const [cloudAssignments, setCloudAssignments] = useState<ClassroomAssignment[]>([]);
+  const [cloudSubmissions, setCloudSubmissions] = useState<VirtualClassroomSubmissionRecord[]>([]);
+  const [cloudSchedules, setCloudSchedules] = useState<ClassScheduleItem[]>([]);
+  const [cloudMaterials, setCloudMaterials] = useState<DigitalLessonMaterial[]>([]);
+  const [cloudPosts, setCloudPosts] = useState<ClassroomPost[]>([]);
+  const syncedLocalRoomsRef = useRef<Set<string>>(new Set());
+
+  // Sync activeRoomCode if profile.enrolledClassroomCode changes externally
+  useEffect(() => {
+    const enrolled = normalizeVirtualRoomCode(profile?.enrolledClassroomCode || '');
+    if (enrolled && isValidVirtualRoomCode(enrolled)) {
+      setActiveRoomCode(enrolled);
+    }
+  }, [profile?.enrolledClassroomCode]);
+
+  // Initial Cloud Firestore fetch:
+  // 1) Fetch enrolled classroom by code (works for both Google-verified and Student-ID logins)
+  // 2) For verified Google users / teachers, list active cloud classrooms
+  // 3) For verified teachers, auto-publish any existing custom local rooms (e.g. created earlier) to Cloud Firestore
+  useEffect(() => {
+    let cancelled = false;
+
+    const bootstrapCloudClassrooms = async () => {
+      const enrolledCode = normalizeVirtualRoomCode(profile?.enrolledClassroomCode || '');
+      let discoveredCloudRooms: VirtualClassroomRoom[] = [];
+
+      if (isCloudFirestoreReadyForUser()) {
+        try {
+          const listed = await listVirtualClassroomsFromFirestore();
+          if (!cancelled && listed.length > 0) {
+            discoveredCloudRooms = listed;
+            setClassrooms((prev) => mergeVirtualClassrooms(prev, listed));
+          }
+        } catch (err) {
+          console.warn('Could not list cloud virtual classrooms:', err);
+        }
+      }
+
+      if (enrolledCode && isValidVirtualRoomCode(enrolledCode)) {
+        try {
+          const enrolledRoom = await getVirtualClassroomFromFirestore(enrolledCode);
+          if (!cancelled && enrolledRoom) {
+            setClassrooms((prev) => mergeVirtualClassrooms(prev, [enrolledRoom]));
+          }
+        } catch (err) {
+          console.warn('Could not fetch enrolled virtual classroom:', err);
+        }
+      }
+
+      // If verified teacher has custom non-built-in rooms in localStorage that aren't in Firestore yet, sync them now
+      if (isAdmin && isCloudFirestoreReadyForUser()) {
+        const cloudCodes = new Set(discoveredCloudRooms.map((r) => normalizeVirtualRoomCode(r.code)));
+        const customLocalRooms = classrooms.filter(
+          (r) => !isBuiltInDefaultRoomCode(r.code) && !cloudCodes.has(normalizeVirtualRoomCode(r.code))
+        );
+        for (const localRoom of customLocalRooms) {
+          const code = normalizeVirtualRoomCode(localRoom.code);
+          if (!code || !isValidVirtualRoomCode(code) || syncedLocalRoomsRef.current.has(code)) {
+            continue;
+          }
+          syncedLocalRoomsRef.current.add(code);
+          try {
+            const saved = await createOrUpdateVirtualClassroomInFirestore({
+              code,
+              name: localRoom.name,
+              teacherName: localRoom.teacherName,
+              grade: localRoom.grade,
+              school: localRoom.school || 'โรงเรียนอนุบาลนราธิวาส',
+              description: localRoom.description,
+              studentsCount: localRoom.studentsCount,
+            });
+            if (saved && !cancelled) {
+              setClassrooms((prev) => mergeVirtualClassrooms(prev, [saved]));
+            }
+          } catch (err) {
+            syncedLocalRoomsRef.current.delete(code);
+            console.warn(`Could not sync local classroom ${code} to Firestore:`, err);
+          }
+        }
+      }
     };
+
+    bootstrapCloudClassrooms();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, profile?.enrolledClassroomCode]);
+
+  // Active Room Object
+  const currentRoom = useMemo(() => {
+    const target = normalizeVirtualRoomCode(activeRoomCode);
+    return (
+      classrooms.find((r) => normalizeVirtualRoomCode(r.code) === target) ||
+      classrooms[0] || {
+        id: 'room_1',
+        code: 'COD-2026',
+        name: 'ห้องเรียนวิทยาการคำนวณ ป.4/1',
+        teacherName: 'ครูสมคิด & ครูอารีย์',
+        grade: 'ประถมศึกษาปีที่ 4/1',
+        school: 'โรงเรียนอนุบาลนราธิวาส',
+        description: 'พื้นที่เรียนรู้การเขียนโค้ด Scratch, บอร์ด Micro:bit และการคิดเชิงคำนวณ',
+        createdAt: '10 มีนาคม 2026',
+        studentsCount: 28,
+      }
+    );
+  }, [classrooms, activeRoomCode]);
 
   // Section Tabs: 'assignments' | 'schedule' | 'materials' | 'poll' | 'feed' | 'members'
   const [activeSection, setActiveSection] = useState<'assignments' | 'schedule' | 'materials' | 'poll' | 'feed' | 'members'>('assignments');
@@ -159,6 +278,8 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
 
   // Teacher Grading Modal
   const [gradingAssignment, setGradingAssignment] = useState<ClassroomAssignment | null>(null);
+  const [gradingSubmissionId, setGradingSubmissionId] = useState<string | null>(null);
+  const [gradingStudentName, setGradingStudentName] = useState<string>('');
   const [gradingScore, setGradingScore] = useState<number>(30);
   const [gradingFeedback, setGradingFeedback] = useState<string>('');
 
@@ -256,8 +377,11 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   const [inputClassroomCode, setInputClassroomCode] = useState('');
   const [enterError, setEnterError] = useState<string | null>(null);
   const [enterSuccess, setEnterSuccess] = useState<string | null>(null);
+  const [isJoiningRoom, setIsJoiningRoom] = useState(false);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
   const [createName, setCreateName] = useState('');
   const [createCode, setCreateCode] = useState(`COD-${Math.floor(1000 + Math.random() * 9000)}`);
   const [createTeacherName, setCreateTeacherName] = useState('ครูสมคิด & ครูอารีย์');
@@ -266,40 +390,232 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   const [createDesc, setCreateDesc] = useState('ฝึกทักษะการคิดเชิงคำนวณ เขียนโปรแกรม Scratch และต่อบอร์ด Micro:bit');
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // Real-time Firestore subscriptions for the active classroom
+  useEffect(() => {
+    const roomCode = normalizeVirtualRoomCode(currentRoom.code);
+    if (!isValidVirtualRoomCode(roomCode)) return;
+
+    setCloudRoomExists(false);
+    setCloudMembers([]);
+    setCloudAssignments([]);
+    setCloudSubmissions([]);
+    setCloudSchedules([]);
+    setCloudMaterials([]);
+    setCloudPosts([]);
+
+    const unsubRoom = subscribeVirtualClassroomInFirestore(
+      roomCode,
+      (cloudRoom) => {
+        if (cloudRoom) {
+          setCloudRoomExists(true);
+          setClassrooms((prev) => mergeVirtualClassrooms(prev, [cloudRoom]));
+        } else {
+          setCloudRoomExists(false);
+        }
+      },
+      (err) => console.warn('Room subscription error:', err)
+    );
+
+    const unsubMembers = subscribeVirtualClassroomMembersInFirestore(
+      roomCode,
+      (members) => setCloudMembers(members),
+      (err) => console.warn('Members subscription error:', err)
+    );
+
+    const unsubAssignments = subscribeVirtualClassroomAssignmentsInFirestore(
+      roomCode,
+      (items) => setCloudAssignments(items),
+      (err) => console.warn('Assignments subscription error:', err)
+    );
+
+    const unsubSubmissions = subscribeVirtualClassroomSubmissionsInFirestore(
+      roomCode,
+      Boolean(isAdmin && currentRole === 'teacher'),
+      (subs) => setCloudSubmissions(subs),
+      (err) => console.warn('Submissions subscription error:', err)
+    );
+
+    const unsubSchedules = subscribeVirtualClassroomSchedulesInFirestore(
+      roomCode,
+      (items) => setCloudSchedules(items),
+      (err) => console.warn('Schedules subscription error:', err)
+    );
+
+    const unsubMaterials = subscribeVirtualClassroomMaterialsInFirestore(
+      roomCode,
+      (items) => setCloudMaterials(items),
+      (err) => console.warn('Materials subscription error:', err)
+    );
+
+    const unsubPosts = subscribeVirtualClassroomPostsInFirestore(
+      roomCode,
+      (items) => setCloudPosts(items),
+      (err) => console.warn('Posts subscription error:', err)
+    );
+
+    return () => {
+      unsubRoom();
+      unsubMembers();
+      unsubAssignments();
+      unsubSubmissions();
+      unsubSchedules();
+      unsubMaterials();
+      unsubPosts();
+    };
+  }, [currentRoom.code, isAdmin, currentRole]);
+
+  // Register current user in /virtualClassrooms/{roomCode}/members when room exists on cloud
+  useEffect(() => {
+    if (!cloudRoomExists) return;
+    const roomCode = normalizeVirtualRoomCode(currentRoom.code);
+    if (!isValidVirtualRoomCode(roomCode)) return;
+
+    joinVirtualClassroomMemberInFirestore({
+      roomCode,
+      displayName: studentName || profile?.name || 'ผู้เรียน Coder Kids',
+      avatarEmoji: profile?.avatarEmoji || '🐱',
+      role: isAdmin && currentRole === 'teacher' ? 'teacher' : 'student',
+    }).catch((err) => {
+      console.warn('Member sync skipped:', err);
+    });
+  }, [
+    cloudRoomExists,
+    currentRoom.code,
+    studentName,
+    profile?.name,
+    profile?.avatarEmoji,
+    isAdmin,
+    currentRole,
+  ]);
+
+  // Helper: ensure teacher's room exists in Firestore before creating subcollection items
+  const ensureCloudRoomForTeacherWrite = async (): Promise<boolean> => {
+    if (!isAdmin || !isCloudFirestoreReadyForUser()) return false;
+    if (cloudRoomExists) return true;
+    const roomCode = normalizeVirtualRoomCode(currentRoom.code);
+    if (!isValidVirtualRoomCode(roomCode)) return false;
+    try {
+      const created = await createOrUpdateVirtualClassroomInFirestore({
+        code: roomCode,
+        name: currentRoom.name,
+        teacherName: currentRoom.teacherName,
+        grade: currentRoom.grade,
+        school: currentRoom.school || 'โรงเรียนอนุบาลนราธิวาส',
+        description: currentRoom.description,
+        studentsCount: Math.max(1, currentRoom.studentsCount || 1),
+      });
+      if (created) {
+        setCloudRoomExists(true);
+        setClassrooms((prev) => mergeVirtualClassrooms(prev, [created]));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('Could not ensure cloud room:', err);
+      return false;
+    }
+  };
+
+  // Merge cloud & local assignments for the active room
+  const effectiveAssignments = useMemo(() => {
+    const roomCode = normalizeVirtualRoomCode(currentRoom.code);
+    const isBuiltIn = isBuiltInDefaultRoomCode(roomCode);
+    const seen = new Map<string, ClassroomAssignment>();
+
+    for (const ca of cloudAssignments) {
+      seen.set(ca.id, ca);
+    }
+    for (const la of assignments) {
+      const target = normalizeVirtualRoomCode(la.targetRoomCode || '');
+      const belongsToRoom = target ? target === roomCode : isBuiltIn;
+      if (belongsToRoom && !seen.has(la.id)) {
+        seen.set(la.id, la);
+      }
+    }
+
+    return mergeAssignmentsWithSubmissions(
+      Array.from(seen.values()),
+      cloudSubmissions,
+      currentRole === 'teacher'
+    );
+  }, [currentRoom.code, cloudAssignments, assignments, cloudSubmissions, currentRole]);
+
+  // Group all cloud submissions by assignmentId for teacher grading view
+  const submissionsByAssignmentId = useMemo(() => {
+    const map = new Map<string, VirtualClassroomSubmissionRecord[]>();
+    for (const sub of cloudSubmissions) {
+      const list = map.get(sub.assignmentId) || [];
+      list.push(sub);
+      map.set(sub.assignmentId, list);
+    }
+    return map;
+  }, [cloudSubmissions]);
+
   // Statistics for assignments
   const assignmentStats = useMemo(() => {
-    const total = assignments.length;
-    const submitted = assignments.filter((a) => a.status === 'submitted').length;
-    const graded = assignments.filter((a) => a.status === 'graded').length;
-    const pending = assignments.filter((a) => a.status === 'pending').length;
+    const total = effectiveAssignments.length;
+    const submitted = effectiveAssignments.filter((a) => a.status === 'submitted').length;
+    const graded = effectiveAssignments.filter((a) => a.status === 'graded').length;
+    const pending = effectiveAssignments.filter((a) => a.status === 'pending').length;
     const completedOrSubmitted = submitted + graded;
     const percent = total > 0 ? Math.round((completedOrSubmitted / total) * 100) : 0;
-    const totalEarnedPoints = assignments
+    const totalEarnedPoints = effectiveAssignments
       .filter((a) => a.status === 'graded' || a.status === 'submitted')
       .reduce((sum, a) => sum + (a.score || a.rewardPoints || 0), 0);
 
     return { total, submitted, graded, pending, percent, totalEarnedPoints };
-  }, [assignments]);
+  }, [effectiveAssignments]);
 
   // Filtered Assignments
   const filteredAssignments = useMemo(() => {
-    if (assignmentFilter === 'all') return assignments;
-    return assignments.filter((a) => a.status === assignmentFilter);
-  }, [assignments, assignmentFilter]);
+    if (assignmentFilter === 'all') return effectiveAssignments;
+    return effectiveAssignments.filter((a) => a.status === assignmentFilter);
+  }, [effectiveAssignments, assignmentFilter]);
 
-  // Filtered Schedules
+  // Effective & Filtered Schedules (cloud + local)
+  const effectiveSchedules = useMemo(() => {
+    const roomCode = normalizeVirtualRoomCode(currentRoom.code);
+    const isBuiltIn = isBuiltInDefaultRoomCode(roomCode);
+    const seen = new Map<string, ClassScheduleItem>();
+    for (const cs of cloudSchedules) {
+      seen.set(cs.id, cs);
+    }
+    for (const ls of schedules) {
+      const sCode = normalizeVirtualRoomCode(ls.roomCode);
+      const matchesRoom = (sCode === 'ALL' && isBuiltIn) || sCode === roomCode;
+      if (matchesRoom && !seen.has(ls.id)) {
+        seen.set(ls.id, ls);
+      }
+    }
+    return Array.from(seen.values());
+  }, [cloudSchedules, schedules, currentRoom.code]);
+
   const filteredSchedules = useMemo(() => {
-    return schedules.filter((s) => {
-      const matchesRoom = s.roomCode === 'ALL' || s.roomCode.toUpperCase() === currentRoom.code.toUpperCase();
-      const matchesDay = selectedDayFilter === 'all' || s.dayOfWeek === selectedDayFilter;
-      return matchesRoom && matchesDay;
+    return effectiveSchedules.filter((s) => {
+      return selectedDayFilter === 'all' || s.dayOfWeek === selectedDayFilter;
     });
-  }, [schedules, currentRoom.code, selectedDayFilter]);
+  }, [effectiveSchedules, selectedDayFilter]);
 
-  // Filtered Materials
+  // Effective & Filtered Materials (cloud + local)
+  const effectiveMaterials = useMemo(() => {
+    const roomCode = normalizeVirtualRoomCode(currentRoom.code);
+    const isBuiltIn = isBuiltInDefaultRoomCode(roomCode);
+    const seen = new Map<string, DigitalLessonMaterial>();
+    for (const cm of cloudMaterials) {
+      seen.set(cm.id, cm);
+    }
+    for (const lm of materials) {
+      const mCode = normalizeVirtualRoomCode(lm.roomCode);
+      const matchesRoom = (mCode === 'ALL' && isBuiltIn) || mCode === roomCode;
+      if (matchesRoom && !seen.has(lm.id)) {
+        seen.set(lm.id, lm);
+      }
+    }
+    return Array.from(seen.values());
+  }, [cloudMaterials, materials, currentRoom.code]);
+
   const filteredMaterials = useMemo(() => {
-    return materials.filter((m) => {
-      const matchesRoom = m.roomCode === 'ALL' || m.roomCode.toUpperCase() === currentRoom.code.toUpperCase();
+    return effectiveMaterials.filter((m) => {
       const matchesType = materialFilterType === 'all' || m.fileType === materialFilterType;
       const q = materialSearchQuery.toLowerCase().trim();
       const matchesSearch =
@@ -310,37 +626,75 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
         m.uploadedBy.toLowerCase().includes(q) ||
         m.tags.some((t) => t.toLowerCase().includes(q));
 
-      return matchesRoom && matchesType && matchesSearch;
+      return matchesType && matchesSearch;
     });
-  }, [materials, currentRoom.code, materialFilterType, materialSearchQuery]);
+  }, [effectiveMaterials, materialFilterType, materialSearchQuery]);
+
+  // Effective Posts (cloud + built-in fallback)
+  const effectivePosts = useMemo(() => {
+    const roomCode = normalizeVirtualRoomCode(currentRoom.code);
+    const isBuiltIn = isBuiltInDefaultRoomCode(roomCode);
+    const seen = new Map<string, ClassroomPost>();
+    for (const cp of cloudPosts) {
+      seen.set(cp.id, cp);
+    }
+    if (isBuiltIn || !cloudRoomExists) {
+      for (const lp of posts) {
+        if (!seen.has(lp.id)) {
+          seen.set(lp.id, lp);
+        }
+      }
+    }
+    return Array.from(seen.values());
+  }, [cloudPosts, posts, currentRoom.code, cloudRoomExists]);
 
   // Handle student submit homework
-  const handleConfirmSubmitHomework = (e: React.FormEvent) => {
+  const handleConfirmSubmitHomework = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!submittingAssignment || submittingAssignment.status !== 'pending') return;
 
-    soundEffects.playSuccess();
-    const updated = assignments.map((a) =>
-      a.id === submittingAssignment.id
-        ? {
-            ...a,
-            status: 'submitted' as const,
-            submissionDate: 'ส่งเมื่อสักครู่',
-            submissionText: submissionText.trim() || 'นักเรียนส่งงานผ่านระบบเรียบร้อยแล้ว',
-            submissionUrl: submissionUrl.trim() || undefined,
-            submissionFileName: submissionFileName.trim() || 'project_submission.sb3',
-          }
-        : a
-    );
-    setAssignments(updated);
+    const targetAssignment = submittingAssignment;
+    const cleanText = submissionText.trim() || 'นักเรียนส่งงานผ่านระบบเรียบร้อยแล้ว';
+    const cleanUrl = submissionUrl.trim() || undefined;
+    const cleanFile = submissionFileName.trim() || 'project_submission.sb3';
 
-    const safeReward = Math.max(5, Math.min(50, Number(submittingAssignment.rewardPoints) || 20));
-    addPoints(safeReward, `ส่งการบ้าน: ${submittingAssignment.title}`, 'classroom', {
-      uniqueKey: `vc_hw_${submittingAssignment.id}`,
+    if (cloudRoomExists) {
+      try {
+        await submitVirtualClassroomHomeworkInFirestore(currentRoom.code, {
+          assignmentId: targetAssignment.id,
+          studentName: studentName || profile?.name || 'นักเรียน Coder Kids',
+          submissionText: cleanText,
+          submissionUrl: cleanUrl,
+          submissionFileName: cleanFile,
+        });
+      } catch (err) {
+        console.warn('Cloud submission failed, keeping local state:', err);
+      }
+    }
+
+    soundEffects.playSuccess();
+    setAssignments((prev) =>
+      prev.map((a) =>
+        a.id === targetAssignment.id
+          ? {
+              ...a,
+              status: 'submitted' as const,
+              submissionDate: 'ส่งเมื่อสักครู่',
+              submissionText: cleanText,
+              submissionUrl: cleanUrl,
+              submissionFileName: cleanFile,
+            }
+          : a
+      )
+    );
+
+    const safeReward = Math.max(5, Math.min(50, Number(targetAssignment.rewardPoints) || 20));
+    addPoints(safeReward, `ส่งการบ้าน: ${targetAssignment.title}`, 'classroom', {
+      uniqueKey: `vc_hw_${targetAssignment.id}`,
     });
     confetti({ particleCount: 45, spread: 60, origin: { y: 0.6 } });
 
-    setEnterSuccess(`ส่งการบ้าน "${submittingAssignment.title}" เรียบร้อยแล้ว! (+${safeReward} แต้ม)`);
+    setEnterSuccess(`ส่งการบ้าน "${targetAssignment.title}" เรียบร้อยแล้ว! (+${safeReward} แต้ม)`);
     setSubmittingAssignment(null);
     setSubmissionText('');
     setSubmissionUrl('');
@@ -349,31 +703,50 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   };
 
   // Handle teacher grading homework
-  const handleConfirmGrading = (e: React.FormEvent) => {
+  const handleConfirmGrading = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin || !gradingAssignment) return;
 
-    soundEffects.playFanfare();
-    const updated = assignments.map((a) =>
-      a.id === gradingAssignment.id
-        ? {
-            ...a,
-            status: 'graded' as const,
-            score: Number(gradingScore) || gradingAssignment.rewardPoints,
-            teacherFeedback: gradingFeedback.trim() || 'ยอดเยี่ยมมาก ผลงานถูกต้องและมีความคิดสร้างสรรค์',
-          }
-        : a
-    );
-    setAssignments(updated);
+    const cleanScore = Math.max(0, Math.min(100, Number(gradingScore) || gradingAssignment.rewardPoints || 0));
+    const cleanFeedback = gradingFeedback.trim() || 'ยอดเยี่ยมมาก ผลงานถูกต้องและมีความคิดสร้างสรรค์';
 
-    setEnterSuccess(`บันทึกผลการตรวจการบ้าน "${gradingAssignment.title}" (${gradingScore} คะแนน) เรียบร้อยแล้ว!`);
+    if (gradingSubmissionId && cloudRoomExists) {
+      try {
+        await gradeVirtualClassroomSubmissionInFirestore(currentRoom.code, gradingSubmissionId, {
+          score: cleanScore,
+          teacherFeedback: cleanFeedback,
+        });
+      } catch (err) {
+        console.warn('Cloud grading failed:', err);
+      }
+    }
+
+    soundEffects.playFanfare();
+    setAssignments((prev) =>
+      prev.map((a) =>
+        a.id === gradingAssignment.id
+          ? {
+              ...a,
+              status: 'graded' as const,
+              score: cleanScore,
+              teacherFeedback: cleanFeedback,
+            }
+          : a
+      )
+    );
+
+    setEnterSuccess(
+      `บันทึกผลการตรวจการบ้าน "${gradingAssignment.title}"${gradingStudentName ? ` ของ ${gradingStudentName}` : ''} (${cleanScore} คะแนน) เรียบร้อยแล้ว!`
+    );
     setGradingAssignment(null);
+    setGradingSubmissionId(null);
+    setGradingStudentName('');
     setGradingFeedback('');
     setTimeout(() => setEnterSuccess(null), 4000);
   };
 
   // Handle teacher creating new homework
-  const handleCreateAssignment = (e: React.FormEvent) => {
+  const handleCreateAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin || !newHwTitle.trim()) return;
 
@@ -391,7 +764,16 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
       targetRoomCode: currentRoom.code,
     };
 
-    setAssignments([newAssignment, ...assignments]);
+    const roomReady = await ensureCloudRoomForTeacherWrite();
+    if (roomReady) {
+      try {
+        await createVirtualClassroomAssignmentInFirestore(currentRoom.code, newAssignment);
+      } catch (err) {
+        console.warn('Cloud assignment save failed:', err);
+      }
+    }
+
+    setAssignments((prev) => [newAssignment, ...prev]);
     setIsCreateAssignmentModalOpen(false);
     setNewHwTitle('');
     setNewHwTeacherNote('');
@@ -400,7 +782,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   };
 
   // Handle teacher adding schedule item
-  const handleAddScheduleItem = (e: React.FormEvent) => {
+  const handleAddScheduleItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin || !schedTopic.trim()) return;
 
@@ -431,7 +813,16 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
       colorTheme: 'from-indigo-600 to-purple-700',
     };
 
-    setSchedules([...schedules, newItem]);
+    const roomReady = await ensureCloudRoomForTeacherWrite();
+    if (roomReady) {
+      try {
+        await createVirtualClassroomScheduleInFirestore(currentRoom.code, newItem);
+      } catch (err) {
+        console.warn('Cloud schedule save failed:', err);
+      }
+    }
+
+    setSchedules((prev) => [...prev, newItem]);
     setIsAddScheduleModalOpen(false);
     setSchedTopic('');
     setEnterSuccess(`เพิ่มคาบเรียน "${newItem.topic}" ลงในตารางเรียนเรียบร้อยแล้ว!`);
@@ -439,7 +830,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   };
 
   // Handle teacher adding digital lesson material
-  const handleAddDigitalMaterial = (e: React.FormEvent) => {
+  const handleAddDigitalMaterial = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin || !matTitle.trim()) return;
 
@@ -472,7 +863,16 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
       downloadsCount: 1,
     };
 
-    setMaterials([newMaterial, ...materials]);
+    const roomReady = await ensureCloudRoomForTeacherWrite();
+    if (roomReady) {
+      try {
+        await createVirtualClassroomMaterialInFirestore(currentRoom.code, newMaterial);
+      } catch (err) {
+        console.warn('Cloud material save failed:', err);
+      }
+    }
+
+    setMaterials((prev) => [newMaterial, ...prev]);
     setIsAddMaterialModalOpen(false);
     setMatTitle('');
     setMatDesc('');
@@ -486,7 +886,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   const [pendingDeleteMatId, setPendingDeleteMatId] = useState<string | null>(null);
 
   // Handle delete material (two-step in-app confirmation, zero browser confirm dialog)
-  const handleDeleteMaterial = (id: string, title: string) => {
+  const handleDeleteMaterial = async (id: string, title: string) => {
     if (!isAdmin) return;
     soundEffects.playClick();
     if (pendingDeleteMatId !== id) {
@@ -496,7 +896,16 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
       }, 4000);
       return;
     }
-    setMaterials(materials.filter((m) => m.id !== id));
+
+    if (cloudRoomExists && isCloudFirestoreReadyForUser()) {
+      try {
+        await deleteVirtualClassroomMaterialInFirestore(currentRoom.code, id);
+      } catch (err) {
+        console.warn('Cloud material delete failed:', err);
+      }
+    }
+
+    setMaterials((prev) => prev.filter((m) => m.id !== id));
     setPendingDeleteMatId(null);
     setEnterSuccess(`ลบสื่อบทเรียน "${title}" เรียบร้อยแล้ว`);
     setTimeout(() => setEnterSuccess(null), 3000);
@@ -505,9 +914,12 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   // Handle simulated download
   const handleDownloadFile = (material: DigitalLessonMaterial) => {
     soundEffects.playClick();
-    setMaterials(
-      materials.map((m) => (m.id === material.id ? { ...m, downloadsCount: m.downloadsCount + 1 } : m))
+    setMaterials((prev) =>
+      prev.map((m) => (m.id === material.id ? { ...m, downloadsCount: m.downloadsCount + 1 } : m))
     );
+    if (cloudRoomExists && cloudMaterials.some((cm) => cm.id === material.id)) {
+      incrementVirtualClassroomMaterialDownloadInFirestore(currentRoom.code, material.id).catch(() => {});
+    }
 
     // Create a real downloadable text/blob demo
     const blobContent = `สื่อการเรียนรู้ดิจิทัล: ${material.title}\nหน่วยการเรียนรู้: ${material.unitTopic}\nผู้จัดสรร: ${material.uploadedBy}\nวันที่: ${material.uploadDate}\n\nเนื้อหาสาระสำคัญ:\n${material.previewSnippet || material.description}\n\nโรงเรียน: ${currentRoom.school}\nห้องเรียน: ${currentRoom.name} (${currentRoom.code})`;
@@ -525,18 +937,46 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
     setTimeout(() => setEnterSuccess(null), 3000);
   };
 
-  // Handle Student / Member Entering Classroom by Code
-  const handleEnterClassroom = (codeToJoin?: string) => {
-    const targetCode = (codeToJoin || inputClassroomCode).trim().toUpperCase();
+  // Handle Student / Member Entering Classroom by Code (Checks Cloud Firestore first!)
+  const handleEnterClassroom = async (codeToJoin?: string) => {
+    const rawCode = codeToJoin !== undefined ? codeToJoin : inputClassroomCode;
+    const targetCode = normalizeVirtualRoomCode(rawCode);
     if (!targetCode) {
       setEnterError('กรุณากรอกรหัสห้องเรียน เช่น COD-2026 หรือ CK-P4-02');
       return;
     }
+    if (!isValidVirtualRoomCode(targetCode)) {
+      setEnterError('รหัสห้องเรียนต้องเป็นตัวอักษรภาษาอังกฤษ ตัวเลข หรือขีด (- / _) ความยาว 3-20 ตัวอักษร');
+      return;
+    }
 
-    const found = classrooms.find((c) => c.code.toUpperCase() === targetCode);
+    setIsJoiningRoom(true);
+    setEnterError(null);
+
+    let cloudRoom: VirtualClassroomRoom | null = null;
+    try {
+      cloudRoom = await getVirtualClassroomFromFirestore(targetCode);
+    } catch (err) {
+      console.warn('Cloud classroom lookup error, falling back to local cache:', err);
+    }
+
+    const localFound = classrooms.find((c) => normalizeVirtualRoomCode(c.code) === targetCode) || null;
+    const found = cloudRoom || localFound;
+
     if (!found) {
+      setIsJoiningRoom(false);
       setEnterError(`ไม่พบห้องเรียนรหัส "${targetCode}" กรุณาตรวจสอบรหัสจากคุณครู หรือเลือกห้องเรียนที่มีในระบบด้านล่าง`);
       return;
+    }
+
+    if (cloudRoom) {
+      setClassrooms((prev) => mergeVirtualClassrooms(prev, [cloudRoom]));
+      joinVirtualClassroomMemberInFirestore({
+        roomCode: cloudRoom.code,
+        displayName: studentName || profile?.name || 'ผู้เรียน Coder Kids',
+        avatarEmoji: profile?.avatarEmoji || '🐱',
+        role: isAdmin && currentRole === 'teacher' ? 'teacher' : 'student',
+      }).catch((err) => console.warn('Could not register classroom member:', err));
     }
 
     setActiveRoomCode(found.code);
@@ -547,6 +987,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
       });
     }
 
+    setIsJoiningRoom(false);
     setIsEnterModalOpen(false);
     setInputClassroomCode('');
     setEnterError(null);
@@ -592,27 +1033,48 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   };
 
   // Post in Feed
-  const handlePostQuestion = (e: React.FormEvent) => {
+  const handlePostQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newQuestionText.trim().length < 2) return;
 
     soundEffects.playClick();
+    const postId = `post_${Date.now()}`;
+    const authorName = studentName || profile?.name || 'คุณ (นักเรียน)';
+    const authorRole: 'teacher' | 'student' = currentRole === 'teacher' ? 'teacher' : 'student';
+    const content = newQuestionText.trim();
+
+    if (cloudRoomExists) {
+      try {
+        await createVirtualClassroomPostInFirestore(currentRoom.code, {
+          postId,
+          authorName,
+          authorRole,
+          content,
+        });
+      } catch (err) {
+        console.warn('Cloud post failed, keeping local post:', err);
+      }
+    }
+
     const newPost: ClassroomPost = {
-      id: `post_${Date.now()}`,
-      authorName: studentName || profile?.name || 'คุณ (นักเรียน)',
-      authorRole: currentRole === 'teacher' ? 'teacher' : 'student',
-      content: newQuestionText.trim(),
+      id: postId,
+      authorName,
+      authorRole,
+      content,
       timestamp: 'เมื่อสักครู่',
       likes: 1,
     };
 
-    setPosts([newPost, ...posts]);
+    setPosts((prev) => [newPost, ...prev]);
     setNewQuestionText('');
     addPoints(10, 'ถามข้อสงสัยในบอร์ดห้องเรียน', 'classroom', { maxPerDay: 2, cooldownMs: 15000 });
   };
 
   const handleLikePost = (postId: string) => {
     soundEffects.playClick();
+    if (cloudRoomExists && cloudPosts.some((cp) => cp.id === postId)) {
+      likeVirtualClassroomPostInFirestore(currentRoom.code, postId).catch(() => {});
+    }
     setPosts((prev) =>
       prev.map((p) => (p.id === postId ? { ...p, likes: p.likes + 1 } : p))
     );
@@ -721,8 +1183,17 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
               <span aria-hidden="true">·</span>
               <span className="flex items-center gap-1">
                 <Users className="w-3.5 h-3.5 text-emerald-400" />
-                <span>สมาชิก {currentRoom.studentsCount} คน</span>
+                <span>สมาชิก {Math.max(currentRoom.studentsCount, cloudMembers.length)} คน</span>
               </span>
+              {cloudRoomExists && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1 text-emerald-300 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    ซิงค์ Cloud Real-Time
+                  </span>
+                </>
+              )}
               <span aria-hidden="true">·</span>
               <span className="text-indigo-200">ครูผู้สอน: {currentRoom.teacherName}</span>
             </div>
@@ -801,7 +1272,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
       </div>
 
       {/* 2. Section Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl max-w-2xl text-xs font-semibold">
+      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-2xl max-w-4xl text-xs font-semibold">
         {/* Tab 1: Homework & Assignments */}
         <button
           onClick={() => {
@@ -815,7 +1286,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
           }`}
         >
           <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
-          <span>สถานะการบ้าน ({assignments.length})</span>
+          <span>สถานะการบ้าน ({effectiveAssignments.length})</span>
         </button>
 
         {/* Tab 2: Timetable / Class Schedule */}
@@ -847,7 +1318,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
           }`}
         >
           <FileText className="w-3.5 h-3.5 text-teal-500" />
-          <span>สื่อบทเรียนดิจิทัล ({materials.length})</span>
+          <span>สื่อบทเรียนดิจิทัล ({effectiveMaterials.length})</span>
         </button>
 
         {/* Tab 4: Live Poll */}
@@ -872,14 +1343,30 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
             soundEffects.playClick();
             setActiveSection('feed');
           }}
-          className={`flex-1 min-w-[100px] py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+          className={`flex-1 min-w-[110px] py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
             activeSection === 'feed'
               ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-sm font-bold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
           }`}
         >
           <MessageSquare className="w-3.5 h-3.5 text-rose-500" />
-          <span>กระดานถาม-ตอบ</span>
+          <span>กระดานถาม-ตอบ ({effectivePosts.length})</span>
+        </button>
+
+        {/* Tab 6: Classroom Members */}
+        <button
+          onClick={() => {
+            soundEffects.playClick();
+            setActiveSection('members');
+          }}
+          className={`flex-1 min-w-[110px] py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+            activeSection === 'members'
+              ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-sm font-bold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5 text-emerald-500" />
+          <span>สมาชิก ({cloudMembers.length})</span>
         </button>
       </div>
 
@@ -930,7 +1417,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
               {[
-                { id: 'all', label: 'ทั้งหมด', count: assignments.length },
+                { id: 'all', label: 'ทั้งหมด', count: effectiveAssignments.length },
                 { id: 'pending', label: '⏳ รอทำ / ยังไม่ส่ง', count: assignmentStats.pending },
                 { id: 'submitted', label: '📤 ส่งแล้ว (รอครูตรวจ)', count: assignmentStats.submitted },
                 { id: 'graded', label: '✅ ตรวจแล้ว (ผ่านเกณฑ์)', count: assignmentStats.graded },
@@ -1034,6 +1521,50 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                       </p>
                     </div>
                   )}
+                  {/* Teacher view: list of cloud student submissions for this assignment */}
+                  {currentRole === 'teacher' && (submissionsByAssignmentId.get(item.id)?.length || 0) > 0 && (
+                    <div className="mt-3 p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900 space-y-2 text-xs">
+                      <div className="font-bold text-indigo-900 dark:text-indigo-200 flex items-center justify-between">
+                        <span>📥 งานที่นักเรียนส่งเข้ามา ({submissionsByAssignmentId.get(item.id)?.length} คน)</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        {(submissionsByAssignmentId.get(item.id) || []).map((sub) => (
+                          <div
+                            key={sub.id}
+                            className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 flex items-center justify-between gap-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-800 dark:text-slate-100 truncate">
+                                {sub.studentName}
+                                <span className="ml-1.5 text-[10px] font-normal text-slate-400">
+                                  ({sub.submittedAt})
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-slate-600 dark:text-slate-400 truncate">
+                                {sub.submissionText}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                soundEffects.playClick();
+                                setGradingAssignment(item);
+                                setGradingSubmissionId(sub.id);
+                                setGradingStudentName(sub.studentName);
+                                setGradingScore(sub.score ?? item.rewardPoints ?? 30);
+                                setGradingFeedback(
+                                  sub.teacherFeedback || 'ผลงานถูกต้อง เรียบร้อย และนำความรู้ไปประยุกต์ใช้ได้ดี'
+                                );
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shrink-0 cursor-pointer"
+                            >
+                              {sub.status === 'graded' ? `✅ ${sub.score} คะแนน` : '✏️ ตรวจงาน'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
@@ -1077,9 +1608,16 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                       <button
                         onClick={() => {
                           soundEffects.playClick();
+                          const firstSub = submissionsByAssignmentId.get(item.id)?.[0];
                           setGradingAssignment(item);
-                          setGradingScore(item.score || item.rewardPoints || 30);
-                          setGradingFeedback(item.teacherFeedback || 'ผลงานถูกต้อง เรียบร้อย และนำความรู้ไปประยุกต์ใช้ได้ดี');
+                          setGradingSubmissionId(firstSub ? firstSub.id : null);
+                          setGradingStudentName(firstSub ? firstSub.studentName : '');
+                          setGradingScore(firstSub?.score || item.score || item.rewardPoints || 30);
+                          setGradingFeedback(
+                            firstSub?.teacherFeedback ||
+                              item.teacherFeedback ||
+                              'ผลงานถูกต้อง เรียบร้อย และนำความรู้ไปประยุกต์ใช้ได้ดี'
+                          );
                         }}
                         className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
                       >
@@ -1547,7 +2085,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
 
           {/* Posts Feed */}
           <div className="space-y-3">
-            {posts.map((post) => (
+            {effectivePosts.map((post) => (
               <div
                 key={post.id}
                 className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5 shadow-2xs"
@@ -1593,6 +2131,65 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ----------------- SECTION 6: CLASSROOM MEMBERS ----------------- */}
+      {activeSection === 'members' && (
+        <div className="space-y-6">
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-200 dark:border-emerald-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 font-bold text-sm text-emerald-950 dark:text-emerald-200">
+                <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>รายชื่อสมาชิกในห้องเรียน {currentRoom.name} ({currentRoom.code})</span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                แสดงคุณครูและนักเรียนที่เข้าร่วมห้องเรียนผ่านระบบออนไลน์แบบเรียลไทม์ ({cloudMembers.length} คน)
+              </p>
+            </div>
+          </div>
+
+          {cloudMembers.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {cloudMembers.map((member) => (
+                <div
+                  key={member.memberId}
+                  className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shadow-2xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-xl shrink-0">
+                      {member.avatarEmoji || '🐱'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {member.displayName}
+                      </div>
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {member.role === 'teacher' ? '👩‍🏫 คุณครูผู้สอน' : '🎒 นักเรียน'}
+                      </div>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                      member.role === 'teacher'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    }`}
+                  >
+                    {member.role === 'teacher' ? 'Teacher' : 'Online'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-10 text-center bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="text-3xl">👥</div>
+              <h4 className="font-bold text-slate-800 dark:text-slate-200">ยังไม่มีสมาชิกออนไลน์ในห้องนี้</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                เมื่อนักเรียนนำรหัส <span className="font-mono font-bold text-indigo-600">{currentRoom.code}</span> ไปกรอกเข้าร่วมห้องเรียน รายชื่อจะแสดงที่นี่อัตโนมัติ
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1697,7 +2294,9 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                     ตรวจการบ้าน: {gradingAssignment.title}
                   </h3>
                   <span className="text-[11px] text-slate-500">
-                    ให้คะแนนและพิมพ์ข้อเสนอแนะส่งถึงนักเรียน
+                    {gradingStudentName
+                      ? `กำลังตรวจงานของ: ${gradingStudentName}`
+                      : 'ให้คะแนนและพิมพ์ข้อเสนอแนะส่งถึงนักเรียน'}
                   </span>
                 </div>
               </div>
@@ -2190,9 +2789,15 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
               </button>
             </div>
 
-            <div className="space-y-3">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleEnterClassroom();
+              }}
+              className="space-y-3"
+            >
               <p className="text-xs text-slate-600 dark:text-slate-400">
-                นำรหัสห้องเรียน 6-8 หลักจากคุณครู เช่น <span className="font-mono font-bold text-amber-600">COD-2026</span> หรือ <span className="font-mono font-bold text-amber-600">CK-P4-02</span> มากรอกเพื่อเข้าสู่พื้นที่เรียนรู้
+                นำรหัสห้องเรียนจากคุณครู เช่น <span className="font-mono font-bold text-amber-600">COD-2026</span> หรือ <span className="font-mono font-bold text-amber-600">CK-P4-02</span> มากรอกเพื่อเข้าสู่พื้นที่เรียนรู้
               </p>
 
               <input
@@ -2212,22 +2817,26 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                   <span>{enterError}</span>
                 </div>
               )}
-            </div>
 
-            <div className="pt-2 flex justify-end gap-2">
-              <button
-                onClick={() => setIsEnterModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300"
-              >
-                ยกเลิก
-              </button>
-              <button
-                onClick={() => handleEnterClassroom()}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md cursor-pointer"
-              >
-                เข้าร่วมห้องเรียน
-              </button>
-            </div>
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={isJoiningRoom}
+                  onClick={() => setIsEnterModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  disabled={isJoiningRoom}
+                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-bold text-xs shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  {isJoiningRoom && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isJoiningRoom ? 'กำลังค้นหาห้องเรียน...' : 'เข้าร่วมห้องเรียน'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -2242,7 +2851,10 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                 <span>คุณครูสร้างห้องเรียนใหม่</span>
               </h3>
               <button
-                onClick={() => setIsCreateModalOpen(false)}
+                onClick={() => {
+                  setIsCreateModalOpen(false);
+                  setCreateError(null);
+                }}
                 className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 cursor-pointer"
               >
                 ✕
@@ -2250,27 +2862,74 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
             </div>
 
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (!isAdmin || !createName.trim()) return;
 
-                const trimmedCode = (createCode.trim() || `COD-${Date.now().toString().slice(-4)}`).toUpperCase();
-                const newRoom: VirtualClassroomRoom = {
+                const trimmedCode = normalizeVirtualRoomCode(
+                  createCode.trim() || `COD-${Date.now().toString().slice(-4)}`
+                );
+                if (!isValidVirtualRoomCode(trimmedCode)) {
+                  setCreateError('รหัสห้องเรียนต้องเป็นตัวอักษรภาษาอังกฤษ ตัวเลข หรือขีด (- / _) ความยาว 3-20 ตัวอักษร');
+                  return;
+                }
+
+                setCreateError(null);
+                setIsCreatingRoom(true);
+
+                const teacherDisplay = createTeacherName.trim() || 'คุณครูผู้สอน';
+                const gradeDisplay = createGrade.trim() || 'ประถมศึกษาปีที่ 4/1';
+                const schoolDisplay = createSchool.trim() || 'โรงเรียนอนุบาลนราธิวาส';
+                const descDisplay = createDesc.trim() || 'ห้องเรียนวิทยาการคำนวณออนไลน์';
+
+                let createdRoom: VirtualClassroomRoom | null = null;
+                if (isCloudFirestoreReadyForUser()) {
+                  try {
+                    createdRoom = await createOrUpdateVirtualClassroomInFirestore({
+                      code: trimmedCode,
+                      name: createName.trim(),
+                      teacherName: teacherDisplay,
+                      grade: gradeDisplay,
+                      school: schoolDisplay,
+                      description: descDisplay,
+                      studentsCount: 1,
+                    });
+                    if (createdRoom) {
+                      joinVirtualClassroomMemberInFirestore({
+                        roomCode: createdRoom.code,
+                        displayName: studentName || profile?.name || teacherDisplay,
+                        avatarEmoji: profile?.avatarEmoji || '👩‍🏫',
+                        role: 'teacher',
+                      }).catch(() => {});
+                    }
+                  } catch (err) {
+                    console.error('Failed to create virtual classroom in Firestore:', err);
+                    setIsCreatingRoom(false);
+                    setCreateError('ไม่สามารถบันทึกห้องเรียนขึ้น Cloud ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองใหม่อีกครั้ง');
+                    return;
+                  }
+                }
+
+                const newRoom: VirtualClassroomRoom = createdRoom || {
                   id: `room_${Date.now()}`,
                   code: trimmedCode,
                   name: createName.trim(),
-                  teacherName: createTeacherName.trim() || 'คุณครูผู้สอน',
-                  grade: createGrade.trim() || 'ประถมศึกษาปีที่ 4/1',
-                  school: createSchool.trim() || 'โรงเรียนอนุบาลนราธิวาส',
-                  description: createDesc.trim() || 'ห้องเรียนวิทยาการคำนวณออนไลน์',
+                  teacherName: teacherDisplay,
+                  grade: gradeDisplay,
+                  school: schoolDisplay,
+                  description: descDisplay,
                   createdAt: 'วันนี้',
                   studentsCount: 1,
                 };
 
-                setClassrooms([newRoom, ...classrooms]);
+                setClassrooms((prev) => mergeVirtualClassrooms(prev, [newRoom]));
                 setActiveRoomCode(trimmedCode);
+                setIsCreatingRoom(false);
                 setIsCreateModalOpen(false);
-                setEnterSuccess(`สร้างห้องเรียน "${newRoom.name}" (รหัส: ${trimmedCode}) เรียบร้อยแล้ว!`);
+                setCreateName('');
+                setEnterSuccess(
+                  `สร้างห้องเรียน "${newRoom.name}" (รหัส: ${trimmedCode}) และซิงค์ออนไลน์ให้นักเรียนเข้าเรียนได้ทันทีเรียบร้อยแล้ว!`
+                );
                 addPoints(25, `คุณครูสร้างห้องเรียนเสมือน "${newRoom.name}"`, 'classroom', { uniqueKey: `vc_create_${trimmedCode}` });
                 confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
                 setTimeout(() => setEnterSuccess(null), 5000);
@@ -2297,7 +2956,10 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                       type="text"
                       required
                       value={createCode}
-                      onChange={(e) => setCreateCode(e.target.value.toUpperCase())}
+                      onChange={(e) => {
+                        setCreateCode(e.target.value.toUpperCase());
+                        setCreateError(null);
+                      }}
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono font-bold text-xs text-slate-800 dark:text-slate-200"
                     />
                     <button
@@ -2307,6 +2969,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                         const p = prefixes[Math.floor(Math.random() * prefixes.length)];
                         const num = Math.floor(1000 + Math.random() * 9000);
                         setCreateCode(`${p}-${num}`);
+                        setCreateError(null);
                       }}
                       className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                       title="สุ่มรหัสใหม่"
@@ -2349,19 +3012,32 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                 />
               </div>
 
+              {createError && (
+                <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{createError}</span>
+                </div>
+              )}
+
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
+                  disabled={isCreatingRoom}
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setCreateError(null);
+                  }}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:text-slate-300"
                 >
                   ยกเลิก
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md cursor-pointer"
+                  disabled={isCreatingRoom}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-bold text-xs shadow-md cursor-pointer flex items-center gap-1.5"
                 >
-                  ยืนยันสร้างห้องเรียน
+                  {isCreatingRoom && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isCreatingRoom ? 'กำลังสร้างและซิงค์...' : 'ยืนยันสร้างห้องเรียน'}</span>
                 </button>
               </div>
             </form>

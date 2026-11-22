@@ -697,6 +697,506 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "VirtualClassroom": {
+      "title": "VirtualClassroom",
+      "description": "Teacher-created online Virtual Classroom room synced across devices by room code.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "teacherName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "hostUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "grade": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "school": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "studentsCount": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "archived"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "name",
+        "teacherName",
+        "hostUid",
+        "grade",
+        "school",
+        "studentsCount",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VirtualClassroomMember": {
+      "title": "VirtualClassroomMember",
+      "description": "Non-PII membership record for a learner or teacher inside a VirtualClassroom.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "memberId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "avatarEmoji": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "teacher"]
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "memberId",
+        "displayName",
+        "avatarEmoji",
+        "role",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "VirtualClassroomAssignment": {
+      "title": "VirtualClassroomAssignment",
+      "description": "Assignment created by teacher inside a VirtualClassroom.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "moduleKey": {
+          "type": "string",
+          "enum": ["safety", "thinking", "codingLab", "showcase", "general"]
+        },
+        "dueDate": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "teacherNote": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "rewardPoints": {
+          "type": "integer"
+        },
+        "maxScore": {
+          "type": "integer"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "title",
+        "moduleKey",
+        "dueDate",
+        "teacherNote",
+        "rewardPoints",
+        "maxScore",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VirtualClassroomSubmission": {
+      "title": "VirtualClassroomSubmission",
+      "description": "Per-student assignment submission and teacher grading record inside a VirtualClassroom.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "assignmentId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentMemberId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "submissionText": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "submissionUrl": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "submissionFileName": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "status": {
+          "type": "string",
+          "enum": ["submitted", "graded"]
+        },
+        "score": {
+          "type": "integer"
+        },
+        "teacherFeedback": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "assignmentId",
+        "studentMemberId",
+        "studentName",
+        "submissionText",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VirtualClassroomSchedule": {
+      "title": "VirtualClassroomSchedule",
+      "description": "Class timetable period inside a VirtualClassroom.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "dayOfWeek": {
+          "type": "string",
+          "enum": ["monday", "tuesday", "wednesday", "thursday", "friday"]
+        },
+        "dayLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "startTime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "endTime": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
+        "period": {
+          "type": "integer"
+        },
+        "subjectCode": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "subjectName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "unitTitle": {
+          "type": "string",
+          "maxLength": 140
+        },
+        "roomLocation": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "teacherName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "onlineMeetUrl": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "colorTheme": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "dayOfWeek",
+        "dayLabel",
+        "startTime",
+        "endTime",
+        "period",
+        "subjectCode",
+        "subjectName",
+        "topic",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VirtualClassroomMaterial": {
+      "title": "VirtualClassroomMaterial",
+      "description": "Digital lesson material uploaded/curated by teacher for a VirtualClassroom.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 800
+        },
+        "fileType": {
+          "type": "string",
+          "enum": ["pdf", "slides", "worksheet", "code", "video", "link"]
+        },
+        "fileTypeLabel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "fileName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "fileSize": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "externalUrl": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "uploadedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "unitTopic": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "tags": {
+          "type": "array"
+        },
+        "previewSnippet": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "downloadsCount": {
+          "type": "integer"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "title",
+        "description",
+        "fileType",
+        "fileTypeLabel",
+        "fileName",
+        "uploadedBy",
+        "downloadsCount",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VirtualClassroomPost": {
+      "title": "VirtualClassroomPost",
+      "description": "Q&A post inside a VirtualClassroom feed.",
+      "type": "object",
+      "properties": {
+        "roomCode": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 20,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "authorName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "authorRole": {
+          "type": "string",
+          "enum": ["teacher", "student"]
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "likes": {
+          "type": "integer"
+        },
+        "badge": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomCode",
+        "authorId",
+        "authorName",
+        "authorRole",
+        "content",
+        "likes",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -747,6 +1247,34 @@
     "/battleQuestions/{questionId}": {
       "schema": { "$ref": "#/entities/BattleQuestion" },
       "description": "Classroom Coding Battle question bank separated by Scratch and Micro:bit with easy/medium/hard difficulty."
+    },
+    "/virtualClassrooms/{roomCode}": {
+      "schema": { "$ref": "#/entities/VirtualClassroom" },
+      "description": "Teacher-created online Virtual Classrooms accessible to students by room code."
+    },
+    "/virtualClassrooms/{roomCode}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/VirtualClassroomMember" },
+      "description": "Enrolled learners and teachers inside a VirtualClassroom."
+    },
+    "/virtualClassrooms/{roomCode}/assignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/VirtualClassroomAssignment" },
+      "description": "Teacher-created assignments for a VirtualClassroom."
+    },
+    "/virtualClassrooms/{roomCode}/submissions/{submissionId}": {
+      "schema": { "$ref": "#/entities/VirtualClassroomSubmission" },
+      "description": "Student homework submissions and teacher grades inside a VirtualClassroom."
+    },
+    "/virtualClassrooms/{roomCode}/schedules/{scheduleId}": {
+      "schema": { "$ref": "#/entities/VirtualClassroomSchedule" },
+      "description": "Weekly timetable items inside a VirtualClassroom."
+    },
+    "/virtualClassrooms/{roomCode}/materials/{materialId}": {
+      "schema": { "$ref": "#/entities/VirtualClassroomMaterial" },
+      "description": "Digital lesson materials curated by teachers for a VirtualClassroom."
+    },
+    "/virtualClassrooms/{roomCode}/posts/{postId}": {
+      "schema": { "$ref": "#/entities/VirtualClassroomPost" },
+      "description": "Classroom Q&A feed posts inside a VirtualClassroom."
     }
   }
 }

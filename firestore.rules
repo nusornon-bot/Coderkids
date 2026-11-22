@@ -36,6 +36,10 @@ service cloud.firestore {
       return code is string && code.size() >= 4 && code.size() <= 12 && code.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
+    function isValidVirtualRoomCode(code) {
+      return code is string && code.size() >= 3 && code.size() <= 20 && code.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
     function isGuestParticipantId(id) {
       return id is string && id.size() >= 14 && id.size() <= 72 && id.matches('^guest_[a-zA-Z0-9_\\-]+$');
     }
@@ -55,6 +59,17 @@ service cloud.firestore {
       return isEmailVerified() &&
         exists(/databases/$(database)/documents/liveRooms/$(roomCode)) &&
         get(/databases/$(database)/documents/liveRooms/$(roomCode)).data.hostUid == request.auth.uid;
+    }
+
+    function isActiveVirtualRoom(roomCode) {
+      return exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode)) &&
+        get(/databases/$(database)/documents/virtualClassrooms/$(roomCode)).data.status == 'active';
+    }
+
+    function isVirtualRoomHost(roomCode) {
+      return isEmailVerified() &&
+        exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode)) &&
+        get(/databases/$(database)/documents/virtualClassrooms/$(roomCode)).data.hostUid == request.auth.uid;
     }
 
     function isOwner(userId) {
@@ -535,6 +550,289 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function isValidVirtualClassroom(data, roomCode) {
+      return data.keys().hasAll([
+          'roomCode',
+          'name',
+          'teacherName',
+          'hostUid',
+          'grade',
+          'school',
+          'studentsCount',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'name',
+          'teacherName',
+          'hostUid',
+          'grade',
+          'school',
+          'description',
+          'studentsCount',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidVirtualRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 140 &&
+        data.teacherName is string && data.teacherName.size() >= 1 && data.teacherName.size() <= 120 &&
+        data.hostUid is string && isValidId(data.hostUid) &&
+        data.grade is string && data.grade.size() >= 1 && data.grade.size() <= 80 &&
+        data.school is string && data.school.size() >= 1 && data.school.size() <= 120 &&
+        (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+        data.studentsCount is int && data.studentsCount >= 0 && data.studentsCount <= 1000 &&
+        data.status is string && data.status in ['active', 'archived'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVirtualClassroomMember(data, roomCode, memberId) {
+      return data.keys().hasAll([
+          'roomCode',
+          'memberId',
+          'displayName',
+          'avatarEmoji',
+          'role',
+          'joinedAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'memberId',
+          'displayName',
+          'avatarEmoji',
+          'role',
+          'joinedAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidVirtualRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.memberId is string && isValidId(data.memberId) && data.memberId == memberId &&
+        data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 120 &&
+        data.avatarEmoji is string && data.avatarEmoji.size() >= 1 && data.avatarEmoji.size() <= 16 &&
+        data.role is string && data.role in ['student', 'teacher'] &&
+        data.joinedAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVirtualClassroomAssignment(data, roomCode) {
+      return data.keys().hasAll([
+          'roomCode',
+          'title',
+          'moduleKey',
+          'dueDate',
+          'teacherNote',
+          'rewardPoints',
+          'maxScore',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'title',
+          'moduleKey',
+          'dueDate',
+          'teacherNote',
+          'rewardPoints',
+          'maxScore',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidVirtualRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.moduleKey is string && data.moduleKey in ['safety', 'thinking', 'codingLab', 'showcase', 'general'] &&
+        data.dueDate is string && data.dueDate.size() >= 1 && data.dueDate.size() <= 80 &&
+        data.teacherNote is string && data.teacherNote.size() <= 1000 &&
+        data.rewardPoints is int && data.rewardPoints >= 5 && data.rewardPoints <= 50 &&
+        data.maxScore is int && data.maxScore >= 1 && data.maxScore <= 100 &&
+        data.createdByUid is string && isValidId(data.createdByUid) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVirtualClassroomSubmission(data, roomCode) {
+      return data.keys().hasAll([
+          'roomCode',
+          'assignmentId',
+          'studentMemberId',
+          'studentName',
+          'submissionText',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'assignmentId',
+          'studentMemberId',
+          'studentName',
+          'submissionText',
+          'submissionUrl',
+          'submissionFileName',
+          'status',
+          'score',
+          'teacherFeedback',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidVirtualRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.assignmentId is string && isValidId(data.assignmentId) &&
+        data.studentMemberId is string && isValidId(data.studentMemberId) &&
+        data.studentName is string && data.studentName.size() >= 1 && data.studentName.size() <= 120 &&
+        data.submissionText is string && data.submissionText.size() <= 1000 &&
+        (!('submissionUrl' in data) || (data.submissionUrl is string && data.submissionUrl.size() <= 400)) &&
+        (!('submissionFileName' in data) || (data.submissionFileName is string && data.submissionFileName.size() <= 200)) &&
+        data.status is string && data.status in ['submitted', 'graded'] &&
+        (!('score' in data) || (data.score is int && data.score >= 0 && data.score <= 100)) &&
+        (!('teacherFeedback' in data) || (data.teacherFeedback is string && data.teacherFeedback.size() <= 600)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVirtualClassroomSchedule(data, roomCode) {
+      return data.keys().hasAll([
+          'roomCode',
+          'dayOfWeek',
+          'dayLabel',
+          'startTime',
+          'endTime',
+          'period',
+          'subjectCode',
+          'subjectName',
+          'topic',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'dayOfWeek',
+          'dayLabel',
+          'startTime',
+          'endTime',
+          'period',
+          'subjectCode',
+          'subjectName',
+          'topic',
+          'unitTitle',
+          'roomLocation',
+          'teacherName',
+          'onlineMeetUrl',
+          'colorTheme',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidVirtualRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.dayOfWeek is string && data.dayOfWeek in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] &&
+        data.dayLabel is string && data.dayLabel.size() >= 1 && data.dayLabel.size() <= 40 &&
+        data.startTime is string && data.startTime.size() >= 1 && data.startTime.size() <= 20 &&
+        data.endTime is string && data.endTime.size() >= 1 && data.endTime.size() <= 20 &&
+        data.period is int && data.period >= 1 && data.period <= 12 &&
+        data.subjectCode is string && data.subjectCode.size() >= 1 && data.subjectCode.size() <= 40 &&
+        data.subjectName is string && data.subjectName.size() >= 1 && data.subjectName.size() <= 120 &&
+        data.topic is string && data.topic.size() >= 1 && data.topic.size() <= 200 &&
+        (!('unitTitle' in data) || (data.unitTitle is string && data.unitTitle.size() <= 140)) &&
+        (!('roomLocation' in data) || (data.roomLocation is string && data.roomLocation.size() <= 120)) &&
+        (!('teacherName' in data) || (data.teacherName is string && data.teacherName.size() <= 120)) &&
+        (!('onlineMeetUrl' in data) || (data.onlineMeetUrl is string && data.onlineMeetUrl.size() <= 400)) &&
+        (!('colorTheme' in data) || (data.colorTheme is string && data.colorTheme.size() <= 80)) &&
+        data.createdByUid is string && isValidId(data.createdByUid) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVirtualClassroomMaterial(data, roomCode) {
+      return data.keys().hasAll([
+          'roomCode',
+          'title',
+          'description',
+          'fileType',
+          'fileTypeLabel',
+          'fileName',
+          'uploadedBy',
+          'downloadsCount',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'title',
+          'description',
+          'fileType',
+          'fileTypeLabel',
+          'fileName',
+          'fileSize',
+          'externalUrl',
+          'uploadedBy',
+          'unitTopic',
+          'tags',
+          'previewSnippet',
+          'downloadsCount',
+          'createdByUid',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidVirtualRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+        data.description is string && data.description.size() <= 800 &&
+        data.fileType is string && data.fileType in ['pdf', 'slides', 'worksheet', 'code', 'video', 'link'] &&
+        data.fileTypeLabel is string && data.fileTypeLabel.size() >= 1 && data.fileTypeLabel.size() <= 80 &&
+        data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 160 &&
+        (!('fileSize' in data) || (data.fileSize is string && data.fileSize.size() <= 40)) &&
+        (!('externalUrl' in data) || (data.externalUrl is string && data.externalUrl.size() <= 400)) &&
+        data.uploadedBy is string && data.uploadedBy.size() >= 1 && data.uploadedBy.size() <= 120 &&
+        (!('unitTopic' in data) || (data.unitTopic is string && data.unitTopic.size() <= 160)) &&
+        (!('tags' in data) || (
+          data.tags is list &&
+          data.tags.size() <= 15 &&
+          (data.tags.size() == 0 || (data.tags[0] is string && data.tags[0].size() <= 40))
+        )) &&
+        (!('previewSnippet' in data) || (data.previewSnippet is string && data.previewSnippet.size() <= 2000)) &&
+        data.downloadsCount is int && data.downloadsCount >= 0 && data.downloadsCount <= 1000000 &&
+        data.createdByUid is string && isValidId(data.createdByUid) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidVirtualClassroomPost(data, roomCode) {
+      return data.keys().hasAll([
+          'roomCode',
+          'authorId',
+          'authorName',
+          'authorRole',
+          'content',
+          'likes',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'roomCode',
+          'authorId',
+          'authorName',
+          'authorRole',
+          'content',
+          'likes',
+          'badge',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.roomCode is string && isValidVirtualRoomCode(data.roomCode) && data.roomCode == roomCode &&
+        data.authorId is string && isValidId(data.authorId) &&
+        data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 120 &&
+        data.authorRole is string && data.authorRole in ['teacher', 'student'] &&
+        data.content is string && data.content.size() >= 1 && data.content.size() <= 1000 &&
+        data.likes is int && data.likes >= 0 && data.likes <= 100000 &&
+        (!('badge' in data) || (data.badge is string && data.badge.size() <= 60)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
     // -------------------------------------------------------------------------
     // Admins Collection (Trusted RBAC Registry)
     // -------------------------------------------------------------------------
@@ -998,6 +1296,283 @@ service cloud.firestore {
           'updatedAt'
         ]);
       allow delete: if isValidId(questionId) && isAdmin();
+    }
+
+    // -------------------------------------------------------------------------
+    // Virtual Classrooms & Subcollections (Rooms, Members, Assignments, Schedules, Materials, Posts)
+    // -------------------------------------------------------------------------
+    match /virtualClassrooms/{roomCode} {
+      allow get: if isValidVirtualRoomCode(roomCode) && (
+        isEmailVerified() ||
+        resource == null ||
+        existing().status == 'active'
+      );
+      allow list: if isEmailVerified() && resource.data.status == 'active';
+      allow create: if isValidVirtualRoomCode(roomCode) &&
+        isAdmin() &&
+        isValidVirtualClassroom(incoming(), roomCode) &&
+        incoming().hostUid == request.auth.uid &&
+        incoming().status == 'active' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidVirtualRoomCode(roomCode) &&
+        isEmailVerified() &&
+        isValidVirtualClassroom(incoming(), roomCode) &&
+        incoming().roomCode == existing().roomCode &&
+        incoming().hostUid == existing().hostUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (
+            existing().hostUid == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name',
+              'teacherName',
+              'grade',
+              'school',
+              'description',
+              'studentsCount',
+              'status',
+              'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isValidVirtualRoomCode(roomCode) && (
+        isAdmin() ||
+        (isEmailVerified() && existing().hostUid == request.auth.uid)
+      );
+
+      match /members/{memberId} {
+        allow get: if isValidVirtualRoomCode(roomCode) && isValidId(memberId) && (
+          isEmailVerified() ||
+          isGuestParticipantId(memberId)
+        ) && exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode));
+        allow list: if isValidVirtualRoomCode(roomCode) && resource.data.roomCode == roomCode;
+        allow create: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(memberId) &&
+          (isOwner(memberId) || isGuestParticipantId(memberId) || isAdmin() || isVirtualRoomHost(roomCode)) &&
+          isValidVirtualClassroomMember(incoming(), roomCode, memberId) &&
+          (incoming().role == 'student' || isAdmin() || isVirtualRoomHost(roomCode)) &&
+          incoming().joinedAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isActiveVirtualRoom(roomCode);
+        allow update: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(memberId) &&
+          isValidVirtualClassroomMember(incoming(), roomCode, memberId) &&
+          incoming().roomCode == existing().roomCode &&
+          incoming().memberId == existing().memberId &&
+          incoming().joinedAt == existing().joinedAt &&
+          incoming().updatedAt == request.time &&
+          isActiveVirtualRoom(roomCode) && (
+            isAdmin() ||
+            isVirtualRoomHost(roomCode) ||
+            (
+              (isOwner(memberId) || isGuestParticipantId(memberId)) &&
+              incoming().role == existing().role &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'displayName',
+                'avatarEmoji',
+                'updatedAt'
+              ])
+            )
+          );
+        allow delete: if isValidVirtualRoomCode(roomCode) && isValidId(memberId) && (
+          isAdmin() ||
+          isVirtualRoomHost(roomCode) ||
+          isOwner(memberId)
+        );
+      }
+
+      match /assignments/{assignmentId} {
+        allow get: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(assignmentId) &&
+          exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode));
+        allow list: if isValidVirtualRoomCode(roomCode) && resource.data.roomCode == roomCode;
+        allow create: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(assignmentId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode)) &&
+          isValidVirtualClassroomAssignment(incoming(), roomCode) &&
+          incoming().createdByUid == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode));
+        allow update: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(assignmentId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode)) &&
+          isValidVirtualClassroomAssignment(incoming(), roomCode) &&
+          incoming().roomCode == existing().roomCode &&
+          incoming().createdByUid == existing().createdByUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title',
+            'moduleKey',
+            'dueDate',
+            'teacherNote',
+            'rewardPoints',
+            'maxScore',
+            'updatedAt'
+          ]);
+        allow delete: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(assignmentId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode));
+      }
+
+      match /submissions/{submissionId} {
+        allow get: if isValidVirtualRoomCode(roomCode) && isValidId(submissionId) && (
+          isAdmin() ||
+          isVirtualRoomHost(roomCode) ||
+          isOwner(existing().studentMemberId) ||
+          isGuestParticipantId(existing().studentMemberId)
+        );
+        allow list: if isValidVirtualRoomCode(roomCode) &&
+          resource.data.roomCode == roomCode && (
+            isAdmin() ||
+            (isEmailVerified() && resource.data.studentMemberId == request.auth.uid) ||
+            isGuestParticipantId(resource.data.studentMemberId)
+          );
+        allow create: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(submissionId) &&
+          isValidVirtualClassroomSubmission(incoming(), roomCode) &&
+          (isOwner(incoming().studentMemberId) || isGuestParticipantId(incoming().studentMemberId)) &&
+          incoming().status == 'submitted' &&
+          !('score' in incoming()) &&
+          !('teacherFeedback' in incoming()) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isActiveVirtualRoom(roomCode);
+        allow update: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(submissionId) &&
+          isValidVirtualClassroomSubmission(incoming(), roomCode) &&
+          incoming().roomCode == existing().roomCode &&
+          incoming().assignmentId == existing().assignmentId &&
+          incoming().studentMemberId == existing().studentMemberId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time && (
+            (isAdmin() || isVirtualRoomHost(roomCode)) &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'status',
+              'score',
+              'teacherFeedback',
+              'updatedAt'
+            ])
+          );
+        allow delete: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(submissionId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode));
+      }
+
+      match /schedules/{scheduleId} {
+        allow get: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(scheduleId) &&
+          exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode));
+        allow list: if isValidVirtualRoomCode(roomCode) && resource.data.roomCode == roomCode;
+        allow create: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(scheduleId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode)) &&
+          isValidVirtualClassroomSchedule(incoming(), roomCode) &&
+          incoming().createdByUid == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode));
+        allow update: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(scheduleId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode)) &&
+          isValidVirtualClassroomSchedule(incoming(), roomCode) &&
+          incoming().roomCode == existing().roomCode &&
+          incoming().createdByUid == existing().createdByUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'dayOfWeek',
+            'dayLabel',
+            'startTime',
+            'endTime',
+            'period',
+            'subjectCode',
+            'subjectName',
+            'topic',
+            'unitTitle',
+            'roomLocation',
+            'teacherName',
+            'onlineMeetUrl',
+            'colorTheme',
+            'updatedAt'
+          ]);
+        allow delete: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(scheduleId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode));
+      }
+
+      match /materials/{materialId} {
+        allow get: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(materialId) &&
+          exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode));
+        allow list: if isValidVirtualRoomCode(roomCode) && resource.data.roomCode == roomCode;
+        allow create: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(materialId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode)) &&
+          isValidVirtualClassroomMaterial(incoming(), roomCode) &&
+          incoming().createdByUid == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode));
+        allow update: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(materialId) &&
+          isValidVirtualClassroomMaterial(incoming(), roomCode) &&
+          incoming().roomCode == existing().roomCode &&
+          incoming().createdByUid == existing().createdByUid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time && (
+            isAdmin() ||
+            isVirtualRoomHost(roomCode) ||
+            (
+              isActiveVirtualRoom(roomCode) &&
+              incoming().downloadsCount == existing().downloadsCount + 1 &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['downloadsCount', 'updatedAt'])
+            )
+          );
+        allow delete: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(materialId) &&
+          (isAdmin() || isVirtualRoomHost(roomCode));
+      }
+
+      match /posts/{postId} {
+        allow get: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(postId) &&
+          exists(/databases/$(database)/documents/virtualClassrooms/$(roomCode));
+        allow list: if isValidVirtualRoomCode(roomCode) && resource.data.roomCode == roomCode;
+        allow create: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(postId) &&
+          isActiveVirtualRoom(roomCode) &&
+          isValidVirtualClassroomPost(incoming(), roomCode) &&
+          (isOwner(incoming().authorId) || isGuestParticipantId(incoming().authorId)) &&
+          (incoming().authorRole == 'student' || isAdmin() || isVirtualRoomHost(roomCode)) &&
+          incoming().likes == 1 &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time;
+        allow update: if isValidVirtualRoomCode(roomCode) &&
+          isValidId(postId) &&
+          isActiveVirtualRoom(roomCode) &&
+          isValidVirtualClassroomPost(incoming(), roomCode) &&
+          incoming().roomCode == existing().roomCode &&
+          incoming().authorId == existing().authorId &&
+          incoming().authorRole == existing().authorRole &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time && (
+            isAdmin() ||
+            isVirtualRoomHost(roomCode) ||
+            (
+              incoming().likes == existing().likes + 1 &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['likes', 'updatedAt'])
+            )
+          );
+        allow delete: if isValidVirtualRoomCode(roomCode) && isValidId(postId) && (
+          isAdmin() ||
+          isVirtualRoomHost(roomCode) ||
+          isOwner(existing().authorId)
+        );
+      }
     }
   }
 }

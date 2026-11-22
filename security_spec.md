@@ -16,6 +16,10 @@
 12. **Live Classroom Quiz Room Integrity**: Only verified teachers/admins (`isAdmin()`) can create `/liveRooms/{roomCode}` (with `hostUid == request.auth.uid`) and only the host (`existing().hostUid == request.auth.uid`) or `isAdmin()` can update or delete them. Participants under `/liveRooms/{roomCode}/participants/{participantId}` must belong to an active room, start with `score == 0 && streak == 0 && lastAnswerIndex == -1` on create, cannot increase `score` by more than `+2000` or `streak` by more than `+1` per update while the room stage is not `'podium'`, and can only be deleted by the room host or `isAdmin()` (preventing self-delete duplicate-join bypass).
 13. **Coding Battle Question Bank Integrity**: `/battleQuestions/{questionId}` stores Scratch and Micro:bit questions categorized by difficulty (`easy`, `medium`, `hard`). Verified users can read/list active questions (`resource.data.status == 'active'`). Only verified teachers/admins (`isAdmin()`) can create, update, or delete questions, with strict schema keys (`hasAll`/`hasOnly`), 4-choice array bounds (`options.size() == 4`, `options[0] is string`), `correctIndex` in `0..3`, immutable `createdByUid`/`createdAt`, and server timestamps.
 14. **User Profile Points & Progression Rate Bounding**: Under `/users/{userId}/public/profile`, non-admin users are capped on initial `create` (`points <= 1000`, `completedModulesCount <= 4`, `streakDays <= 30`) and bounded on `update` (`points <= existing().points + 600`, `completedModulesCount <= existing().completedModulesCount + 1 && <= 4`, `streakDays <= existing().streakDays + 1`) to block direct Firestore SDK point/module/streak inflation.
+15. **Virtual Classroom Room, Member, Assignment, Submission, Schedule, Material & Post Integrity**:
+    - Only verified teachers/admins (`isAdmin()`) can create `/virtualClassrooms/{roomCode}` (with `hostUid == request.auth.uid`, `status == 'active'`, `roomCode` matching `^[a-zA-Z0-9_\\-]+$` length 3..20), and only the host or `isAdmin()` can update or delete it.
+    - Students (verified or `guest_...` participant ID) can `get` an active room by exact `roomCode`, join `/virtualClassrooms/{roomCode}/members/{memberId}` strictly with `role == 'student'` (non-PII fields only), submit homework under `/submissions/{submissionId}` strictly with `status == 'submitted'` (no `score`/`teacherFeedback`), increment material `downloadsCount` by `+1` only, and create/like Q&A `/posts/{postId}` (`authorRole == 'student'`, `likes == 1` on create, `likes == existing().likes + 1` on like).
+    - Only `isAdmin()` or room `hostUid` can create/update/delete assignments, schedules, materials (except `+1` download counter), or grade submissions (`status: 'graded'`, `score`, `teacherFeedback`).
 
 ---
 
@@ -37,4 +41,9 @@
 14. **Unauthorized Live Room Creation**: Non-admin student attempting `create` on `/liveRooms/CHEAT1`.
 15. **Live Battle Score Injection / Post-Podium Write**: Student participant setting `score: 99999` on create or updating score by `+10000` or after `stage == 'podium'`.
 16. **Participant Self-Delete Rejoin Bypass**: Student participant calling `delete` on `/liveRooms/{roomCode}/participants/{participantId}` to bypass duplicate-join guard.
+17. **Unauthorized Virtual Classroom Creation**: Non-admin student attempting `create` on `/virtualClassrooms/HACK1`.
+18. **Virtual Classroom Teacher Role Spoofing**: Student joining `/virtualClassrooms/CS61/members/u1` with `role: "teacher"` or posting with `authorRole: "teacher"`.
+19. **Student Self-Grading Submission**: Student creating `/virtualClassrooms/CS61/submissions/sub1` with `status: "graded"` and `score: 100`.
+20. **Orphaned Virtual Classroom Member Write**: Creating `/virtualClassrooms/NONEXISTENT/members/guest_1234567890` where parent room does not exist.
+
 
