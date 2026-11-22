@@ -160,7 +160,7 @@ interface BebrasSimulatorModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentStudentName: string;
-  onRewardPoints?: (pts: number, reason: string) => void;
+  onRewardPoints?: (pts: number, reason: string, options?: any) => void;
 }
 
 export const BebrasSimulatorModal: React.FC<BebrasSimulatorModalProps> = ({
@@ -242,8 +242,12 @@ export const BebrasSimulatorModal: React.FC<BebrasSimulatorModalProps> = ({
       }
     });
 
-    if (onRewardPoints) {
-      onRewardPoints(Math.round(totalScore * 0.5), `การทดสอบจำลอง Bebras International Challenge`);
+    const earnedXp = Math.round(totalScore * 0.5);
+    if (onRewardPoints && earnedXp > 0) {
+      const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
+      onRewardPoints(earnedXp, `การทดสอบจำลอง Bebras International Challenge`, {
+        uniqueKey: `bebras_sim_${todayKey}`,
+      });
     }
   };
 

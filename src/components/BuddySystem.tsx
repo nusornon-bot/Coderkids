@@ -34,10 +34,11 @@ import {
   INITIAL_BUDDY_ACTIVITIES,
 } from '../data/learningData.ts';
 import confetti from 'canvas-confetti';
+import { getThailandDateKey } from '../utils/antiCheatGuard.ts';
 
 interface BuddySystemProps {
   profile: UserProfile;
-  addPoints: (amount: number, reason: string, category?: any) => void;
+  addPoints: (amount: number, reason: string, category?: any, options?: any) => void;
   onNavigateModule?: (moduleKey: string) => void;
 }
 
@@ -98,10 +99,19 @@ export const BuddySystem: React.FC<BuddySystemProps> = ({
   const [floatingEmojis, setFloatingEmojis] = useState<FloatingEmoji[]>([]);
   const [customCheerText, setCustomCheerText] = useState('');
   const [showSwitchModal, setShowSwitchModal] = useState(false);
-  const [coopProgress, setCoopProgress] = useState({
-    userChecked: true,
-    buddyChecked: true,
-    claimedBonus: false,
+  const [coopProgress, setCoopProgress] = useState(() => {
+    const todayKey = getThailandDateKey();
+    let alreadyClaimed = false;
+    try {
+      alreadyClaimed = localStorage.getItem('coderkids_buddy_coop_date_v1') === todayKey;
+    } catch {
+      alreadyClaimed = false;
+    }
+    return {
+      userChecked: true,
+      buddyChecked: true,
+      claimedBonus: alreadyClaimed,
+    };
   });
 
   const activeBuddy =
@@ -158,8 +168,11 @@ export const BuddySystem: React.FC<BuddySystemProps> = ({
     setCheerMessages((prev) => [newMsg, ...prev]);
     setCustomCheerText('');
 
-    // Award friendship points
-    addPoints(5, `ส่งอิโมจิให้กำลังใจ ${activeBuddy.nickname} (${reaction.emoji})`, 'classroom');
+    // Award friendship points (rate-limited to prevent spam farming)
+    addPoints(5, `ส่งอิโมจิให้กำลังใจ ${activeBuddy.nickname} (${reaction.emoji})`, 'classroom', {
+      maxPerDay: 3,
+      cooldownMs: 15000,
+    });
 
     // Simulated buddy automated cheer reply after 1.5 seconds
     setTimeout(() => {
@@ -243,8 +256,19 @@ export const BuddySystem: React.FC<BuddySystemProps> = ({
 
   // Claim shared co-op mission bonus
   const handleClaimCoopBonus = () => {
-    if (coopProgress.claimedBonus) return;
-    addPoints(20, 'รับโบนัสภารกิจคู่หูประจำวัน (Co-op Daily Mission)', 'classroom');
+    const todayKey = getThailandDateKey();
+    try {
+      if (coopProgress.claimedBonus || localStorage.getItem('coderkids_buddy_coop_date_v1') === todayKey) {
+        setCoopProgress((prev) => ({ ...prev, claimedBonus: true }));
+        return;
+      }
+      localStorage.setItem('coderkids_buddy_coop_date_v1', todayKey);
+    } catch {
+      if (coopProgress.claimedBonus) return;
+    }
+    addPoints(20, 'รับโบนัสภารกิจคู่หูประจำวัน (Co-op Daily Mission)', 'classroom', {
+      uniqueKey: `buddy_coop_${todayKey}`,
+    });
     setCoopProgress((prev) => ({ ...prev, claimedBonus: true }));
     confetti({
       particleCount: 50,
@@ -770,7 +794,7 @@ export const BuddySystem: React.FC<BuddySystemProps> = ({
 // Compact Dashboard Widget Version for Embedding directly on Dashboard
 interface BuddyDashboardWidgetProps {
   onOpenBuddyFull: () => void;
-  addPoints: (amount: number, reason: string, category?: any) => void;
+  addPoints: (amount: number, reason: string, category?: any, options?: any) => void;
 }
 
 export const BuddyDashboardWidget: React.FC<BuddyDashboardWidgetProps> = ({
@@ -788,7 +812,10 @@ export const BuddyDashboardWidget: React.FC<BuddyDashboardWidgetProps> = ({
 
   const handleQuickCheer = (emoji: string) => {
     setCheeredCount((prev) => prev + 1);
-    addPoints(5, `ส่งอิโมจิ ${emoji} ให้ ${activeBuddy.nickname}`, 'classroom');
+    addPoints(5, `ส่งอิโมจิ ${emoji} ให้ ${activeBuddy.nickname}`, 'classroom', {
+      maxPerDay: 3,
+      cooldownMs: 15000,
+    });
     confetti({
       particleCount: 20,
       spread: 50,

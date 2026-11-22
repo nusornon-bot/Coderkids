@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects.ts';
 import { fireConfetti } from './ConfettiCelebration.tsx';
+import { getThailandWeekKey } from '../utils/antiCheatGuard.ts';
 
 export interface WeeklyQuestItem {
   id: string;
@@ -29,65 +30,107 @@ export interface WeeklyQuestItem {
 
 interface WeeklyQuestsWidgetProps {
   onNavigate: (moduleKey: string, subSection?: string) => void;
-  addPoints?: (amount: number, reason: string, category?: any) => void;
+  addPoints?: (amount: number, reason: string, category?: any, options?: any) => void;
   onCelebrate?: () => void;
 }
+
+const DEFAULT_WEEKLY_QUESTS: WeeklyQuestItem[] = [
+  {
+    id: 'wq_1',
+    title: 'พิชิตเขาวงกตอัลกอริทึม 1 ด่าน',
+    description: 'วางบล็อกคำสั่งเดินหน้า เลี้ยว และวนซ้ำพาหุ่นยนต์แก้ปัญหา',
+    rewardPoints: 20,
+    category: 'thinking',
+    completed: false,
+    targetModuleKey: 'thinking',
+    targetSubSection: 'puzzle',
+    icon: '🧩',
+  },
+  {
+    id: 'wq_2',
+    title: 'ทำแบบทดสอบ PDPA และไซเบอร์ 10 ข้อ',
+    description: 'ตอบคำถามจำแนกข้อมูลอ่อนไหวและสร้างรหัสผ่านที่รัดกุม',
+    rewardPoints: 25,
+    category: 'safety',
+    completed: false,
+    targetModuleKey: 'safety',
+    targetSubSection: 'quiz',
+    icon: '🛡️',
+  },
+  {
+    id: 'wq_3',
+    title: 'รันโค้ดจำลองบอร์ด Micro:bit V2',
+    description: 'ทดลองแสดงผลหน้าจอ LED Matrix หรืออ่านค่าเซ็นเซอร์อุณหภูมิ',
+    rewardPoints: 25,
+    category: 'coding',
+    completed: false,
+    targetModuleKey: 'codingLab',
+    targetSubSection: 'microbit',
+    icon: '📟',
+  },
+  {
+    id: 'wq_4',
+    title: 'รีวิวผลงานเพื่อน 2 Stars & 1 Wish',
+    description: 'ส่งคำชมและข้อเสนอแนะโครงงานของเพื่อนร่วมชั้นอย่างสร้างสรรค์',
+    rewardPoints: 20,
+    category: 'showcase',
+    completed: false,
+    targetModuleKey: 'showcase',
+    targetSubSection: 'reviews',
+    icon: '⭐',
+  },
+];
 
 export const WeeklyQuestsWidget: React.FC<WeeklyQuestsWidgetProps> = ({
   onNavigate,
   addPoints,
   onCelebrate,
 }) => {
+  const weekKey = getThailandWeekKey();
+  const storageKey = `coderkids_weekly_quests_${weekKey}`;
+
   const [quests, setQuests] = useState<WeeklyQuestItem[]>(() => {
-    return [
-      {
-        id: 'wq_1',
-        title: 'พิชิตเขาวงกตอัลกอริทึม 1 ด่าน',
-        description: 'วางบล็อกคำสั่งเดินหน้า เลี้ยว และวนซ้ำพาหุ่นยนต์แก้ปัญหา',
-        rewardPoints: 20,
-        category: 'thinking',
-        completed: true,
-        targetModuleKey: 'thinking',
-        targetSubSection: 'puzzle',
-        icon: '🧩',
-      },
-      {
-        id: 'wq_2',
-        title: 'ทำแบบทดสอบ PDPA และไซเบอร์ 10 ข้อ',
-        description: 'ตอบคำถามจำแนกข้อมูลอ่อนไหวและสร้างรหัสผ่านที่รัดกุม',
-        rewardPoints: 25,
-        category: 'safety',
-        completed: false,
-        targetModuleKey: 'safety',
-        targetSubSection: 'quiz',
-        icon: '🛡️',
-      },
-      {
-        id: 'wq_3',
-        title: 'รันโค้ดจำลองบอร์ด Micro:bit V2',
-        description: 'ทดลองแสดงผลหน้าจอ LED Matrix หรืออ่านค่าเซ็นเซอร์อุณหภูมิ',
-        rewardPoints: 25,
-        category: 'coding',
-        completed: true,
-        targetModuleKey: 'codingLab',
-        targetSubSection: 'microbit',
-        icon: '📟',
-      },
-      {
-        id: 'wq_4',
-        title: 'รีวิวผลงานเพื่อน 2 Stars & 1 Wish',
-        description: 'ส่งคำชมและข้อเสนอแนะโครงงานของเพื่อนร่วมชั้นอย่างสร้างสรรค์',
-        rewardPoints: 20,
-        category: 'showcase',
-        completed: false,
-        targetModuleKey: 'showcase',
-        targetSubSection: 'reviews',
-        icon: '⭐',
-      },
-    ];
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.completedIds)) {
+          return DEFAULT_WEEKLY_QUESTS.map((q) => ({
+            ...q,
+            completed: parsed.completedIds.includes(q.id),
+          }));
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+    return DEFAULT_WEEKLY_QUESTS;
   });
 
-  const [hasClaimedWeeklyBonus, setHasClaimedWeeklyBonus] = useState(false);
+  const [hasClaimedWeeklyBonus, setHasClaimedWeeklyBonus] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Boolean(parsed.claimedBonus);
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    try {
+      const completedIds = quests.filter((q) => q.completed).map((q) => q.id);
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({ completedIds, claimedBonus: hasClaimedWeeklyBonus })
+      );
+    } catch {
+      // ignore
+    }
+  }, [quests, hasClaimedWeeklyBonus, storageKey]);
 
   // Live School Achievement Toast
   const [liveToastIndex, setLiveToastIndex] = useState(0);
@@ -109,23 +152,19 @@ export const WeeklyQuestsWidget: React.FC<WeeklyQuestsWidgetProps> = ({
   const progressPercent = Math.round((completedQuestsCount / quests.length) * 100);
 
   const handleToggleQuest = (id: string) => {
-    soundEffects.playClick();
+    const target = quests.find((q) => q.id === id);
+    if (!target || target.completed) return;
+
+    soundEffects.playFanfare();
+    fireConfetti('burst');
     setQuests((prev) =>
-      prev.map((q) => {
-        if (q.id === id) {
-          const next = !q.completed;
-          if (next) {
-            soundEffects.playFanfare();
-            fireConfetti('burst');
-            if (addPoints) {
-              addPoints(q.rewardPoints, `สำเร็จเควสต์ประจำสัปดาห์: ${q.title}`, q.category);
-            }
-          }
-          return { ...q, completed: next };
-        }
-        return q;
-      })
+      prev.map((q) => (q.id === id ? { ...q, completed: true } : q))
     );
+    if (addPoints) {
+      addPoints(target.rewardPoints, `สำเร็จเควสต์ประจำสัปดาห์: ${target.title}`, target.category, {
+        uniqueKey: `weekly_quest_${weekKey}_${target.id}`,
+      });
+    }
   };
 
   const handleClaimGrandBonus = () => {
@@ -134,7 +173,9 @@ export const WeeklyQuestsWidget: React.FC<WeeklyQuestsWidgetProps> = ({
     soundEffects.playFanfare();
     fireConfetti('fireworks');
     if (addPoints) {
-      addPoints(50, 'ปลดล็อกเหรียญตราแชมเปี้ยนเควสต์ประจำสัปดาห์ (Weekend Code Hero)!', 'classroom');
+      addPoints(50, 'ปลดล็อกเหรียญตราแชมเปี้ยนเควสต์ประจำสัปดาห์ (Weekend Code Hero)!', 'classroom', {
+        uniqueKey: `weekly_grand_bonus_${weekKey}`,
+      });
     }
     if (onCelebrate) {
       onCelebrate();
@@ -210,12 +251,13 @@ export const WeeklyQuestsWidget: React.FC<WeeklyQuestsWidgetProps> = ({
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => handleToggleQuest(q.id)}
-                className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-transform active:scale-90 cursor-pointer ${
+                disabled={q.completed}
+                className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-transform ${
                   q.completed
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:border-indigo-500'
+                    ? 'bg-emerald-600 text-white shadow-xs cursor-default'
+                    : 'bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 hover:border-indigo-500 active:scale-90 cursor-pointer'
                 }`}
-                title={q.completed ? 'คลิกเพื่อยกเลิก' : 'คลิกเพื่อทำภารกิจสำเร็จ'}
+                title={q.completed ? 'ทำภารกิจสำเร็จแล้ว' : 'คลิกเพื่อทำภารกิจสำเร็จ'}
               >
                 {q.completed ? <Check className="w-4 h-4 stroke-[3]" /> : <span className="text-xs">{q.icon}</span>}
               </button>

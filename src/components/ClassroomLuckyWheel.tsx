@@ -22,7 +22,8 @@ interface ClassroomLuckyWheelProps {
   isOpen: boolean;
   onClose: () => void;
   profiles?: UserProfile[];
-  onAwardBonusPoints?: (amount: number, reason: string) => void;
+  onAwardBonusPoints?: (amount: number, reason: string, options?: any) => void;
+  isTeacher?: boolean;
 }
 
 const DEFAULT_STUDENT_NAMES = [
@@ -69,6 +70,7 @@ export const ClassroomLuckyWheel: React.FC<ClassroomLuckyWheelProps> = ({
   onClose,
   profiles = [],
   onAwardBonusPoints,
+  isTeacher = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'wheel' | 'teams'>('wheel');
   const [names, setNames] = useState<string[]>(() => {
@@ -381,11 +383,11 @@ export const ClassroomLuckyWheel: React.FC<ClassroomLuckyWheelProps> = ({
                     <h4 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">
                       {winner}
                     </h4>
-                    {onAwardBonusPoints && (
+                    {isTeacher && onAwardBonusPoints && (
                       <button
                         type="button"
                         onClick={() => {
-                          onAwardBonusPoints(10, `ตอบคำถามหน้าชั้นเรียนสำเร็จจากการสุ่มวงล้อ: ${winner}`);
+                          onAwardBonusPoints(10, `ตอบคำถามหน้าชั้นเรียนสำเร็จจากการสุ่มวงล้อ: ${winner}`, { maxPerDay: 5, cooldownMs: 5000 });
                           soundEffects.play('correct');
                           setWinner(null);
                         }}

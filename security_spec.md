@@ -13,12 +13,13 @@
 9. **Secure List Queries**: Any `allow list` rule evaluates `resource.data` directly (e.g., `resource.data.ownerId == request.auth.uid` or `resource.data.status == 'published'`) with zero `get()`/`exists()` calls inside `list`.
 10. **Homework Submission & Grading Separation**: Students can create `/homeworkSubmissions/{submissionId}` with `ownerId == request.auth.uid` and `status == 'pending'`, and can only edit their submission fields while `status == 'pending'`. Only verified admins/teachers (`isAdmin()`) can transition `status` to `'graded'` or write `gradeScore` (1..5) and `teacherFeedback`.
 11. **Cloud Studio Projects Isolation**: `/users/{userId}/studioProjects/{studioProjectId}` documents are strictly scoped to `ownerId == userId == request.auth.uid` (or admin read) with bounded `codeContent` (`<= 20000`) and `blocksJson` (`<= 30000`).
-12. **Live Classroom Quiz Room Integrity**: `/liveRooms/{roomCode}` can be created by any verified user with `hostUid == request.auth.uid` and updated only by the host (`existing().hostUid == request.auth.uid`) or `isAdmin()`. Participants under `/liveRooms/{roomCode}/participants/{participantId}` require `participantId == request.auth.uid`, `userId == request.auth.uid`, an existing parent `/liveRooms/{roomCode}`, and bounded score (`0..100000`) and streak (`0..100`).
+12. **Live Classroom Quiz Room Integrity**: Only verified teachers/admins (`isAdmin()`) can create `/liveRooms/{roomCode}` (with `hostUid == request.auth.uid`) and only the host (`existing().hostUid == request.auth.uid`) or `isAdmin()` can update or delete them. Participants under `/liveRooms/{roomCode}/participants/{participantId}` must belong to an active room, start with `score == 0 && streak == 0 && lastAnswerIndex == -1` on create, cannot increase `score` by more than `+2000` or `streak` by more than `+1` per update while the room stage is not `'podium'`, and can only be deleted by the room host or `isAdmin()` (preventing self-delete duplicate-join bypass).
 13. **Coding Battle Question Bank Integrity**: `/battleQuestions/{questionId}` stores Scratch and Micro:bit questions categorized by difficulty (`easy`, `medium`, `hard`). Verified users can read/list active questions (`resource.data.status == 'active'`). Only verified teachers/admins (`isAdmin()`) can create, update, or delete questions, with strict schema keys (`hasAll`/`hasOnly`), 4-choice array bounds (`options.size() == 4`, `options[0] is string`), `correctIndex` in `0..3`, immutable `createdByUid`/`createdAt`, and server timestamps.
+14. **User Profile Points & Progression Rate Bounding**: Under `/users/{userId}/public/profile`, non-admin users are capped on initial `create` (`points <= 1000`, `completedModulesCount <= 4`, `streakDays <= 30`) and bounded on `update` (`points <= existing().points + 600`, `completedModulesCount <= existing().completedModulesCount + 1 && <= 4`, `streakDays <= existing().streakDays + 1`) to block direct Firestore SDK point/module/streak inflation.
 
 ---
 
-## 2. The "Dirty Dozen" Adversarial Payloads (Must Return `PERMISSION_DENIED`)
+## 2. The "Dirty Dozen" (+ Anti-Cheat) Adversarial Payloads (Must Return `PERMISSION_DENIED`)
 
 1. **Unauthenticated Write**: Creating `/users/u1/public/profile` with `auth == null`.
 2. **Unverified Email Admin Spoof**: Calling with `auth.token = { email: "nusornon@gmail.com", email_verified: false }` to read `/porpor5Records/r1`.
@@ -32,3 +33,8 @@
 10. **Path ID Poisoning / Oversized String**: Creating `/users/u1/flowcharts/${"a".repeat(200)}` or `title` exceeding `maxLength`.
 11. **Terminal State Bypass**: Non-admin owner attempting to modify `/showcaseProjects/p1` after `status == 'archived'`.
 12. **Blanket List Query Scraping**: Non-admin user calling `list` on `/porpor5Records` or `/users/{other}/flowcharts`.
+13. **Direct Profile XP Inflation**: Non-admin student updating `/users/u1/public/profile` with `points: existing().points + 50000`.
+14. **Unauthorized Live Room Creation**: Non-admin student attempting `create` on `/liveRooms/CHEAT1`.
+15. **Live Battle Score Injection / Post-Podium Write**: Student participant setting `score: 99999` on create or updating score by `+10000` or after `stage == 'podium'`.
+16. **Participant Self-Delete Rejoin Bypass**: Student participant calling `delete` on `/liveRooms/{roomCode}/participants/{participantId}` to bypass duplicate-join guard.
+

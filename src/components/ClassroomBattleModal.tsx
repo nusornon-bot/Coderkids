@@ -83,7 +83,7 @@ interface ClassroomBattleModalProps {
   onClose: () => void;
   studentName: string;
   isTeacher?: boolean;
-  addPoints: (amount: number, reason: string, category: 'thinking') => void;
+  addPoints: (amount: number, reason: string, category: 'thinking', options?: any) => void;
   onCelebrate: (
     type: 'badge' | 'module_completed' | 'points_milestone' | 'quiz_perfect',
     title: string,
@@ -379,7 +379,8 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
             addPoints(
               reward.xpReward,
               `รางวัลเหรียญ XP ${reward.medalTitle} (Coding Battle ห้อง ${room.roomCode})`,
-              'thinking'
+              'thinking',
+              { uniqueKey: `battle_close_coding_${room.roomCode}`, allowLargeReward: true }
             );
             if (reward.isTopThree) {
               onCelebrate(
@@ -1030,7 +1031,7 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
       setGameState('playing');
     } else {
       setGameState('podium');
-      const earnedXP = Math.max(10, Math.round(score / 6));
+      const earnedXP = correctCount > 0 && score > 0 ? Math.max(10, Math.round(score / 6)) : 0;
       const setLabel =
         selectedPlatformSet === 'mixed'
           ? 'แบบผสม Scratch + Micro:bit'
@@ -1040,12 +1041,13 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
           ? gamePin
           : '__solo_teacher__'
         : joinedRoomCode || '__solo_student__';
-      if (awardedXpRoomRef.current !== xpRoomKey) {
+      if (earnedXP > 0 && awardedXpRoomRef.current !== xpRoomKey) {
         awardedXpRoomRef.current = xpRoomKey;
         addPoints(
           earnedXP,
           `ประลองสด Coding Battle ชุด ${setLabel} (${correctCount}/${activeQuestions.length} ข้อ, ${score} pts)`,
-          'thinking'
+          'thinking',
+          { uniqueKey: `battle_podium_coding_${xpRoomKey}`, allowLargeReward: true }
         );
       }
       onCelebrate(

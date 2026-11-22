@@ -52,6 +52,7 @@ import { AudioNarratorButton } from './AudioNarratorButton.tsx';
 import { DailyLearningActivityStreakChart } from './DailyLearningActivityStreakChart.tsx';
 import { VisualSyllabusOverview } from './VisualSyllabusOverview.tsx';
 import { PointsSummaryCard } from './PointsSummaryCard.tsx';
+import { OverallModuleProgressBar } from './OverallModuleProgressBar.tsx';
 import { TeacherRealtimeNotificationPanel } from './TeacherRealtimeNotificationPanel.tsx';
 import { STEM_PROJECTS } from './StemProjectHub.tsx';
 import { STEM_PACKS } from './StemPacksModal.tsx';
@@ -101,7 +102,7 @@ interface DashboardProps {
   onOpenSmartExam?: () => void;
   onOpenCodeTracer?: () => void;
   onOpenStudentQRPass?: () => void;
-  addPoints?: (amount: number, reason: string, category?: any) => void;
+  addPoints?: (amount: number, reason: string, category?: any, options?: any) => void;
   isTeacherAuthorized?: boolean;
   viewRoleMode?: 'student' | 'teacher';
   onChangeViewRoleMode?: (mode: 'student' | 'teacher') => void;
@@ -554,6 +555,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ----------------- แถบความคืบหน้ารวมทั้ง 4 โมดูลหลัก ----------------- */}
+      <OverallModuleProgressBar
+        moduleProgress={moduleProgress}
+        onNavigate={onNavigate}
+        onOpenCertificate={onOpenCertificate}
+      />
 
       {/* ----------------- จุดเริ่มต้น: แผนผังก้าวการเรียนรู้ปัจจุบัน & เป้าหมายรายวัน ----------------- */}
       {(activeCategory === 'all' || activeCategory === 'curriculum') && (
@@ -2659,8 +2667,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             profile={profile}
             points={points}
             onNavigate={onNavigate}
-            onAwardBonusPoints={(pts, reason) => {
-              if (addPoints) addPoints(pts, reason, 'classroom');
+            onAwardBonusPoints={(pts, reason, options) => {
+              if (addPoints) addPoints(pts, reason, 'classroom', options);
             }}
           />
 

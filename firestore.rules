@@ -45,6 +45,12 @@ service cloud.firestore {
         get(/databases/$(database)/documents/liveRooms/$(roomCode)).data.status == 'active';
     }
 
+    function isLiveRoomAcceptingAnswers(roomCode) {
+      return exists(/databases/$(database)/documents/liveRooms/$(roomCode)) &&
+        get(/databases/$(database)/documents/liveRooms/$(roomCode)).data.status == 'active' &&
+        get(/databases/$(database)/documents/liveRooms/$(roomCode)).data.stage != 'podium';
+    }
+
     function isLiveRoomHost(roomCode) {
       return isEmailVerified() &&
         exists(/databases/$(database)/documents/liveRooms/$(roomCode)) &&
@@ -559,7 +565,14 @@ service cloud.firestore {
         isOwner(userId) &&
         isValidUserPublicProfile(incoming(), userId) &&
         incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time;
+        incoming().updatedAt == request.time && (
+          isAdmin() || (
+            incoming().points >= 0 &&
+            incoming().points <= 1000 &&
+            (!('completedModulesCount' in incoming()) || (incoming().completedModulesCount >= 0 && incoming().completedModulesCount <= 4)) &&
+            (!('streakDays' in incoming()) || (incoming().streakDays >= 0 && incoming().streakDays <= 30))
+          )
+        );
       allow update: if isValidId(userId) &&
         profileDocId == 'profile' &&
         isValidUserPublicProfile(incoming(), userId) &&
@@ -569,6 +582,14 @@ service cloud.firestore {
           isAdmin() ||
           (
             isOwner(userId) &&
+            incoming().points >= 0 &&
+            incoming().points <= existing().points + 600 &&
+            (!('completedModulesCount' in incoming()) || !('completedModulesCount' in existing()) || (
+              incoming().completedModulesCount >= 0 &&
+              incoming().completedModulesCount <= existing().completedModulesCount + 1 &&
+              incoming().completedModulesCount <= 4
+            )) &&
+            (!('streakDays' in incoming()) || !('streakDays' in existing()) || incoming().streakDays <= existing().streakDays + 1) &&
             incoming().diff(existing()).affectedKeys().hasOnly([
               'displayName',
               'nickname',
@@ -822,7 +843,7 @@ service cloud.firestore {
       );
       allow list: if isEmailVerified() && resource.data.status == 'active';
       allow create: if isValidRoomCode(roomCode) &&
-        isEmailVerified() &&
+        isAdmin() &&
         isValidLiveQuizRoom(incoming(), roomCode) &&
         incoming().hostUid == request.auth.uid &&
         incoming().createdAt == request.time &&
@@ -870,7 +891,11 @@ service cloud.firestore {
           isValidLiveQuizParticipant(incoming(), roomCode, participantId) &&
           incoming().createdAt == request.time &&
           incoming().updatedAt == request.time &&
-          isActiveLiveRoom(roomCode);
+          isActiveLiveRoom(roomCode) && (
+            isAdmin() ||
+            isLiveRoomHost(roomCode) ||
+            (incoming().score == 0 && incoming().streak == 0 && incoming().lastAnswerIndex == -1)
+          );
         allow update: if isValidRoomCode(roomCode) &&
           isValidId(participantId) &&
           isValidLiveQuizParticipant(incoming(), roomCode, participantId) &&
@@ -882,7 +907,11 @@ service cloud.firestore {
             isLiveRoomHost(roomCode) ||
             (
               (isOwner(participantId) || isGuestParticipantId(participantId)) &&
-              isActiveLiveRoom(roomCode) &&
+              isLiveRoomAcceptingAnswers(roomCode) &&
+              incoming().score >= existing().score &&
+              incoming().score <= existing().score + 2000 &&
+              incoming().streak >= 0 &&
+              incoming().streak <= existing().streak + 1 &&
               incoming().diff(existing()).affectedKeys().hasOnly([
                 'displayName',
                 'avatar',
@@ -894,7 +923,6 @@ service cloud.firestore {
             )
           );
         allow delete: if isValidRoomCode(roomCode) && isValidId(participantId) && (
-          isOwner(participantId) ||
           isLiveRoomHost(roomCode) ||
           isAdmin()
         );

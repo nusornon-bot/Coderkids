@@ -27,6 +27,11 @@ import { UserProfile, PointTransaction, TodayLearningGoal } from '../types/index
 import { soundEffects } from '../utils/soundEffects.ts';
 import { fireConfetti, playCelebrationSound } from './ConfettiCelebration.tsx';
 import { getGoalDestination } from './Dashboard.tsx';
+import {
+  getThailandDateKey,
+  hasCompletedDailyCheckIn,
+  markDailyCheckInCompleted,
+} from '../utils/antiCheatGuard.ts';
 
 export interface DashboardWidgetProps {
   profile: UserProfile;
@@ -40,7 +45,7 @@ export interface DashboardWidgetProps {
   onNavigate: (moduleKey: string, subSection?: string) => void;
   onOpenProfile?: () => void;
   onCelebrate?: () => void;
-  addPoints?: (amount: number, reason: string, category?: any) => void;
+  addPoints?: (amount: number, reason: string, category?: any, options?: any) => void;
   todayGoal?: TodayLearningGoal | null;
   onToggleTodayGoal?: () => void;
   onSetTodayGoal?: (goal: string, category: 'coding' | 'hardware' | 'thinking' | 'safety' | 'reflection') => void;
@@ -73,7 +78,7 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
   const levelProgressPercent = Math.min(100, Math.round((pointsInCurrentLevel / 75) * 100));
 
   // Streak state & calculations
-  const [hasCheckedInToday, setHasCheckedInToday] = useState(false);
+  const [hasCheckedInToday, setHasCheckedInToday] = useState<boolean>(() => hasCompletedDailyCheckIn());
   const currentStreak = profile.streakDays || 4;
 
   // Streak milestone target calculation (3 days -> 5 days -> 7 days -> 14 days)
@@ -149,12 +154,18 @@ export const DashboardWidget: React.FC<DashboardWidgetProps> = ({
 
   // Handle Daily Streak Check-in
   const handleDailyCheckIn = () => {
-    if (hasCheckedInToday) return;
+    if (hasCheckedInToday || hasCompletedDailyCheckIn()) {
+      setHasCheckedInToday(true);
+      return;
+    }
+    markDailyCheckInCompleted();
     setHasCheckedInToday(true);
     soundEffects.playFanfare();
     fireConfetti('burst');
     if (addPoints) {
-      addPoints(15, 'เช็คอินเรียนรู้วันนี้ (Daily Streak Check-in)', 'classroom');
+      addPoints(15, 'เช็คอินเรียนรู้วันนี้ (Daily Streak Check-in)', 'classroom', {
+        uniqueKey: `daily_checkin_${getThailandDateKey()}`,
+      });
     }
     if (onCelebrate) {
       onCelebrate();

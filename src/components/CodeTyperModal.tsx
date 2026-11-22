@@ -20,11 +20,12 @@ import {
 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects.ts';
 import confetti from 'canvas-confetti';
+import { getThailandDateKey } from '../utils/antiCheatGuard.ts';
 
 interface CodeTyperModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onRewardPoints?: (points: number, reason: string) => void;
+  onRewardPoints?: (points: number, reason: string, options?: any) => void;
 }
 
 interface TypingSnippet {
@@ -189,7 +190,9 @@ export const CodeTyperModal: React.FC<CodeTyperModalProps> = ({
           origin: { y: 0.6 },
         });
         if (onRewardPoints) {
-          onRewardPoints(35, `สำเร็จภารกิจพิมพ์โค้ดดิ้ง: ${level.toUpperCase()}`);
+          onRewardPoints(35, `สำเร็จภารกิจพิมพ์โค้ดดิ้ง: ${level.toUpperCase()}`, {
+            uniqueKey: `code_typer_${level}_${getThailandDateKey()}`,
+          });
         }
       }
     }
@@ -373,6 +376,7 @@ export const CodeTyperModal: React.FC<CodeTyperModalProps> = ({
                   type="text"
                   value={userInput}
                   onChange={handleInputChange}
+                  onPaste={(e) => e.preventDefault()}
                   className="w-full px-5 py-3.5 rounded-2xl bg-slate-800/90 border-2 border-indigo-400 focus:border-cyan-400 text-cyan-200 font-mono text-xl tracking-wider text-center outline-none shadow-lg shadow-indigo-950/50"
                   placeholder="พิมพ์ตามข้อความด้านบน..."
                   autoFocus

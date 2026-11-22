@@ -34,12 +34,17 @@ import {
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../utils/soundEffects.ts';
 import { UserProfile } from '../types/index.ts';
+import {
+  getThailandDateKey,
+  hasCompletedDailyCheckIn,
+  markDailyCheckInCompleted,
+} from '../utils/antiCheatGuard.ts';
 
 export interface DailyLearningActivityStreakChartProps {
   profile: UserProfile;
   points: number;
   onNavigate?: (moduleKey: string, subSection?: string) => void;
-  onAwardBonusPoints?: (amount: number, reason: string) => void;
+  onAwardBonusPoints?: (amount: number, reason: string, options?: any) => void;
 }
 
 export interface DailyActivityRecord {
@@ -65,7 +70,7 @@ export const DailyLearningActivityStreakChart: React.FC<DailyLearningActivityStr
   const [timeRange, setTimeRange] = useState<'30' | '14' | '7'>('30');
   const [chartMode, setChartMode] = useState<'composed' | 'sessions' | 'minutes' | 'points'>('composed');
   const [hasCheckedInToday, setHasCheckedInToday] = useState<boolean>(() => {
-    return localStorage.getItem('coderkids_daily_checkin_done') === 'true';
+    return hasCompletedDailyCheckIn();
   });
   const [selectedDay, setSelectedDay] = useState<DailyActivityRecord | null>(null);
 
@@ -199,9 +204,12 @@ export const DailyLearningActivityStreakChart: React.FC<DailyLearningActivityStr
 
   // Handle daily streak check-in
   const handleCheckInToday = () => {
-    if (hasCheckedInToday) return;
+    if (hasCheckedInToday || hasCompletedDailyCheckIn()) {
+      setHasCheckedInToday(true);
+      return;
+    }
+    markDailyCheckInCompleted();
     setHasCheckedInToday(true);
-    localStorage.setItem('coderkids_daily_checkin_done', 'true');
     soundEffects.play('victory');
     confetti({
       particleCount: 50,
@@ -209,7 +217,9 @@ export const DailyLearningActivityStreakChart: React.FC<DailyLearningActivityStr
       origin: { y: 0.8 },
     });
     if (onAwardBonusPoints) {
-      onAwardBonusPoints(15, 'เช็กชื่อเข้าเรียนรักษาสตรีคประจำวัน (+15 XP)');
+      onAwardBonusPoints(15, 'เช็กชื่อเข้าเรียนรักษาสตรีคประจำวัน (+15 XP)', {
+        uniqueKey: `daily_checkin_${getThailandDateKey()}`,
+      });
     }
   };
 

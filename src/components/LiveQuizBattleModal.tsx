@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../utils/soundEffects.ts';
+import { getThailandDateKey } from '../utils/antiCheatGuard.ts';
 import {
   isCloudFirestoreReadyForUser,
   createOrUpdateLiveRoomInFirestore,
@@ -133,7 +134,8 @@ interface LiveQuizBattleModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentStudentName: string;
-  onRewardPoints?: (pts: number, reason: string) => void;
+  onRewardPoints?: (pts: number, reason: string, options?: any) => void;
+  isTeacher?: boolean;
 }
 
 export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
@@ -141,6 +143,7 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
   onClose,
   currentStudentName,
   onRewardPoints,
+  isTeacher = false,
 }) => {
   const [role, setRole] = useState<'player' | 'host'>('player');
   const [roomPin, setRoomPin] = useState<string>('839201');
@@ -159,6 +162,12 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
   const [isSyncingRoom, setIsSyncingRoom] = useState<boolean>(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!isTeacher && role !== 'player') {
+      setRole('player');
+    }
+  }, [isTeacher, role]);
 
   const currentQ = BATTLE_QUESTIONS[currentQIndex];
 
@@ -212,6 +221,7 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
   }, [isOpen, isCloudRoomActive, role, roomPin, gameStage, currentQIndex]);
 
   const handleCreateCloudRoom = async () => {
+    if (!isTeacher) return;
     const newCode = `CK${Math.floor(1000 + Math.random() * 9000)}`;
     setRoomPin(newCode);
     setRole('host');
@@ -263,12 +273,14 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
         setCloudNotice(`ไม่พบห้องรหัส ${clean} ใน Cloud — กำลังเล่นในโหมดฝึกซ้อมเดี่ยวแทน`);
         setIsCloudRoomActive(false);
       } else {
+        setMyScore(0);
+        setMyStreak(0);
         await joinOrUpdateLiveParticipantInFirestore({
           roomCode: clean,
           displayName: currentStudentName || 'ผู้เรียน Coder Kids',
           avatar: '🌟',
-          score: myScore,
-          streak: myStreak,
+          score: 0,
+          streak: 0,
           lastAnswerIndex: -1,
         });
         setIsCloudRoomActive(true);
@@ -415,8 +427,10 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
       setGameStage('podium');
       if (soundEnabled) soundEffects.play('victory');
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
-      if (onRewardPoints) {
-        onRewardPoints(25, 'ชัยชนะในสมรภูมิสด Live Quiz Battle');
+      if (onRewardPoints && myScore > 0) {
+        onRewardPoints(25, 'ชัยชนะในสมรภูมิสด Live Quiz Battle', {
+          uniqueKey: `live_quiz_battle_${getThailandDateKey()}_${roomPin}`,
+        });
       }
       if (isCloudRoomActive && role === 'host' && isCloudFirestoreReadyForUser()) {
         void createOrUpdateLiveRoomInFirestore({
@@ -513,15 +527,17 @@ export const LiveQuizBattleModal: React.FC<LiveQuizBattleModalProps> = ({
               >
                 🎮 ผู้เล่น (Student)
               </button>
-              <button
-                type="button"
-                onClick={() => setRole('host')}
-                className={`px-3 py-1 rounded-md font-bold transition-all ${
-                  role === 'host' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                📡 ผู้จัดห้อง (Host/Teacher)
-              </button>
+              {isTeacher && (
+                <button
+                  type="button"
+                  onClick={() => setRole('host')}
+                  className={`px-3 py-1 rounded-md font-bold transition-all ${
+                    role === 'host' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  📡 ผู้จัดห้อง (Host/Teacher)
+                </button>
+              )}
             </div>
           </div>
 

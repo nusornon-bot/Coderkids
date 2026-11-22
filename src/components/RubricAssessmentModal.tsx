@@ -21,6 +21,7 @@ import {
 import { UserProfile } from '../types/index.ts';
 import { soundEffects } from '../utils/soundEffects.ts';
 import { fireConfetti } from './ConfettiCelebration.tsx';
+import { getThailandDateKey } from '../utils/antiCheatGuard.ts';
 
 interface RubricAssessmentModalProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ interface RubricAssessmentModalProps {
   profile: UserProfile;
   points: number;
   completedModulesCount: number;
-  addPoints?: (amount: number, reason: string, category?: any) => void;
+  addPoints?: (amount: number, reason: string, category?: any, options?: any) => void;
   onCelebrate?: () => void;
 }
 
@@ -141,7 +142,9 @@ export const RubricAssessmentModal: React.FC<RubricAssessmentModalProps> = ({
     fireConfetti('burst');
     setIsSaved(true);
     if (addPoints) {
-      addPoints(20, 'ทำแบบประเมินตนเองตามเกณฑ์รูบริกส์ ว 4.2 สสวท. สำเร็จ', 'classroom');
+      addPoints(20, 'ทำแบบประเมินตนเองตามเกณฑ์รูบริกส์ ว 4.2 สสวท. สำเร็จ', 'classroom', {
+        uniqueKey: `rubric_self_assess_${getThailandDateKey()}`,
+      });
     }
     if (onCelebrate) {
       onCelebrate();

@@ -345,11 +345,20 @@ export function findStudentRewardInClosedSummary(
   fallbackScore: number = 0
 ): StudentClosedRoomReward | null {
   const normalizedName = displayName.trim().toLowerCase();
+  const hasCallerId = Boolean(participantId && participantId.trim());
 
-  const matchedTop = summary.topWinners.find(
-    (w) =>
-      (participantId && w.userId === participantId) ||
-      (normalizedName && w.displayName.trim().toLowerCase() === normalizedName)
+  const isExactOrLegacyMatch = (entryUserId: string, entryName: string): boolean => {
+    const cleanEntryId = (entryUserId || '').trim();
+    const isPlaceholderId = !cleanEntryId || cleanEntryId.startsWith('winner_');
+    if (hasCallerId && !isPlaceholderId) {
+      // Strict ID match prevents a 0-score student from changing their nickname to steal #1's XP
+      return cleanEntryId === participantId;
+    }
+    return Boolean(normalizedName && entryName.trim().toLowerCase() === normalizedName);
+  };
+
+  const matchedTop = summary.topWinners.find((w) =>
+    isExactOrLegacyMatch(w.userId, w.displayName)
   );
   if (matchedTop) {
     return {
@@ -361,10 +370,8 @@ export function findStudentRewardInClosedSummary(
     };
   }
 
-  const matchedAll = summary.allRanked.find(
-    (p) =>
-      (participantId && p.userId === participantId) ||
-      (normalizedName && p.displayName.trim().toLowerCase() === normalizedName)
+  const matchedAll = summary.allRanked.find((p) =>
+    isExactOrLegacyMatch(p.userId, p.displayName)
   );
   if (matchedAll) {
     return {
@@ -376,7 +383,7 @@ export function findStudentRewardInClosedSummary(
     };
   }
 
-  if (summary.totalParticipants > 0) {
+  if (summary.totalParticipants > 0 && fallbackScore > 0) {
     return {
       rank: null,
       xpReward: PARTICIPATION_XP_REWARD,
@@ -390,15 +397,34 @@ export function findStudentRewardInClosedSummary(
 }
 
 function getClaimedRoomSet(): Set<string> {
+  const combined = new Set<string>();
   try {
-    if (typeof sessionStorage === 'undefined') return new Set();
-    const raw = sessionStorage.getItem(CLAIMED_REWARDS_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? new Set(parsed.map((v) => String(v))) : new Set();
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(CLAIMED_REWARDS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((v) => combined.add(String(v)));
+        }
+      }
+    }
   } catch {
-    return new Set();
+    // Ignore localStorage read errors
   }
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const raw = sessionStorage.getItem(CLAIMED_REWARDS_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((v) => combined.add(String(v)));
+        }
+      }
+    }
+  } catch {
+    // Ignore sessionStorage read errors
+  }
+  return combined;
 }
 
 export function hasClaimedClosedRoomReward(roomCode: string): boolean {
@@ -410,12 +436,21 @@ export function hasClaimedClosedRoomReward(roomCode: string): boolean {
 export function markClosedRoomRewardClaimed(roomCode: string): void {
   const key = roomCode.trim().toUpperCase();
   if (!key) return;
+  const set = getClaimedRoomSet();
+  set.add(key);
+  const serialized = JSON.stringify(Array.from(set).slice(-60));
   try {
-    if (typeof sessionStorage === 'undefined') return;
-    const set = getClaimedRoomSet();
-    set.add(key);
-    sessionStorage.setItem(CLAIMED_REWARDS_STORAGE_KEY, JSON.stringify(Array.from(set).slice(-30)));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(CLAIMED_REWARDS_STORAGE_KEY, serialized);
+    }
   } catch {
-    // Ignore storage quota errors
+    // Ignore localStorage quota errors
+  }
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(CLAIMED_REWARDS_STORAGE_KEY, serialized);
+    }
+  } catch {
+    // Ignore sessionStorage quota errors
   }
 }

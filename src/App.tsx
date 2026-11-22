@@ -12,6 +12,19 @@ import {
   syncUserProfileToFirestore,
   publishShowcaseProjectToFirestore,
 } from './services/firestoreService.ts';
+import {
+  BURST_WINDOW_MS,
+  DEFAULT_STARTING_POINTS,
+  PointAwardOptions,
+  evaluatePointAward,
+  getThailandDateKey,
+  loadDailyEarnedTracker,
+  loadVerifiedStoredPoints,
+  normalizeReasonKey,
+  persistPointsIntegrity,
+  saveDailyEarnedTracker,
+  validatePointSpend,
+} from './utils/antiCheatGuard.ts';
 
 function lazyNamed<
   TModule extends Record<string, any>,
@@ -320,23 +333,38 @@ export default function App() {
     return DEFAULT_PROFILE;
   });
 
-  // Points and Ledger State
-  const [points, setPoints] = useState<number>(() => {
+  // Anti-Cheat: บันทึกรายการกิจกรรม/ภารกิจที่รับแต้มไปแล้ว ป้องกันการฟาร์มแต้มซ้ำ
+  const [claimedActivities, setClaimedActivities] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('coderkids_points');
-      return saved ? parseInt(saved, 10) : 65;
+      const saved = localStorage.getItem('coderkids_claimed_activities');
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
     } catch {
-      return 65;
+      return [];
     }
   });
 
   const [transactions, setTransactions] = useState<PointTransaction[]>(() => {
     try {
       const saved = localStorage.getItem('coderkids_transactions');
-      return saved ? JSON.parse(saved) : INITIAL_POINT_TRANSACTIONS;
+      const parsed = saved ? JSON.parse(saved) : INITIAL_POINT_TRANSACTIONS;
+      return Array.isArray(parsed) ? parsed : INITIAL_POINT_TRANSACTIONS;
     } catch {
       return INITIAL_POINT_TRANSACTIONS;
     }
+  });
+
+  // Points State (ตรวจลายเซ็น integrity + เพดาน ledger ป้องกันการแก้ localStorage ด้วย DevTools)
+  const [points, setPoints] = useState<number>(() => {
+    const verified = loadVerifiedStoredPoints(
+      transactions,
+      claimedActivities.length,
+      DEFAULT_STARTING_POINTS
+    );
+    if (verified.tampered) {
+      console.warn('[Anti-Cheat] ตรวจพบการแก้ไขคะแนนใน localStorage โดยไม่ได้รับอนุญาต ระบบกู้คืนคะแนนที่ถูกต้องแล้ว');
+    }
+    return verified.points;
   });
 
   // Module Progress State
@@ -501,22 +529,14 @@ export default function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [pendingDestinationModule, setPendingDestinationModule] = useState<string | null>(null);
 
-  // Anti-Cheat: บันทึกรายการกิจกรรม/ภารกิจที่รับแต้มไปแล้ว ป้องกันการฟาร์มแต้มซ้ำ
-  const [claimedActivities, setClaimedActivities] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('coderkids_claimed_activities');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
   useEffect(() => {
     localStorage.setItem('coderkids_claimed_activities', JSON.stringify(claimedActivities));
   }, [claimedActivities]);
 
-  // Rate Limiting Debounce Map ป้องกันการคลิกรัวสแปมขอแต้ม
+  // Anti-Cheat Rate Limiting, Rolling Burst & Daily XP Cap Trackers
   const lastActionTimestampsRef = useRef<Map<string, number>>(new Map());
+  const recentAwardTimestampsRef = useRef<number[]>([]);
+  const dailyEarnedRef = useRef(loadDailyEarnedTracker());
 
   // Today's Learning Goal State (เป้าหมายการเรียนรู้วันนี้ ที่ตั้งจาก DailyJournal)
   const [todayGoal, setTodayGoal] = useState<TodayLearningGoal | null>(() => {
@@ -756,12 +776,12 @@ export default function App() {
     });
   };
 
-  // จัดการเป้าหมายการเรียนรู้วันนี้ พร้อมระบบ Anti-Cheat (ป้องกันการคลิกเปิด/ปิดซ้ำๆ เพื่อฟาร์มแต้ม)
+  // จัดการเป้าหมายการเรียนรู้วันนี้ พร้อมระบบ Anti-Cheat (รับแต้มเป้าหมายรายวันได้สูงสุดวันละ 1 ครั้ง)
   const handleToggleTodayGoal = () => {
     if (!todayGoal) return;
     const newCompleted = !todayGoal.completed;
     const nowTime = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-    const goalUniqueKey = `goal_${todayGoal.id}`;
+    const goalUniqueKey = `daily_goal_${getThailandDateKey()}`;
     const isAlreadyClaimed = Boolean(todayGoal.pointsClaimed || claimedActivities.includes(goalUniqueKey));
 
     const updated: TodayLearningGoal = {
@@ -818,11 +838,11 @@ export default function App() {
   }, [profile]);
 
   // Profile Management Handlers (เพิ่ม, แก้ไข, ลบ, สลับ)
+  // ใช้เฉพาะอีเมลที่ผ่านการยืนยันตัวตนจาก Firebase Auth จริงเท่านั้น (ห้ามเชื่อค่าจาก localStorage หรือ contactEmail)
   const getCurrentVerifiedEmail = () =>
-    auth.currentUser?.email ||
-    localStorage.getItem('coderkids_verified_google_email') ||
-    profile.contactEmail ||
-    '';
+    auth.currentUser?.emailVerified && auth.currentUser?.email
+      ? auth.currentUser.email.trim().toLowerCase()
+      : firebaseUserEmail;
 
   const handleUpdateProfile = (updated: UserProfile) => {
     // กฎความปลอดภัย: สมาชิกไม่สามารถแก้ไขข้อมูลสมาชิกคนอื่นได้ (ต้องยืนยันตัวตนผ่าน Google OAuth และมีอีเมลในแท็บ Teachers เท่านั้น)
@@ -1050,11 +1070,11 @@ export default function App() {
       ''
     ).trim().toLowerCase();
 
-    if (userEmail) {
+    const isVerifiedFirebaseLogin = Boolean(
+      (googleUser?.emailVerified || auth.currentUser?.emailVerified) && userEmail
+    );
+    if (isVerifiedFirebaseLogin) {
       setFirebaseUserEmail(userEmail);
-      try {
-        localStorage.setItem('coderkids_verified_google_email', userEmail);
-      } catch {}
     }
 
     const finalProfile: UserProfile = {
@@ -1098,13 +1118,15 @@ export default function App() {
     setFirebaseUserEmail('');
     setIsLoggedIn(false);
     localStorage.removeItem('coderkids_is_logged_in');
+    localStorage.removeItem('coderkids_verified_google_email');
     setProfile(DEFAULT_PROFILES_LIST[0] || DEFAULT_PROFILE);
     setActiveTab('dashboard');
   };
 
   useEffect(() => {
     localStorage.setItem('coderkids_points', points.toString());
-  }, [points]);
+    persistPointsIntegrity(points, transactions.length, claimedActivities.length);
+  }, [points, transactions.length, claimedActivities.length]);
 
   useEffect(() => {
     localStorage.setItem('coderkids_transactions', JSON.stringify(transactions));
@@ -1130,41 +1152,66 @@ export default function App() {
     localStorage.setItem('coderkids_reviews', JSON.stringify(reviews));
   }, [reviews]);
 
-  // Points and Ledger Management (พร้อมระบบ Anti-Cheat ป้องกันการกดแต้มซ้ำ / ฟาร์มแต้ม)
+  // Points and Ledger Management (พร้อมระบบ Anti-Cheat ป้องกันการกดแต้มซ้ำ / ฟาร์มแต้ม / แก้ค่าคะแนน)
   const addPoints = (
     amount: number,
     reason: string = 'ผ่านภารกิจการเรียนรู้',
     category: 'safety' | 'thinking' | 'coding' | 'showcase' | 'classroom' = 'classroom',
-    options?: { uniqueKey?: string; cooldownMs?: number }
+    options?: PointAwardOptions
   ): boolean => {
-    // 1. Anti-Cheat: ตรวจสอบคีย์เฉพาะ ไม่ให้เคลมซ้ำ เช่น เป้าหมายวันนี้ หรือการกดถูกใจเดิม
-    if (options?.uniqueKey) {
-      if (claimedActivities.includes(options.uniqueKey)) {
-        console.warn(`[Anti-Cheat] กิจกรรม "${options.uniqueKey}" ได้รับแต้มไปแล้ว ไม่สามารถรับซ้ำได้`);
-        return false;
-      }
-      setClaimedActivities((prev) => [...prev, options.uniqueKey!]);
+    const now = Date.now();
+    const todayKey = getThailandDateKey();
+    if (dailyEarnedRef.current.dateKey !== todayKey) {
+      dailyEarnedRef.current = loadDailyEarnedTracker(todayKey);
     }
 
-    // 2. Anti-Cheat: ป้องกันการกดรัว/สแปม (Rate Limiting / Debounce Cooldown)
-    const now = Date.now();
-    const cooldown = options?.cooldownMs ?? 2000;
-    const actionKey = `${category}_${reason}`;
-    const lastTime = lastActionTimestampsRef.current.get(actionKey) || 0;
-    if (now - lastTime < cooldown) {
-      console.warn(`[Anti-Cheat] ป้องกันการกดซ้ำ (Rate limit cooldown): ${reason}`);
+    const isVerifiedTeacherSession = Boolean(isAdmin && viewRoleMode === 'teacher');
+    const evaluation = evaluatePointAward({
+      amount,
+      reason,
+      category,
+      claimedActivities,
+      recentAwardTimestamps: recentAwardTimestampsRef.current,
+      lastActionTimestamps: lastActionTimestampsRef.current,
+      dailyTracker: dailyEarnedRef.current,
+      options: {
+        ...options,
+        isTeacher: options?.isTeacher ?? isVerifiedTeacherSession,
+      },
+      nowMs: now,
+    });
+
+    if (!evaluation.allowed) {
+      console.warn(`[Anti-Cheat] ${evaluation.reasonCode}: ${evaluation.message || reason}`);
       return false;
     }
-    lastActionTimestampsRef.current.set(actionKey, now);
 
-    const newTotal = points + amount;
+    const awardedAmount = evaluation.sanitizedAmount;
+    const reasonKey = normalizeReasonKey(category, reason);
+    lastActionTimestampsRef.current.set(reasonKey, now);
+    recentAwardTimestampsRef.current = [
+      ...recentAwardTimestampsRef.current.filter((ts) => now - ts < BURST_WINDOW_MS),
+      now,
+    ];
+    if (evaluation.nextDailyTracker) {
+      dailyEarnedRef.current = evaluation.nextDailyTracker;
+      saveDailyEarnedTracker(evaluation.nextDailyTracker);
+    }
+
+    if (options?.uniqueKey) {
+      setClaimedActivities((prev) =>
+        prev.includes(options.uniqueKey!) ? prev : [...prev, options.uniqueKey!]
+      );
+    }
+
+    const newTotal = points + awardedAmount;
     setPoints(newTotal);
     soundEffects.playSuccess();
 
     const newTx: PointTransaction = {
       id: `tx_${Date.now()}`,
       description: reason,
-      amount,
+      amount: awardedAmount,
       type: 'earn',
       timestamp: 'เมื่อสักครู่',
       category,
@@ -1198,7 +1245,7 @@ export default function App() {
     }
 
     // 3. Real-time Notification Broadcast & Automatic Google Sheets Sync
-    if (amount > 0) {
+    if (awardedAmount > 0) {
       const completedCountNow = Object.values(moduleProgress).filter(Boolean).length;
       const isModuleCompletionReason = reason.includes('สำเร็จการเรียนรู้โมดูล:');
       const eventPayload = {
@@ -1210,9 +1257,9 @@ export default function App() {
         avatarEmoji: profile.avatarEmoji || '🐱',
         eventType: isModuleCompletionReason ? 'module_complete' : 'mission_complete',
         title: isModuleCompletionReason ? `🎉 ${reason}` : `⚡ สำเร็จภารกิจ: ${reason}`,
-        detail: `${profile.name} (${profile.grade || 'ป.4/1'}) ได้รับ +${amount} XP (สะสมรวม ${newTotal} XP • ผ่านแล้ว ${completedCountNow}/4 โมดูล)`,
+        detail: `${profile.name} (${profile.grade || 'ป.4/1'}) ได้รับ +${awardedAmount} XP (สะสมรวม ${newTotal} XP • ผ่านแล้ว ${completedCountNow}/4 โมดูล)`,
         moduleOrCategory: category,
-        pointsEarned: amount,
+        pointsEarned: awardedAmount,
         totalPoints: newTotal,
         completedModulesText: `${completedCountNow}/4`,
         timestampThai: new Date().toLocaleTimeString('th-TH', {
@@ -1244,7 +1291,7 @@ export default function App() {
           TARGET_SPREADSHEET_ID,
           profile,
           activeEmail,
-          `สำเร็จภารกิจ: ${reason} (+${amount} XP)`,
+          `สำเร็จภารกิจ: ${reason} (+${awardedAmount} XP)`,
           category
         ).catch(() => {});
         saveProfileToGoogleSheet(
@@ -1262,13 +1309,23 @@ export default function App() {
   };
 
   const spendPoints = (amount: number, description: string, rewardId: string): boolean => {
-    if (points < amount) return false;
+    const check = validatePointSpend({
+      currentPoints: points,
+      amount,
+      rewardId,
+      unlockedRewardIds: profile.unlockedRewardIds || [],
+    });
+    if (!check.valid) {
+      console.warn('[Anti-Cheat] ปฏิเสธการแลกแต้มที่ไม่ถูกต้อง:', { amount, rewardId });
+      return false;
+    }
 
-    setPoints((prev) => prev - amount);
+    const sanitizedAmount = check.sanitizedAmount;
+    setPoints((prev) => Math.max(0, prev - sanitizedAmount));
     const newTx: PointTransaction = {
       id: `tx_${Date.now()}`,
       description,
-      amount,
+      amount: sanitizedAmount,
       type: 'spend',
       timestamp: 'เมื่อสักครู่',
       category: 'classroom',
@@ -1277,7 +1334,9 @@ export default function App() {
 
     setProfile((prev) => ({
       ...prev,
-      unlockedRewardIds: [...prev.unlockedRewardIds, rewardId],
+      unlockedRewardIds: prev.unlockedRewardIds.includes(rewardId)
+        ? prev.unlockedRewardIds
+        : [...prev.unlockedRewardIds, rewardId],
     }));
 
     return true;
@@ -1413,7 +1472,7 @@ export default function App() {
 
   const handleAddProject = (newProject: ShowcaseProject) => {
     setProjects((prev) => [newProject, ...prev]);
-    addPoints(30, `ส่งและนำเสนอโครงงาน: ${newProject.title}`, 'showcase');
+    addPoints(30, `ส่งและนำเสนอโครงงาน: ${newProject.title}`, 'showcase', { maxPerDay: 2 });
     markModuleComplete('showcase');
     confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
     publishShowcaseProjectToFirestore({
@@ -1451,13 +1510,17 @@ export default function App() {
       })
     );
     if (newStage === 'final') {
-      addPoints(25, 'พัฒนาโครงงานจนถึงขั้นสมบูรณ์ (Final Stage) 🏆', 'showcase');
+      addPoints(25, 'พัฒนาโครงงานจนถึงขั้นสมบูรณ์ (Final Stage) 🏆', 'showcase', {
+        uniqueKey: `project_final_${projectId}`,
+      });
     }
   };
 
   const handleAddReview = (newReview: PeerReview) => {
     setReviews((prev) => [newReview, ...prev]);
-    addPoints(15, 'ให้คำชม 2 Stars and a Wish แก่เพื่อน', 'showcase');
+    addPoints(15, 'ให้คำชม 2 Stars and a Wish แก่เพื่อน', 'showcase', {
+      uniqueKey: `peer_review_${newReview.projectId}`,
+    });
     markModuleComplete('showcase');
   };
 
@@ -1474,12 +1537,11 @@ export default function App() {
   // Teachers list loaded from Google Sheet Tab "Teachers"
   const [teachersList, setTeachersList] = useState<TeacherRecord[]>([]);
   const teachersListRef = useRef<TeacherRecord[]>([]);
+  // เก็บเฉพาะอีเมลที่ผ่านการยืนยันตัวตน Firebase Auth จริง (ป้องกันปลอมสิทธิ์แอดมินผ่าน localStorage)
   const [firebaseUserEmail, setFirebaseUserEmail] = useState<string>(() => {
-    try {
-      return auth.currentUser?.email || localStorage.getItem('coderkids_verified_google_email') || '';
-    } catch {
-      return '';
-    }
+    return auth.currentUser?.emailVerified && auth.currentUser?.email
+      ? auth.currentUser.email.trim().toLowerCase()
+      : '';
   });
 
   // Refresh teachers list from Google Sheet Tab "Teachers"
@@ -1525,19 +1587,17 @@ export default function App() {
         console.warn('Auto-fetch students on load error:', err);
       });
 
-    // 2. ดึงข้อมูลครูและตรวจสอบสิทธิ์แอดมินจากแท็บ Teachers
+    // 2. ดึงข้อมูลครูและตรวจสอบสิทธิ์แอดมินจากแท็บ Teachers (ใช้เฉพาะบัญชี Firebase Auth ที่ยืนยันอีเมลแล้วเท่านั้น)
     refreshTeachersList().then((list) => {
       const currentEmail =
-        auth.currentUser?.email ||
-        localStorage.getItem('coderkids_verified_google_email') ||
-        profile.contactEmail ||
-        '';
-      if (currentEmail && (isLoggedIn || Boolean(auth.currentUser))) {
+        auth.currentUser?.emailVerified && auth.currentUser?.email
+          ? auth.currentUser.email.trim().toLowerCase()
+          : '';
+      if (currentEmail) {
         const check = checkIsTeacherAdmin(currentEmail, list);
         if (check.isAdmin) {
           const googleName = (
             auth.currentUser?.displayName ||
-            localStorage.getItem('coderkids_google_profile_name') ||
             check.matchedTeacher?.name ||
             ''
           ).trim();
@@ -1550,6 +1610,9 @@ export default function App() {
         } else {
           setProfile((prev) => (prev.role === 'admin' ? { ...prev, role: 'student' } : prev));
         }
+      } else {
+        // หากยังไม่ได้ยืนยันตัวตนผ่าน Firebase Auth ห้ามค้างสถานะ admin จาก localStorage
+        setProfile((prev) => (prev.role === 'admin' ? { ...prev, role: 'student' } : prev));
       }
     });
 
@@ -1562,12 +1625,11 @@ export default function App() {
           ''
         ).trim().toLowerCase();
 
-        if (userEmail) {
+        if (userEmail && user?.emailVerified) {
           setFirebaseUserEmail(userEmail);
           setIsLoggedIn(true);
           try {
             localStorage.setItem('coderkids_is_logged_in', 'true');
-            localStorage.setItem('coderkids_verified_google_email', userEmail);
           } catch {}
 
           const googleName = (
@@ -1619,22 +1681,21 @@ export default function App() {
         }
       },
       () => {
-        // When Firebase Auth has no signed-in user, keep existing local/school email if any
-        setFirebaseUserEmail(localStorage.getItem('coderkids_verified_google_email') || '');
+        // When Firebase Auth has no signed-in user, strictly clear verified email so no localStorage spoofing works
+        setFirebaseUserEmail('');
       }
     );
     return () => unsub();
   }, []);
 
   const completedCount = Object.values(moduleProgress).filter(Boolean).length;
-  // ผู้ใช้ต้องยืนยันตัวตนผ่านระบบของ Google หรืออีเมลโรงเรียน และมีอีเมลในแท็บ Teachers บน Google Sheet เท่านั้น
-  const verifiedUserEmail = isLoggedIn
-    ? firebaseUserEmail ||
-      auth.currentUser?.email ||
-      localStorage.getItem('coderkids_verified_google_email') ||
-      profile.contactEmail ||
-      ''
-    : '';
+  // ผู้ใช้ต้องยืนยันตัวตนผ่านระบบ Firebase Auth (emailVerified === true) และมีอีเมลในแท็บ Teachers เท่านั้น
+  const verifiedUserEmail =
+    isLoggedIn && (auth.currentUser?.emailVerified && auth.currentUser?.email ? auth.currentUser.email : firebaseUserEmail)
+      ? (auth.currentUser?.emailVerified && auth.currentUser?.email ? auth.currentUser.email : firebaseUserEmail)
+          .trim()
+          .toLowerCase()
+      : '';
   const teacherCheck = checkIsTeacherAdmin(verifiedUserEmail, teachersList);
   const isTeacherAuthorized = Boolean(isLoggedIn && verifiedUserEmail && teacherCheck.isAdmin);
   const isAdmin = Boolean(isLoggedIn && isTeacherAuthorized && profile.role !== 'student');
@@ -1684,12 +1745,7 @@ export default function App() {
   ]);
 
   const handleToggleAdmin = (newAdminState: boolean) => {
-    const currentEmail =
-      firebaseUserEmail ||
-      auth.currentUser?.email ||
-      localStorage.getItem('coderkids_verified_google_email') ||
-      profile.contactEmail ||
-      '';
+    const currentEmail = verifiedUserEmail;
     const check = checkIsTeacherAdmin(currentEmail, teachersList);
 
     // Enforcement: ต้องยืนยันตัวตนผ่านระบบ Google และมีอีเมลในแท็บ Teachers เท่านั้น
@@ -1950,7 +2006,7 @@ export default function App() {
             studentName={profile.name}
             profile={profile}
             onUpdateProfile={handleUpdateProfile}
-            isAdmin={isAdmin}
+            isAdmin={isAdmin && viewRoleMode === 'teacher'}
           />
         )}
 
@@ -2416,8 +2472,9 @@ export default function App() {
         {activeTab === 'teamBattle' && (
           <TeamBattleArena
             onBack={() => setActiveTab('dashboard')}
-            onAwardPoints={(pts, reason) => {
-              addPoints(pts, reason, 'thinking');
+            isTeacher={isAdmin && viewRoleMode === 'teacher'}
+            onAwardPoints={(pts, reason, opts) => {
+              addPoints(pts, reason, 'thinking', opts);
               soundEffects.playFanfare();
             }}
           />
@@ -2674,7 +2731,7 @@ export default function App() {
           <CodeTyperModal
             isOpen={isCodeTyperOpen}
             onClose={() => setIsCodeTyperOpen(false)}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'coding', opts)}
           />
         )}
 
@@ -2759,7 +2816,8 @@ export default function App() {
             isOpen={isStudentQRPassOpen}
             onClose={() => setIsStudentQRPassOpen(false)}
             currentStudentName={profile.name}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
+            isTeacher={isAdmin && viewRoleMode === 'teacher'}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'classroom', opts)}
           />
         )}
 
@@ -2786,7 +2844,8 @@ export default function App() {
             isOpen={isLuckyWheelOpen}
             onClose={() => setIsLuckyWheelOpen(false)}
             profiles={profiles}
-            onAwardBonusPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
+            isTeacher={isAdmin && viewRoleMode === 'teacher'}
+            onAwardBonusPoints={(pts, reason, opts) => addPoints(pts, reason, 'classroom', opts)}
           />
         )}
 
@@ -2803,7 +2862,8 @@ export default function App() {
             isOpen={isHomeworkDropzoneOpen}
             onClose={() => setIsHomeworkDropzoneOpen(false)}
             profile={profile}
-            onAwardPoints={(pts, reason) => addPoints(pts, reason, 'showcase')}
+            isTeacher={isAdmin && viewRoleMode === 'teacher'}
+            onAwardPoints={(pts, reason, opts) => addPoints(pts, reason, 'showcase', opts)}
           />
         )}
 
@@ -2823,7 +2883,8 @@ export default function App() {
             isOpen={isLiveQuizBattleOpen}
             onClose={() => setIsLiveQuizBattleOpen(false)}
             currentStudentName={profile.name}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'classroom')}
+            isTeacher={isAdmin && viewRoleMode === 'teacher'}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'classroom', opts)}
           />
         )}
 
@@ -2832,7 +2893,7 @@ export default function App() {
             isOpen={isCommunityRemixOpen}
             onClose={() => setIsCommunityRemixOpen(false)}
             currentStudentName={profile.name}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'showcase')}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'showcase', opts)}
           />
         )}
 
@@ -2850,7 +2911,7 @@ export default function App() {
             isOpen={isBebrasSimulatorOpen}
             onClose={() => setIsBebrasSimulatorOpen(false)}
             currentStudentName={profile.name}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'thinking', opts)}
           />
         )}
 

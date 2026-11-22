@@ -139,15 +139,17 @@ const BATTLE_QUESTIONS: BattleQuestion[] = [
 type TeamData = TeamScoreboardEntry;
 
 export interface TeamBattleArenaProps {
-  onAwardPoints: (points: number, reason: string) => void;
+  onAwardPoints: (points: number, reason: string, options?: any) => void;
   onBack?: () => void;
   initialRoomCode?: string;
+  isTeacher?: boolean;
 }
 
 export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
   onAwardPoints,
   onBack,
   initialRoomCode = 'TEAM-401',
+  isTeacher = false,
 }) => {
   const [teams, setTeams] = useState<TeamData[]>([
     {
@@ -206,6 +208,7 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
   const [timerSeconds, setTimerSeconds] = useState(20);
   const [timerRunning, setTimerRunning] = useState(false);
   const [revealedAnswer, setRevealedAnswer] = useState(false);
+  const [answeredQuestionIds, setAnsweredQuestionIds] = useState<number[]>([]);
   const [activeAnsweringTeam, setActiveAnsweringTeam] = useState<string | null>(null);
 
   // Room Join & LocalStorage Duplicate-Join Guard
@@ -320,6 +323,9 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
   const handleAwardTeam = (teamId: string, isCorrect: boolean) => {
     const now = Date.now();
     if (isCorrect) {
+      if (revealedAnswer || answeredQuestionIds.includes(currentQ.id)) {
+        return;
+      }
       soundEffects.playSuccess();
       confetti({
         particleCount: 50,
@@ -340,7 +346,11 @@ export const TeamBattleArena: React.FC<TeamBattleArenaProps> = ({
         )
       );
       setRevealedAnswer(true);
-      onAwardPoints(10, `ทีมตอบคำถามประลองความเร็วถูกต้อง (+10 แต้ม)`);
+      setAnsweredQuestionIds((prev) => (prev.includes(currentQ.id) ? prev : [...prev, currentQ.id]));
+      const roomScope = joinedRoomCode || (isTeacher ? 'teacher_host' : 'practice');
+      onAwardPoints(10, `ทีมตอบคำถามประลองความเร็วถูกต้อง (+10 แต้ม)`, {
+        uniqueKey: `team_battle_${roomScope}_q_${currentQ.id}`,
+      });
     } else {
       soundEffects.playError();
       setTeams((prev) =>

@@ -84,7 +84,7 @@ interface OnetBattleModalProps {
   onClose: () => void;
   studentName: string;
   isTeacher?: boolean;
-  addPoints: (amount: number, reason: string, category: 'thinking') => void;
+  addPoints: (amount: number, reason: string, category: 'thinking', options?: any) => void;
   onCelebrate: (
     type: 'badge' | 'module_completed' | 'points_milestone' | 'quiz_perfect',
     title: string,
@@ -367,7 +367,8 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
             addPoints(
               reward.xpReward,
               `รางวัลเหรียญ XP ${reward.medalTitle} (O-NET Battle ห้อง ${room.roomCode})`,
-              'thinking'
+              'thinking',
+              { uniqueKey: `battle_close_onet_${room.roomCode}`, allowLargeReward: true }
             );
             if (reward.isTopThree) {
               onCelebrate(
@@ -1033,18 +1034,19 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
     } else {
       soundEffects.play('victory');
       setGameState('podium');
-      const earnedXP = Math.max(15, Math.round(score / 6));
+      const earnedXP = correctCount > 0 && score > 0 ? Math.max(15, Math.round(score / 6)) : 0;
       const xpRoomKey = isTeacher
         ? isRoomOpenedByTeacher
           ? gamePin
           : '__solo_teacher__'
         : joinedRoomCode || '__solo_student__';
-      if (awardedXpRoomRef.current !== xpRoomKey) {
+      if (earnedXP > 0 && awardedXpRoomRef.current !== xpRoomKey) {
         awardedXpRoomRef.current = xpRoomKey;
         addPoints(
           earnedXP,
           `ประลองสด O-NET Battle ${setLabelText} (${correctCount}/${activeQuestions.length} ข้อ, ${score} pts)`,
-          'thinking'
+          'thinking',
+          { uniqueKey: `battle_podium_onet_${xpRoomKey}`, allowLargeReward: true }
         );
       }
       onCelebrate(

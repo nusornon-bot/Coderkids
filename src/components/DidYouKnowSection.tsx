@@ -18,7 +18,7 @@ import {
 import confetti from 'canvas-confetti';
 
 interface DidYouKnowSectionProps {
-  addPoints: (points: number, reason: string) => void;
+  addPoints: (points: number, reason: string, category?: any, options?: any) => void;
 }
 
 export const DidYouKnowSection: React.FC<DidYouKnowSectionProps> = ({ addPoints }) => {
@@ -42,7 +42,9 @@ export const DidYouKnowSection: React.FC<DidYouKnowSectionProps> = ({ addPoints 
 
     if (optionIdx === card.interactiveChallenge.correctIndex && !awardedCardIds.includes(card.id)) {
       setAwardedCardIds((prev) => [...prev, card.id]);
-      addPoints(10, `ตอบคำถามชวนคิด: ${card.headline}`);
+      addPoints(10, `ตอบคำถามชวนคิด: ${card.headline}`, 'classroom', {
+        uniqueKey: `did_you_know_${card.id}`,
+      });
       confetti({ particleCount: 35, spread: 50, origin: { y: 0.7 } });
     }
   };

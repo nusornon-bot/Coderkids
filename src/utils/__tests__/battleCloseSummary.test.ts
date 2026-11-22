@@ -191,4 +191,37 @@ describe('battleCloseSummary', () => {
     expect(buildScoreChartMetrics(summary.allRanked).data).toEqual([]);
     expect(findStudentRewardInClosedSummary(summary, 'guest_x', 'นักเรียน')).toBeNull();
   });
+
+  it('prevents a 0-score student from stealing Rank #1 XP by spoofing the winner nickname', () => {
+    const summary = buildBattleClosedSummary({
+      roomCode: '882410',
+      battleMode: 'coding',
+      battleTitle: 'Live Classroom Coding Battle',
+      hostName: 'ครูอนุสรณ์',
+      participants: SAMPLE_PARTICIPANTS,
+    });
+
+    // Attacker uses Rank #1's exact displayName ('น้องพณสร') but has their own participantId & 0 score
+    const spoofAttemptZeroScore = findStudentRewardInClosedSummary(
+      summary,
+      'guest_attacker_999',
+      'น้องพณสร',
+      0
+    );
+    expect(spoofAttemptZeroScore).toBeNull();
+
+    // Attacker with different participantId and positive score still only gets participation XP, never Rank #1's 150 XP
+    const spoofAttemptWithScore = findStudentRewardInClosedSummary(
+      summary,
+      'guest_attacker_999',
+      'น้องพณสร',
+      450
+    );
+    expect(spoofAttemptWithScore).toMatchObject({
+      rank: null,
+      xpReward: PARTICIPATION_XP_REWARD,
+      isTopThree: false,
+    });
+  });
 });
+

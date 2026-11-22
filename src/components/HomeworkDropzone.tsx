@@ -49,7 +49,8 @@ interface HomeworkDropzoneProps {
   isOpen: boolean;
   onClose: () => void;
   profile?: UserProfile;
-  onAwardPoints?: (amount: number, reason: string) => void;
+  onAwardPoints?: (amount: number, reason: string, options?: any) => void;
+  isTeacher?: boolean;
 }
 
 const INITIAL_SUBMISSIONS: HomeworkSubmission[] = [
@@ -125,6 +126,7 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
   onClose,
   profile,
   onAwardPoints,
+  isTeacher = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'submit' | 'portfolio' | 'teacher'>('submit');
   const [submissions, setSubmissions] = useState<HomeworkSubmission[]>(() => {
@@ -169,6 +171,12 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
     if (profile?.grade) setStudentClass(profile.grade);
   }, [profile?.name, profile?.grade]);
 
+  useEffect(() => {
+    if (!isTeacher && activeTab === 'teacher') {
+      setActiveTab('submit');
+    }
+  }, [isTeacher, activeTab]);
+
   const refreshCloudSubmissions = async () => {
     if (!isCloudFirestoreReadyForUser()) {
       setCloudStatus('offline');
@@ -176,7 +184,7 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
     }
     setCloudStatus('syncing');
     try {
-      const cloudItems = await listHomeworkFromFirestore(activeTab === 'teacher');
+      const cloudItems = await listHomeworkFromFirestore(isTeacher && activeTab === 'teacher');
       if (cloudItems.length > 0) {
         setSubmissions((prev) => {
           const map = new Map<string, HomeworkSubmission>();
@@ -231,7 +239,7 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (title.trim().length < 3) return;
 
     const submissionId = `hw_${Date.now()}`;
     const newSub: HomeworkSubmission = {
@@ -258,7 +266,11 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
     confetti({ particleCount: 60, spread: 60 });
 
     if (onAwardPoints) {
-      onAwardPoints(20, `ส่งการบ้าน/ผลงานวิชาการ: "${title.trim()}" (+20 EXP)`);
+      const uniqueTitleKey = title.trim().toLowerCase().replace(/\s+/g, '_').slice(0, 40);
+      onAwardPoints(20, `ส่งการบ้าน/ผลงานวิชาการ: "${title.trim()}" (+20 EXP)`, {
+        uniqueKey: `hw_drop_${topic.slice(0, 24)}_${uniqueTitleKey}`,
+        maxPerDay: 3,
+      });
     }
 
     if (isCloudFirestoreReadyForUser()) {
@@ -295,6 +307,7 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
   };
 
   const handleGradeSubmission = async (subId: string) => {
+    if (!isTeacher) return;
     const updated = submissions.map((sub) => {
       if (sub.id === subId) {
         return {
@@ -421,17 +434,19 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
               >
                 📁 แฟ้มผลงาน ({submissions.length})
               </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('teacher')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'teacher'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                }`}
-              >
-                👨‍🏫 คุณครูตรวจงาน
-              </button>
+              {isTeacher && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('teacher')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'teacher'
+                      ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  }`}
+                >
+                  👨‍🏫 คุณครูตรวจงาน
+                </button>
+              )}
             </div>
 
             <button
@@ -717,7 +732,7 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
             </div>
           )}
 
-          {activeTab === 'teacher' && (
+          {isTeacher && activeTab === 'teacher' && (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/60 flex items-center justify-between">
                 <div>
@@ -848,56 +863,58 @@ export const HomeworkDropzone: React.FC<HomeworkDropzoneProps> = ({
               )}
 
               {/* Teacher Grading Panel inside viewing modal */}
-              <div className="p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 space-y-3">
-                <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-indigo-600" />
-                  <span>แบบประเมินและให้คะแนนคุณครู</span>
-                </span>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    คะแนนดาว (1-5):
+              {isTeacher && (
+                <div className="p-4 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/60 space-y-3">
+                  <span className="text-xs font-bold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-indigo-600" />
+                    <span>แบบประเมินและให้คะแนนคุณครู</span>
                   </span>
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => setGradingScore(star)}
-                        className="cursor-pointer transition-transform hover:scale-110 p-0.5"
-                      >
-                        <Star
-                          className={`w-6 h-6 ${
-                            star <= gradingScore
-                              ? 'text-amber-400 fill-amber-400'
-                              : 'text-slate-300 dark:text-slate-600'
-                          }`}
-                        />
-                      </button>
-                    ))}
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      คะแนนดาว (1-5):
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setGradingScore(star)}
+                          className="cursor-pointer transition-transform hover:scale-110 p-0.5"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${
+                              star <= gradingScore
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-slate-300 dark:text-slate-600'
+                            }`}
+                          />
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    ข้อคิดเห็น / คำแนะนำแบบ 2 Stars 1 Wish:
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={gradingFeedback}
-                    onChange={(e) => setGradingFeedback(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                      ข้อคิดเห็น / คำแนะนำแบบ 2 Stars 1 Wish:
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={gradingFeedback}
+                      onChange={(e) => setGradingFeedback(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleGradeSubmission(viewingSubmission.id)}
-                  className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
-                >
-                  บันทึกการตรวจและส่งข้อเสนอแนะ ให้นักเรียน
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => handleGradeSubmission(viewingSubmission.id)}
+                    className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition-all cursor-pointer"
+                  >
+                    บันทึกการตรวจและส่งข้อเสนอแนะ ให้นักเรียน
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

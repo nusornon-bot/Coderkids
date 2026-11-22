@@ -644,14 +644,16 @@ const registeredStudentsList: RegisteredStudentData[] = [];
 
 app.post('/api/students/register', async (req, res) => {
   try {
+    let verifiedUser: Awaited<ReturnType<typeof verifyFirebaseIdToken>> = null;
     if (req.headers.authorization) {
-      const verified = await verifyFirebaseIdToken(req.headers.authorization, {
+      verifiedUser = await verifyFirebaseIdToken(req.headers.authorization, {
         projectId: FIREBASE_PROJECT_ID,
       });
-      if (!verified) {
+      if (!verifiedUser) {
         return res.status(401).json({ success: false, error: 'Invalid Firebase ID token' });
       }
     }
+    const isTeacherReq = Boolean(verifiedUser && isVerifiedTeacherToken(verifiedUser));
     const student = req.body;
     let directSheetWrite = false;
     if (student && typeof student.name === 'string' && student.name.trim()) {
@@ -663,6 +665,32 @@ app.post('/api/students/register', async (req, res) => {
           (s.studentId && cleanStudentId && s.studentId === cleanStudentId) ||
           (s.name && cleanName && s.name.trim().toLowerCase() === cleanName.toLowerCase())
       );
+
+      let safePoints = 65;
+      const requestedPts = Number.isFinite(Number(student.points))
+        ? Math.round(Number(student.points))
+        : 65;
+
+      if (existingIdx >= 0) {
+        const existing = registeredStudentsList[existingIdx];
+        if (
+          !isTeacherReq &&
+          existing.email &&
+          verifiedUser?.email &&
+          existing.email.toLowerCase() !== verifiedUser.email.toLowerCase()
+        ) {
+          return res.status(403).json({ success: false, error: 'Cannot overwrite another student record' });
+        }
+        const prevPts = Number(existing.points) || 65;
+        safePoints = isTeacherReq
+          ? Math.max(0, Math.min(100_000, requestedPts))
+          : Math.max(0, Math.min(50_000, Math.min(prevPts + 250, requestedPts)));
+      } else {
+        safePoints = isTeacherReq
+          ? Math.max(0, Math.min(100_000, requestedPts))
+          : Math.max(0, Math.min(100, requestedPts));
+      }
+
       const studentRecord: RegisteredStudentData = {
         id: clampString(student.id, 80, `stu_${Date.now()}`) || `stu_${Date.now()}`,
         name: cleanName,
@@ -673,8 +701,8 @@ app.post('/api/students/register', async (req, res) => {
         avatarId: clampString(student.avatarId, 40, 'avatar_cat') || 'avatar_cat',
         avatarEmoji: clampString(student.avatarEmoji, 16, '🐱') || '🐱',
         registeredAt: clampString(student.registeredAt, 40, nowThai) || nowThai,
-        email: clampString(student.email || student.contactEmail, 160, ''),
-        points: Math.max(0, Math.min(1_000_000, Number(student.points) || 50)),
+        email: verifiedUser?.email || clampString(student.email || student.contactEmail, 160, ''),
+        points: safePoints,
         bio: clampString(student.bio, 400, 'พร้อมเริ่มต้นเรียนรู้วิทยาการคำนวณและสะสมแต้มผลงาน'),
         role: 'student',
       };

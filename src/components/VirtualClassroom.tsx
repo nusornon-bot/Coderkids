@@ -65,7 +65,7 @@ import confetti from 'canvas-confetti';
 
 interface VirtualClassroomProps {
   onNavigateModule: (moduleKey: string) => void;
-  addPoints: (amount: number, reason?: string, category?: 'safety' | 'thinking' | 'coding' | 'showcase' | 'classroom') => void;
+  addPoints: (amount: number, reason?: string, category?: 'safety' | 'thinking' | 'coding' | 'showcase' | 'classroom', options?: any) => void;
   studentName: string;
   profile?: UserProfile;
   onUpdateProfile?: (updated: UserProfile) => void;
@@ -80,10 +80,16 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   onUpdateProfile,
   isAdmin = false,
 }) => {
-  // Role switcher: 'student' or 'teacher'
+  // Role switcher: 'student' or 'teacher' (only verified admins can enter teacher mode)
   const [currentRole, setCurrentRole] = useState<'student' | 'teacher'>(() => {
-    return profile?.role === 'teacher' || isAdmin ? 'teacher' : 'student';
+    return isAdmin ? 'teacher' : 'student';
   });
+
+  useEffect(() => {
+    if (!isAdmin && currentRole !== 'student') {
+      setCurrentRole('student');
+    }
+  }, [isAdmin, currentRole]);
 
   // 1. Rooms List State (Loaded from localStorage or defaults)
   const [classrooms, setClassrooms] = useState<VirtualClassroomRoom[]>(() => {
@@ -229,8 +235,20 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   // 5. Poll & Feed State
   const [posts, setPosts] = useState<ClassroomPost[]>(CLASSROOM_POSTS);
   const [poll, setPoll] = useState<ClassroomPoll>(CLASSROOM_POLL);
-  const [selectedPollOption, setSelectedPollOption] = useState<string | null>(null);
-  const [hasVoted, setHasVoted] = useState(false);
+  const [selectedPollOption, setSelectedPollOption] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(`coderkids_vc_poll_choice_${CLASSROOM_POLL.id}`);
+    } catch {
+      return null;
+    }
+  });
+  const [hasVoted, setHasVoted] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(`coderkids_vc_poll_voted_${CLASSROOM_POLL.id}`) === '1';
+    } catch {
+      return false;
+    }
+  });
   const [newQuestionText, setNewQuestionText] = useState('');
 
   // 6. Enter & Create Room Modals
@@ -299,7 +317,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   // Handle student submit homework
   const handleConfirmSubmitHomework = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!submittingAssignment) return;
+    if (!submittingAssignment || submittingAssignment.status !== 'pending') return;
 
     soundEffects.playSuccess();
     const updated = assignments.map((a) =>
@@ -316,10 +334,13 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
     );
     setAssignments(updated);
 
-    addPoints(submittingAssignment.rewardPoints, `ส่งการบ้าน: ${submittingAssignment.title}`, 'classroom');
+    const safeReward = Math.max(5, Math.min(50, Number(submittingAssignment.rewardPoints) || 20));
+    addPoints(safeReward, `ส่งการบ้าน: ${submittingAssignment.title}`, 'classroom', {
+      uniqueKey: `vc_hw_${submittingAssignment.id}`,
+    });
     confetti({ particleCount: 45, spread: 60, origin: { y: 0.6 } });
 
-    setEnterSuccess(`ส่งการบ้าน "${submittingAssignment.title}" เรียบร้อยแล้ว! (+${submittingAssignment.rewardPoints} แต้ม)`);
+    setEnterSuccess(`ส่งการบ้าน "${submittingAssignment.title}" เรียบร้อยแล้ว! (+${safeReward} แต้ม)`);
     setSubmittingAssignment(null);
     setSubmissionText('');
     setSubmissionUrl('');
@@ -330,7 +351,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   // Handle teacher grading homework
   const handleConfirmGrading = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!gradingAssignment) return;
+    if (!isAdmin || !gradingAssignment) return;
 
     soundEffects.playFanfare();
     const updated = assignments.map((a) =>
@@ -354,18 +375,19 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   // Handle teacher creating new homework
   const handleCreateAssignment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newHwTitle.trim()) return;
+    if (!isAdmin || !newHwTitle.trim()) return;
 
     soundEffects.playClick();
+    const clampedPoints = Math.max(5, Math.min(50, Number(newHwPoints) || 30));
     const newAssignment: ClassroomAssignment = {
       id: `hw_${Date.now()}`,
       title: newHwTitle.trim(),
       moduleKey: newHwModuleKey,
       dueDate: newHwDueDate.trim() || 'ศุกร์นี้ 18:00 น.',
       teacherNote: newHwTeacherNote.trim() || 'ให้นักเรียนศึกษาและปฏิบัติตามคำสั่งที่ได้รับมอบหมาย',
-      rewardPoints: Number(newHwPoints) || 30,
+      rewardPoints: clampedPoints,
       status: 'pending',
-      maxScore: Number(newHwPoints) || 30,
+      maxScore: clampedPoints,
       targetRoomCode: currentRoom.code,
     };
 
@@ -380,7 +402,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   // Handle teacher adding schedule item
   const handleAddScheduleItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!schedTopic.trim()) return;
+    if (!isAdmin || !schedTopic.trim()) return;
 
     soundEffects.playClick();
     const dayLabels: Record<string, string> = {
@@ -419,7 +441,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
   // Handle teacher adding digital lesson material
   const handleAddDigitalMaterial = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!matTitle.trim()) return;
+    if (!isAdmin || !matTitle.trim()) return;
 
     soundEffects.playSuccess();
     const typeLabels: Record<string, string> = {
@@ -457,7 +479,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
     setMatFileName('');
     setMatSnippet('');
     setEnterSuccess(`คุณครูจัดสรรสื่อบทเรียนใหม่ "${newMaterial.title}" เรียบร้อยแล้ว!`);
-    addPoints(25, `คุณครูจัดสรรสื่อดิจิทัล: ${newMaterial.title}`, 'classroom');
+    addPoints(25, `คุณครูจัดสรรสื่อดิจิทัล: ${newMaterial.title}`, 'classroom', { uniqueKey: `vc_mat_${newMaterial.id}` });
     setTimeout(() => setEnterSuccess(null), 4000);
   };
 
@@ -465,6 +487,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
 
   // Handle delete material (two-step in-app confirmation, zero browser confirm dialog)
   const handleDeleteMaterial = (id: string, title: string) => {
+    if (!isAdmin) return;
     soundEffects.playClick();
     if (pendingDeleteMatId !== id) {
       setPendingDeleteMatId(id);
@@ -528,7 +551,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
     setInputClassroomCode('');
     setEnterError(null);
     setEnterSuccess(`เข้าร่วมห้องเรียน "${found.name}" (รหัส: ${found.code}) สำเร็จแล้ว!`);
-    addPoints(20, `กรอกรหัสเข้าเรียนห้อง ${found.name}`, 'classroom');
+    addPoints(20, `กรอกรหัสเข้าเรียนห้อง ${found.name}`, 'classroom', { uniqueKey: `vc_join_${found.code}` });
     confetti({ particleCount: 45, spread: 60, origin: { y: 0.6 } });
     setTimeout(() => setEnterSuccess(null), 5000);
   };
@@ -543,7 +566,16 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
 
   // Poll voting
   const handleVotePoll = (optionId: string) => {
-    if (hasVoted) return;
+    try {
+      if (hasVoted || localStorage.getItem(`coderkids_vc_poll_voted_${poll.id}`) === '1') {
+        setHasVoted(true);
+        return;
+      }
+      localStorage.setItem(`coderkids_vc_poll_voted_${poll.id}`, '1');
+      localStorage.setItem(`coderkids_vc_poll_choice_${poll.id}`, optionId);
+    } catch {
+      if (hasVoted) return;
+    }
 
     setSelectedPollOption(optionId);
     setHasVoted(true);
@@ -555,14 +587,14 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
       ),
     }));
 
-    addPoints(15, 'ร่วมโหวตในโพลล์ห้องเรียนสด', 'classroom');
+    addPoints(15, 'ร่วมโหวตในโพลล์ห้องเรียนสด', 'classroom', { uniqueKey: `vc_poll_${poll.id}` });
     confetti({ particleCount: 35, spread: 50, origin: { y: 0.7 } });
   };
 
   // Post in Feed
   const handlePostQuestion = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newQuestionText.trim()) return;
+    if (newQuestionText.trim().length < 2) return;
 
     soundEffects.playClick();
     const newPost: ClassroomPost = {
@@ -576,7 +608,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
 
     setPosts([newPost, ...posts]);
     setNewQuestionText('');
-    addPoints(10, 'ถามข้อสงสัยในบอร์ดห้องเรียน', 'classroom');
+    addPoints(10, 'ถามข้อสงสัยในบอร์ดห้องเรียน', 'classroom', { maxPerDay: 2, cooldownMs: 15000 });
   };
 
   const handleLikePost = (postId: string) => {
@@ -628,20 +660,22 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
             <GraduationCap className="w-3.5 h-3.5" />
             <span>มุมมองนักเรียน</span>
           </button>
-          <button
-            onClick={() => {
-              soundEffects.playClick();
-              setCurrentRole('teacher');
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-              currentRole === 'teacher'
-                ? 'bg-amber-500 text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-            }`}
-          >
-            <School className="w-3.5 h-3.5" />
-            <span>มุมมองคุณครู (จัดการห้อง)</span>
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                soundEffects.playClick();
+                setCurrentRole('teacher');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                currentRole === 'teacher'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+              }`}
+            >
+              <School className="w-3.5 h-3.5" />
+              <span>มุมมองคุณครู (จัดการห้อง)</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -2218,7 +2252,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!createName.trim()) return;
+                if (!isAdmin || !createName.trim()) return;
 
                 const trimmedCode = (createCode.trim() || `COD-${Date.now().toString().slice(-4)}`).toUpperCase();
                 const newRoom: VirtualClassroomRoom = {
@@ -2237,7 +2271,7 @@ export const VirtualClassroom: React.FC<VirtualClassroomProps> = ({
                 setActiveRoomCode(trimmedCode);
                 setIsCreateModalOpen(false);
                 setEnterSuccess(`สร้างห้องเรียน "${newRoom.name}" (รหัส: ${trimmedCode}) เรียบร้อยแล้ว!`);
-                addPoints(25, `คุณครูสร้างห้องเรียนเสมือน "${newRoom.name}"`, 'classroom');
+                addPoints(25, `คุณครูสร้างห้องเรียนเสมือน "${newRoom.name}"`, 'classroom', { uniqueKey: `vc_create_${trimmedCode}` });
                 confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
                 setTimeout(() => setEnterSuccess(null), 5000);
               }}

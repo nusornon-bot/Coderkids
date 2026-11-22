@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   QrCode,
   Scan,
@@ -22,7 +22,8 @@ interface StudentQRPassModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentStudentName?: string;
-  onRewardPoints?: (points: number, reason: string) => void;
+  onRewardPoints?: (points: number, reason: string, options?: any) => void;
+  isTeacher?: boolean;
 }
 
 interface StudentRosterItem {
@@ -50,6 +51,7 @@ export const StudentQRPassModal: React.FC<StudentQRPassModalProps> = ({
   onClose,
   currentStudentName = 'กวินทร์ แสนดี',
   onRewardPoints,
+  isTeacher = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'myPass' | 'teacherScanner'>('myPass');
   const [students, setStudents] = useState<StudentRosterItem[]>(SAMPLE_STUDENTS);
@@ -58,6 +60,12 @@ export const StudentQRPassModal: React.FC<StudentQRPassModalProps> = ({
     { name: 'กวินทร์ แสนดี', action: 'เช็คชื่อเข้าเรียนตรงเวลา', time: '08:30 น.' },
     { name: 'ฐิตาภา สุขสมบูรณ์', action: 'ส่งงานแปลงผักอัจฉริยะ', time: '08:32 น.' },
   ]);
+
+  useEffect(() => {
+    if (!isTeacher && activeTab !== 'myPass') {
+      setActiveTab('myPass');
+    }
+  }, [isTeacher, activeTab]);
 
   if (!isOpen) return null;
 
@@ -74,6 +82,7 @@ export const StudentQRPassModal: React.FC<StudentQRPassModalProps> = ({
   };
 
   const handleMarkAttendance = (id: string) => {
+    if (!isTeacher) return;
     soundEffects.play('correct');
     setStudents((prev) =>
       prev.map((s) => (s.id === id ? { ...s, attended: true } : s))
@@ -84,6 +93,7 @@ export const StudentQRPassModal: React.FC<StudentQRPassModalProps> = ({
   };
 
   const handleAwardBonusPoints = (id: string, amount: number) => {
+    if (!isTeacher) return;
     soundEffects.play('victory');
     confetti({ particleCount: 50, spread: 50, origin: { y: 0.6 } });
     setStudents((prev) =>
@@ -93,7 +103,7 @@ export const StudentQRPassModal: React.FC<StudentQRPassModalProps> = ({
       setScannedStudent({ ...scannedStudent, points: scannedStudent.points + amount });
     }
     if (onRewardPoints) {
-      onRewardPoints(amount, `รับแต้มพิเศษผ่านการสแกน QR Code`);
+      onRewardPoints(amount, `รับแต้มพิเศษผ่านการสแกน QR Code`, { maxPerDay: 5, cooldownMs: 5000 });
     }
   };
 
@@ -156,22 +166,24 @@ export const StudentQRPassModal: React.FC<StudentQRPassModalProps> = ({
             <QrCode className="w-3.5 h-3.5" />
             <span>บัตรประจำตัวของฉัน (My Student Pass)</span>
           </button>
-          <button
-            onClick={() => { setActiveTab('teacherScanner'); soundEffects.play('click'); }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'teacherScanner'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'bg-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Scan className="w-3.5 h-3.5" />
-            <span>ระบบสแกนเนอร์ครูผู้สอน (Classroom Scanner)</span>
-          </button>
+          {isTeacher && (
+            <button
+              onClick={() => { setActiveTab('teacherScanner'); soundEffects.play('click'); }}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'teacherScanner'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              <Scan className="w-3.5 h-3.5" />
+              <span>ระบบสแกนเนอร์ครูผู้สอน (Classroom Scanner)</span>
+            </button>
+          )}
         </div>
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto max-h-[70vh]">
-          {activeTab === 'myPass' ? (
+          {(!isTeacher || activeTab === 'myPass') ? (
             /* My Student Pass View */
             <div className="flex flex-col items-center justify-center space-y-6 py-4">
               {/* Badge Card Design */}

@@ -165,7 +165,7 @@ interface CommunityRemixHubModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentStudentName: string;
-  onRewardPoints?: (pts: number, reason: string) => void;
+  onRewardPoints?: (pts: number, reason: string, options?: any) => void;
   onLoadProjectToLab?: (code: string, category: string) => void;
 }
 
@@ -222,7 +222,12 @@ export const CommunityRemixHubModal: React.FC<CommunityRemixHubModalProps> = ({
     } else {
       updatedLikes = [...likedIds, projectId];
       confetti({ particleCount: 20, spread: 45, origin: { y: 0.8 } });
-      if (onRewardPoints) onRewardPoints(2, 'ให้กำลังใจเพื่อนในคอมมูนิตี้');
+      if (onRewardPoints) {
+        onRewardPoints(2, 'ให้กำลังใจเพื่อนในคอมมูนิตี้', {
+          uniqueKey: `community_like_${projectId}`,
+          maxPerDay: 5,
+        });
+      }
     }
 
     setLikedIds(updatedLikes);
@@ -248,7 +253,9 @@ export const CommunityRemixHubModal: React.FC<CommunityRemixHubModalProps> = ({
     );
 
     if (onRewardPoints) {
-      onRewardPoints(10, `รีมิกซ์โค้ดผลงาน "${proj.title}"`);
+      onRewardPoints(10, `รีมิกซ์โค้ดผลงาน "${proj.title}"`, {
+        uniqueKey: `community_remix_${proj.id}`,
+      });
     }
 
     if (onLoadProjectToLab) {
@@ -291,7 +298,9 @@ export const CommunityRemixHubModal: React.FC<CommunityRemixHubModalProps> = ({
     setWishInput('');
 
     if (onRewardPoints) {
-      onRewardPoints(8, 'ให้ข้อเสนอแนะเชิงสร้างสรรค์ 2 Stars & 1 Wish');
+      onRewardPoints(8, 'ให้ข้อเสนอแนะเชิงสร้างสรรค์ 2 Stars & 1 Wish', {
+        uniqueKey: `community_review_${selectedProject.id}`,
+      });
     }
   };
 
@@ -328,7 +337,9 @@ export const CommunityRemixHubModal: React.FC<CommunityRemixHubModalProps> = ({
     setNewDescription('');
 
     if (onRewardPoints) {
-      onRewardPoints(20, 'เผยแพร่โครงงานสู่คอมมูนิตี้');
+      onRewardPoints(20, 'เผยแพร่โครงงานสู่คอมมูนิตี้', {
+        maxPerDay: 2,
+      });
     }
   };
 
