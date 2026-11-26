@@ -25,7 +25,7 @@ import confetti from 'canvas-confetti';
 
 interface PDPAPrivacyGeneratorProps {
   currentProfile?: UserProfile;
-  addPoints?: (amount: number, reason?: string, category?: string) => void;
+  addPoints?: (amount: number, reason?: string, category?: string, options?: { uniqueKey?: string }) => void;
   onBackToLab?: () => void;
 }
 
@@ -192,7 +192,9 @@ export const PDPAPrivacyGenerator: React.FC<PDPAPrivacyGeneratorProps> = ({
       });
 
       if (addPoints) {
-        addPoints(40, 'สร้างหนังสือยินยอม PDPA สำหรับโครงงานดิจิทัลสำเร็จ', 'safety');
+        addPoints(40, 'สร้างหนังสือยินยอม PDPA สำหรับโครงงานดิจิทัลสำเร็จ', 'safety', {
+          uniqueKey: 'pdpa_consent_pdf_export',
+        });
       }
     } catch (err) {
       console.error('PDF export error:', err);
@@ -207,7 +209,9 @@ export const PDPAPrivacyGenerator: React.FC<PDPAPrivacyGeneratorProps> = ({
   const handlePrint = () => {
     window.print();
     if (addPoints) {
-      addPoints(20, 'พิมพ์เอกสารยินยอม PDPA สำหรับใช้งานจริง', 'safety');
+      addPoints(20, 'พิมพ์เอกสารยินยอม PDPA สำหรับใช้งานจริง', 'safety', {
+        uniqueKey: 'pdpa_consent_print',
+      });
     }
   };
 

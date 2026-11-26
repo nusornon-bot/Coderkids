@@ -675,7 +675,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-indigo-700 dark:text-indigo-300">
                           <span className="truncate">11. คลังโครงงาน STEM Project Hub</span>
-                          <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">12 โครงงาน</span>
+                          <span className="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 shrink-0">18 โครงงาน</span>
                         </div>
                         <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">โครงงานต้นแบบ IoT + ใบงาน Project Canvas A4</div>
                       </div>
@@ -692,7 +692,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-emerald-700 dark:text-emerald-300">
                             <span className="truncate">12. โครงงานสะเต็มศึกษา (STEM 5E)</span>
-                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">10 ชุด</span>
+                            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 shrink-0">15 ชุด</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">จำลองโครงงาน 5E แปลงผักอัจฉริยะ &amp; หุ่นยนต์</div>
                         </div>
@@ -718,9 +718,9 @@ export const Header: React.FC<HeaderProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2">
                           <span className="truncate">13. Kids AI Lab (ฝึกสอน AI)</span>
-                          <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">18+8</span>
+                          <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 shrink-0">3 ภารกิจ</span>
                         </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">เทรนโมเดล AI แยกประเภทข้อมูล &amp; คัดแยกขยะ</div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ฝึกสอน AI จำแนกภาพขยะรีไซเคิล ผักผลไม้ &amp; วาดภาพเอง</div>
                       </div>
                     </button>
 
@@ -816,7 +816,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-orange-700 dark:text-orange-400">
                             <span className="truncate">17.5 Live Classroom O-NET Battle</span>
-                            <span className="text-[10px] font-mono text-orange-600 dark:text-orange-400 shrink-0">100 ข้อ</span>
+                            <span className="text-[10px] font-mono text-orange-600 dark:text-orange-400 shrink-0">200 ข้อ</span>
                           </div>
                           <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate">ประลองคลังข้อสอบ O-NET ป.6 สดด้วย PIN</div>
                         </div>
@@ -922,9 +922,9 @@ export const Header: React.FC<HeaderProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-bold leading-tight flex items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
                             <span className="truncate">1. คลังข้อสอบ O-NET &amp; สสวท. ป.6</span>
-                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">10 ชุด (100 ข้อ)</span>
+                            <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400 shrink-0">20 ชุด (200 ข้อ)</span>
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ฝึกทำข้อสอบ 10 ชุด + กราฟวิเคราะห์จุดแข็งรายบุคคล</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ฝึกทำข้อสอบ 20 ชุด + กราฟวิเคราะห์จุดแข็งรายบุคคล</div>
                         </div>
                       </button>
                     )}
@@ -942,7 +942,7 @@ export const Header: React.FC<HeaderProps> = ({
                             <span className="truncate">1.5 Live Classroom O-NET Battle</span>
                             <span className="text-[10px] font-mono text-orange-600 dark:text-orange-400 shrink-0">แข่งสด PIN</span>
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ห้องประลองคลังข้อสอบ O-NET สดในห้องเรียน (100 ข้อ)</div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate">ห้องประลองคลังข้อสอบ O-NET สดในห้องเรียน (200 ข้อ)</div>
                         </div>
                       </button>
                     )}
@@ -1954,7 +1954,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
                 >
                   <span>11. 🚀 คลังโครงงาน STEM Project Hub</span>
-                  <span className="text-[10px] font-mono">12 โครงงาน</span>
+                  <span className="text-[10px] font-mono">18 โครงงาน</span>
                 </button>
                 {onOpenStemPacks && (
                   <button
@@ -1962,7 +1962,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/60 flex items-center justify-between"
                   >
                     <span>12. 🧪 โครงงานสะเต็มศึกษา (STEM 5E)</span>
-                    <span className="text-[10px] font-mono">10 ชุด</span>
+                    <span className="text-[10px] font-mono">15 ชุด</span>
                   </button>
                 )}
                 <button
@@ -1972,7 +1972,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
                 >
                   <span>13. 🧠 Kids AI Lab (ฝึกสอน AI)</span>
-                  <span className="text-[10px] font-mono">18+8</span>
+                  <span className="text-[10px] font-mono">3 ภารกิจ</span>
                 </button>
                 <button
                   onClick={() => handleSelectTab('aiPromptLab')}
@@ -2016,7 +2016,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-orange-700 dark:text-orange-300 hover:bg-orange-100/60 flex items-center justify-between"
                   >
                     <span>17.5 🎓 Live Classroom O-NET Battle</span>
-                    <span className="text-[10px] font-mono">100 ข้อ</span>
+                    <span className="text-[10px] font-mono">200 ข้อ</span>
                   </button>
                 )}
                 {onOpenHeroCards && (
@@ -2065,7 +2065,7 @@ export const Header: React.FC<HeaderProps> = ({
                     className="w-full text-left p-2.5 rounded-xl text-xs font-semibold text-amber-800 dark:text-amber-300 hover:bg-amber-100/60 flex items-center justify-between"
                   >
                     <span>1. 🏆 คลังข้อสอบ O-NET &amp; สสวท. ป.6</span>
-                    <span className="text-[10px] font-mono font-bold">10 ชุด (100 ข้อ)</span>
+                    <span className="text-[10px] font-mono font-bold">20 ชุด (200 ข้อ)</span>
                   </button>
                 )}
                 {onOpenSmartExam && (

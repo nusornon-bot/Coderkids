@@ -119,7 +119,7 @@ interface DailyMicroChallengeModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentStudentName: string;
-  onRewardPoints?: (pts: number, reason: string) => void;
+  onRewardPoints?: (pts: number, reason: string, options?: { uniqueKey?: string }) => void;
 }
 
 export const DailyMicroChallengeModal: React.FC<DailyMicroChallengeModalProps> = ({
@@ -217,7 +217,9 @@ export const DailyMicroChallengeModal: React.FC<DailyMicroChallengeModalProps> =
         localStorage.setItem('coderkids_daily_streak', nextStreak.toString());
 
         if (onRewardPoints) {
-          onRewardPoints(currentPuzzle.rewardPoints, `พิชิต Daily Challenge วันที่ ${selectedDay}`);
+          onRewardPoints(currentPuzzle.rewardPoints, `พิชิต Daily Challenge วันที่ ${selectedDay}`, {
+            uniqueKey: `daily_micro_challenge_day_${selectedDay}`,
+          });
         }
       }
     } else {

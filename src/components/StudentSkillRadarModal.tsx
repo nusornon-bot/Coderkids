@@ -169,13 +169,16 @@ export const StudentSkillRadarModal: React.FC<StudentSkillRadarModalProps> = ({
   gradeAverage = { safety: 82, thinking: 85, codingLab: 81, showcase: 83 },
   onNavigate,
 }) => {
-  if (!isOpen || !entry) return null;
-
-  const isMe = Boolean(entry.isCurrentUser);
+  const isMe = Boolean(entry?.isCurrentUser);
   const stats = useMemo(
-    () => computeStudentSkills(entry, isMe, completedModulesCount, currentUserPoints),
+    () =>
+      entry
+        ? computeStudentSkills(entry, isMe, completedModulesCount, currentUserPoints)
+        : null,
     [entry, isMe, completedModulesCount, currentUserPoints]
   );
+
+  if (!isOpen || !entry || !stats) return null;
 
   // Radar geometry
   const cx = 160;
@@ -342,8 +345,8 @@ export const StudentSkillRadarModal: React.FC<StudentSkillRadarModalProps> = ({
         <div className="p-5 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
           {/* Left: SVG Radar Chart */}
           <div className="md:col-span-6 flex flex-col items-center">
-            <div className="w-full max-w-[320px] aspect-square relative flex items-center justify-center">
-              <svg viewBox="0 0 320 300" className="w-full h-full overflow-visible">
+            <div className="w-full max-w-[360px] aspect-[4/3] relative flex items-center justify-center">
+              <svg viewBox="-55 0 430 300" className="w-full h-full overflow-visible">
                 {/* Background Concentric Polygons */}
                 {[0.25, 0.5, 0.75, 1].map((lvl) => {
                   const r = radius * lvl;

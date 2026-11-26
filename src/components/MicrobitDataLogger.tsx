@@ -21,10 +21,11 @@ import {
   Ruler,
 } from 'lucide-react';
 import { AudioReaderButton } from './AudioReaderButton.tsx';
+import { getThailandDateKey, type PointAwardOptions } from '../utils/antiCheatGuard.ts';
 
 interface MicrobitDataLoggerProps {
   onBack: () => void;
-  addPoints: (amount: number, reason: string, category: 'thinking') => void;
+  addPoints: (amount: number, reason: string, category: 'thinking', options?: PointAwardOptions) => void;
 }
 
 type SensorChannel = 'temp' | 'light' | 'moisture' | 'sound' | 'humidity' | 'pm25' | 'distance' | 'co2';
@@ -236,7 +237,10 @@ export const MicrobitDataLogger: React.FC<MicrobitDataLoggerProps> = ({ onBack, 
 
     setExportedStatus(true);
     setTimeout(() => setExportedStatus(false), 3000);
-    addPoints(20, 'ส่งออกชุดข้อมูลวิทยาศาสตร์ Micro:bit Data Logger', 'thinking');
+    addPoints(20, 'ส่งออกชุดข้อมูลวิทยาศาสตร์ Micro:bit Data Logger', 'thinking', {
+      uniqueKey: `data_logger_export_${activeChannel}_${getThailandDateKey()}`,
+      maxPerDay: 1,
+    });
   };
 
   const handleClearData = () => {

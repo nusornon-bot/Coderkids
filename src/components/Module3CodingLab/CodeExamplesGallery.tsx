@@ -28,12 +28,13 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../../utils/soundEffects.ts';
+import type { PointAwardOptions } from '../../utils/antiCheatGuard.ts';
 
 interface CodeExamplesGalleryProps {
   onSelectScratchPreset?: (presetId: string) => void;
   onSelectMicrobitPreset?: (presetId: string) => void;
   onNavigateToSimulator?: (platform: 'scratch' | 'microbit', presetId?: string) => void;
-  addPoints: (points: number, reason: string, category?: string) => void;
+  addPoints: (points: number, reason: string, category?: string, options?: PointAwardOptions) => void;
 }
 
 export const CodeExamplesGallery: React.FC<CodeExamplesGalleryProps> = ({
@@ -118,7 +119,12 @@ export const CodeExamplesGallery: React.FC<CodeExamplesGalleryProps> = ({
       soundEffects.playSuccess();
       // If not already claimed, award points!
       if (!claimedRewardIds.includes(selectedExample.id)) {
-        addPoints(selectedExample.points, `ผ่านแบบฝึกหัดอ่านโค้ด: ${selectedExample.title}`, 'coding');
+        addPoints(
+          selectedExample.points,
+          `ผ่านแบบฝึกหัดอ่านโค้ด: ${selectedExample.title}`,
+          'coding',
+          { uniqueKey: `code_example_quiz_${selectedExample.id}` }
+        );
         const nextClaimed = [...claimedRewardIds, selectedExample.id];
         setClaimedRewardIds(nextClaimed);
         localStorage.setItem('coderkids_claimed_gallery_rewards', JSON.stringify(nextClaimed));

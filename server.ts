@@ -792,6 +792,7 @@ app.get('/api/students/list', async (req, res) => {
   }
   // Public classroom lookup mode (Student ID sign-in) omits PII fields such as email
   const sanitized = registeredStudentsList.map((s) => ({
+    id: s.id,
     studentId: s.studentId,
     name: s.name,
     nickname: s.nickname,
@@ -799,6 +800,7 @@ app.get('/api/students/list', async (req, res) => {
     school: s.school,
     avatarId: s.avatarId,
     avatarEmoji: s.avatarEmoji,
+    points: s.points,
   }));
   return res.json({ success: true, students: sanitized });
 });

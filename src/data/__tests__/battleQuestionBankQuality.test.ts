@@ -98,9 +98,9 @@ describe('Coding Battle Question Bank Quality (144 ข้อ)', () => {
   });
 });
 
-describe('O-NET Battle Question Bank Quality (100 ข้อ)', () => {
-  it('distributes correct answers evenly across A/B/C/D (25 each) with balanced option lengths', () => {
-    expect(BUILTIN_ONET_BATTLE_QUESTIONS).toHaveLength(100);
+describe('O-NET Battle Question Bank Quality (200 ข้อ)', () => {
+  it('distributes correct answers evenly across A/B/C/D (50 each) with balanced option lengths', () => {
+    expect(BUILTIN_ONET_BATTLE_QUESTIONS).toHaveLength(200);
     const counts = [0, 0, 0, 0];
     let strictLongestCorrectCount = 0;
 
@@ -128,7 +128,60 @@ describe('O-NET Battle Question Bank Quality (100 ข้อ)', () => {
       }
     }
 
-    expect(counts).toEqual([25, 25, 25, 25]);
-    expect(strictLongestCorrectCount).toBeLessThanOrEqual(40);
+    expect(counts).toEqual([50, 50, 50, 50]);
+    expect(strictLongestCorrectCount).toBeLessThanOrEqual(70);
   });
 });
+
+describe('O-NET Exam Sets 11–20 (Must-Know Indicators & Scenario Synthesis)', () => {
+  const extraQuestions = BUILTIN_ONET_BATTLE_QUESTIONS.filter(
+    (q) => q.setNumber >= 11 && q.setNumber <= 20
+  );
+
+  it('contains 100 unique questions across sets 11–20 focused strictly on Must-Know indicators ว 4.2 ป.4/1, ป.6/1, ป.6/4', () => {
+    expect(extraQuestions).toHaveLength(100);
+    const allowedIndicators = new Set(['ว 4.2 ป.4/1', 'ว 4.2 ป.6/1', 'ว 4.2 ป.6/4']);
+    const setCounts: Record<string, number> = {};
+
+    for (const q of extraQuestions) {
+      expect(allowedIndicators.has(q.indicator)).toBe(true);
+      expect(q.isMustKnow).toBe(true);
+      setCounts[q.setId] = (setCounts[q.setId] || 0) + 1;
+    }
+
+    for (let s = 11; s <= 20; s += 1) {
+      expect(setCounts[`set${s}`]).toBe(10);
+    }
+  });
+
+  it('balances correct answers [25, 25, 25, 25] globally, >= 2 per choice per set, and avoids streaks > 2', () => {
+    const globalCounts = [0, 0, 0, 0];
+    const perSetCounts: Record<string, [number, number, number, number]> = {};
+    let maxStreak = 1;
+    let currentStreak = 1;
+
+    extraQuestions.forEach((q, idx) => {
+      globalCounts[q.correctIndex] += 1;
+      if (!perSetCounts[q.setId]) {
+        perSetCounts[q.setId] = [0, 0, 0, 0];
+      }
+      perSetCounts[q.setId][q.correctIndex] += 1;
+
+      if (idx > 0 && extraQuestions[idx - 1].correctIndex === q.correctIndex) {
+        currentStreak += 1;
+        maxStreak = Math.max(maxStreak, currentStreak);
+      } else {
+        currentStreak = 1;
+      }
+    });
+
+    expect(globalCounts).toEqual([25, 25, 25, 25]);
+    expect(maxStreak).toBeLessThanOrEqual(2);
+    for (const counts of Object.values(perSetCounts)) {
+      for (const c of counts) {
+        expect(c).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+});
+

@@ -43,10 +43,16 @@ import { BOOK_POST_ASSESSMENTS } from '../data/bookAssessmentsData.ts';
 import { soundEffects } from '../utils/soundEffects.ts';
 import { DigitalLibrary3DView, HardwareModelType } from './DigitalLibrary3DView.tsx';
 import confetti from 'canvas-confetti';
+import type { PointAwardOptions } from '../utils/antiCheatGuard.ts';
 
 interface DigitalLibraryProps {
   profile: UserProfile;
-  addPoints: (points: number, reason?: string, category?: 'safety' | 'thinking' | 'coding' | 'showcase' | 'classroom') => void;
+  addPoints: (
+    points: number,
+    reason?: string,
+    category?: 'safety' | 'thinking' | 'coding' | 'showcase' | 'classroom',
+    options?: PointAwardOptions
+  ) => void;
   onNavigateModule?: (moduleKey: string) => void;
   initialMode?: 'books' | '3d';
 }
@@ -174,7 +180,12 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
       );
       if (!hasFetchedCatalogOnce) {
         setHasFetchedCatalogOnce(true);
-        addPoints(10, 'ค้นคว้ารายการหนังสือเรียนวิทยาการคำนวณจากแหล่งอ้างอิงด้วย Google Search', 'thinking');
+        addPoints(
+          10,
+          'ค้นคว้ารายการหนังสือเรียนวิทยาการคำนวณจากแหล่งอ้างอิงด้วย Google Search',
+          'thinking',
+          { uniqueKey: 'digital_library_catalog_search' }
+        );
       }
       soundEffects.play('correct');
     } catch {
@@ -390,7 +401,9 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
         }));
         soundEffects.playSuccess();
         if (isFirstTimeForBook) {
-          addPoints(10, `ทบทวนบทสรุปด้วย AI: ${book.title}`, 'thinking');
+          addPoints(10, `ทบทวนบทสรุปด้วย AI: ${book.title}`, 'thinking', {
+            uniqueKey: `ebook_ai_summary_${book.id}`,
+          });
         }
       }
     } catch {
@@ -441,10 +454,17 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
 
       if (isAllDone && !existing.isCompleted) {
         soundEffects.playFanfare();
-        addPoints(35, `อ่าน e-Book จบเล่ม: ${book.title}`, 'thinking');
+        addPoints(35, `อ่าน e-Book จบเล่ม: ${book.title}`, 'thinking', {
+          uniqueKey: `ebook_complete_${book.id}`,
+        });
       } else if (!existing.completedSectionIds.includes(sectionId)) {
         soundEffects.playSuccess();
-        addPoints(10, `อ่านบทเรียน: ${book.sections[currentSectionIndex]?.title.slice(0, 30) || book.title}...`, 'thinking');
+        addPoints(
+          10,
+          `อ่านบทเรียน: ${book.sections[currentSectionIndex]?.title.slice(0, 30) || book.title}...`,
+          'thinking',
+          { uniqueKey: `ebook_section_${book.id}_${sectionId}` }
+        );
       }
 
       return {
@@ -487,7 +507,8 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
         addPoints(
           score === total ? 40 : 25,
           `ผ่านแบบทดสอบ 3 มิติท้ายเล่ม (${score}/${total}): ${activeBook.title}`,
-          'thinking'
+          'thinking',
+          { uniqueKey: `ebook_quiz_${activeBook.id}` }
         );
       }
     } else {
@@ -548,7 +569,9 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
       soundEffects.playSuccess();
       confetti({ particleCount: 45, spread: 60, origin: { y: 0.65 } });
       if (!prevRecord?.activityOrderingDone) {
-        addPoints(20, `จัดลำดับขั้นตอนกิจกรรมท้ายเล่มสำเร็จ: ${activeBook.title}`, 'thinking');
+        addPoints(20, `จัดลำดับขั้นตอนกิจกรรมท้ายเล่มสำเร็จ: ${activeBook.title}`, 'thinking', {
+          uniqueKey: `ebook_ordering_${activeBook.id}`,
+        });
       }
       setReadingProgress((prev) => {
         const existing = prev[activeBook.id] || {
@@ -582,7 +605,9 @@ export const DigitalLibrary: React.FC<DigitalLibraryProps> = ({
 
     const prevRecord = readingProgress[activeBook.id];
     if (!prevRecord?.activityReflection) {
-      addPoints(15, `บันทึกแนวคิดการนำไปใช้จากหนังสือ: ${activeBook.title}`, 'showcase');
+      addPoints(15, `บันทึกแนวคิดการนำไปใช้จากหนังสือ: ${activeBook.title}`, 'showcase', {
+        uniqueKey: `ebook_reflection_${activeBook.id}`,
+      });
     }
 
     setReadingProgress((prev) => {

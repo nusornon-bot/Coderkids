@@ -20,7 +20,7 @@ import { soundEffects } from '../utils/soundEffects.ts';
 interface VisualCodeTracerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onRewardPoints?: (points: number, reason: string) => void;
+  onRewardPoints?: (points: number, reason: string, options?: { uniqueKey?: string }) => void;
 }
 
 interface TraceStep {
@@ -201,14 +201,18 @@ export const VisualCodeTracerModal: React.FC<VisualCodeTracerModalProps> = ({
           } else {
             setIsPlaying(false);
             soundEffects.play('victory');
-            if (onRewardPoints) onRewardPoints(20, `เรียนรู้ Trace Code: ${scenario.title}`);
+            if (onRewardPoints) {
+              onRewardPoints(20, `เรียนรู้ Trace Code: ${scenario.title}`, {
+                uniqueKey: `code_tracer_scenario_${scenario.id}`,
+              });
+            }
             return prev;
           }
         });
       }, 1400);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, scenario.steps.length, scenario.title, onRewardPoints]);
+  }, [isPlaying, scenario.id, scenario.steps.length, scenario.title, onRewardPoints]);
 
   if (!isOpen) return null;
 

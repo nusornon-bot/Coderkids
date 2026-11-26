@@ -461,6 +461,261 @@ while True:
         display.show(temp)
     sleep(1000)`,
   },
+  {
+    id: 'auto_clothesline',
+    title: '👕 เครื่องตากผ้าอัตโนมัติหลบฝน (Smart Auto Clothesline)',
+    subtitle: 'ตรวจจับละอองน้ำฝนและดึงราวตากผ้าหลบเข้าใต้ชายคาด้วยเซอร์โวมอเตอร์ทันที',
+    grade: 'ป.5 - ว 4.2 ป.5/2',
+    icon: '👕',
+    badgeColor: 'sky',
+    science: 'การระเหยของน้ำจากเสื้อผ้า การนำไฟฟ้าของหยดน้ำฝน และความชื้นสัมพัทธ์ในอากาศ',
+    technology: 'เซ็นเซอร์ตรวจจับน้ำฝน (Raindrop Sensor) และเซอร์โวมอเตอร์ควบคุมรางเลื่อน',
+    engineering: 'ออกแบบโครงหลังคากันฝนและรางเลื่อนราวผ้าที่เคลื่อนที่เข้า-ออกได้คล่องตัวไม่ติดขัด',
+    math: 'การแปลงค่าความเปียกชื้น (0-100%) และองศาการหมุนของมอเตอร์ (0° ตาก / 180° เก็บ)',
+    hardware: ['บอร์ด Micro:bit V2', 'Raindrop Sensor (Pin P0)', 'Micro Servo SG90 (Pin P1)', 'ราวตากผ้าจำลอง'],
+    simulationState: {
+      label: 'ระดับละอองน้ำฝนบนเซ็นเซอร์',
+      actionLabel: '🌧️ จำลองฝนตก / แดดออก',
+      unit: '%',
+      defaultVal: 18,
+      threshold: 50,
+      mode: 'toggle_high',
+      step: 22,
+      activeText: 'ตรวจพบฝนตก! ดึงราวผ้าเก็บเข้าใต้หลังคา (SHIELD ON)',
+      idleText: 'ฟ้าโปร่งแดดออก! เลื่อนราวผ้าตากแดด (DRYING)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าความเปียกจาก Raindrop Sensor ที่ขา P0',
+      '2. ตรวจสอบ: rain_percent >= 50% หรือท้องฟ้ามืดหรือไม่?',
+      '3. ถ้าจริง: สั่ง Servo หมุนไปที่ 180° เพื่อเก็บผ้าเข้าใต้ชายคาและร้องเตือน',
+      '4. ถ้าแห้งและแดดออก: สั่ง Servo หมุนกลับ 0° เพื่อเลื่อนผ้าออกตากแดด',
+    ],
+    pythonCode: `from microbit import *
+
+while True:
+    rain = pin0.read_analog() * 100 // 1023
+    if rain >= 50 or display.read_light_level() < 40:
+        pin1.write_analog(128) # เก็บผ้าเข้าร่ม
+        display.show(Image.UMBRELLA)
+    else:
+        pin1.write_analog(26)  # เลื่อนผ้าออกตาก
+        display.show(Image.HAPPY)
+    sleep(1000)`,
+  },
+  {
+    id: 'auto_fire_suppression',
+    title: '🚒 ระบบดับไฟในอาคารอัตโนมัติ (Auto Building Fire Suppression)',
+    subtitle: 'ตรวจจับเปลวไฟและความร้อนสูงเกินเกณฑ์ สั่งเปิดสปริงเกอร์ฉีดน้ำพร้อมไซเรนแจ้งเตือนทันที',
+    grade: 'ป.6 - ว 4.2 ป.6/2',
+    icon: '🚒',
+    badgeColor: 'rose',
+    science: 'องค์ประกอบสามเหลี่ยมไฟ (เชื้อเพลิง ความร้อน ออกซิเจน) และการลดอุณหภูมิด้วยละอองน้ำ',
+    technology: 'เซ็นเซอร์เปลวไฟ/ความร้อน (Flame & Temp Sensor), รีเลย์ปั๊มน้ำสปริงเกอร์ และวิทยุแจ้งเหตุ',
+    engineering: 'วางตำแหน่งหัวฉีดสปริงเกอร์บนฝ้าเพดานให้ครอบคลุมพื้นที่และป้องกันสายไฟโดนน้ำ',
+    math: 'การกำหนดค่าอุณหภูมิวิกฤต (>= 55°C) และระยะเวลาฉีดพ่นน้ำดับเพลิงเป็นวินาที',
+    hardware: ['บอร์ด Micro:bit V2', 'Flame / Smoke Sensor (P0)', 'ปั๊มน้ำสปริงเกอร์ 5V + รีเลย์ (P1)', 'ไฟ LED ฉุกเฉิน'],
+    simulationState: {
+      label: 'อุณหภูมิและสัญญาณเปลวไฟในห้อง',
+      actionLabel: '🔥 จำลองเหตุไฟไหม้ / ดับไฟแล้ว',
+      unit: '°C',
+      defaultVal: 31,
+      threshold: 55,
+      mode: 'toggle_high',
+      step: 16,
+      activeText: 'พบเปลวไฟ/ความร้อนสูง! เปิดสปริงเกอร์ดับไฟ + ไซเรน (SPRINKLER ON)',
+      idleText: 'อาคารปลอดภัย อุณหภูมิปกติ (SAFE MODE)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าอุณหภูมิและสัญญาณเซ็นเซอร์เปลวไฟตลอดเวลา',
+      '2. ตรวจสอบ: ตรวจพบเปลวไฟ หรือ อุณหภูมิ >= 55°C หรือไม่?',
+      '3. ถ้าจริง: สั่งเปิดรีเลย์ปั๊มน้ำสปริงเกอร์ (P1=1), เปิดไซเรน และส่งวิทยุแจ้งป้อมยาม',
+      '4. ถ้าปลอดภัย: ปิดปั๊มน้ำและแสดงสัญลักษณ์ติ๊กถูก ✅',
+    ],
+    pythonCode: `from microbit import *
+import music, radio
+
+radio.on()
+radio.config(group=99)
+
+while True:
+    flame = pin0.read_digital()
+    if flame == 0 or temperature() >= 55:
+        pin1.write_digital(1) # เปิดสปริงเกอร์ดับไฟ
+        radio.send("FIRE_ALERT")
+        music.pitch(988, 300)
+        display.show("!")
+    else:
+        pin1.write_digital(0)
+        display.show(Image.YES)
+    sleep(500)`,
+  },
+  {
+    id: 'smart_pet_feeder',
+    title: '🐶 เครื่องให้อาหารสัตว์เลี้ยงอัตโนมัติ (Smart Auto Pet Feeder)',
+    subtitle: 'ตรวจวัดปริมาณอาหารในชามและเปิดประตูเซอร์โวจ่ายเม็ดอาหารพร้อมเสียงเรียกสัตว์เลี้ยง',
+    grade: 'ป.4 - ว 4.2 ป.4/2',
+    icon: '🐶',
+    badgeColor: 'amber',
+    science: 'พฤติกรรมการเรียนรู้ของสัตว์ต่อเสียงสัญญาณ (Conditioning) และโภชนาการสัตว์เลี้ยง',
+    technology: 'Micro Servo SG90 ควบคุมประตูจ่ายอาหาร และลำโพงเรียกสัตว์เลี้ยงในตัว Micro:bit',
+    engineering: 'ออกแบบกรวยลำเลียงเม็ดอาหารให้ไหลลงชามได้สม่ำเสมอไม่ติดค้างในท่อ',
+    math: 'การคำนวณปริมาณอาหาร (กรัม) ต่อเวลาเปิดช่อง (วินาที) และการนับจำกัด 3 มื้อต่อวัน',
+    hardware: ['บอร์ด Micro:bit V2', 'Micro Servo Motor SG90', 'ขวดพลาสติกทำถังอาหาร & ชามสัตว์เลี้ยง'],
+    simulationState: {
+      label: 'ปริมาณอาหารคงเหลือในชาม',
+      actionLabel: '🦴 จำลองสัตว์เลี้ยงกินอาหาร / เติมอาหาร',
+      unit: 'กรัม',
+      defaultVal: 65,
+      threshold: 30,
+      mode: 'toggle_low',
+      step: 20,
+      activeText: 'อาหารใกล้หมดชาม! หมุน Servo จ่ายอาหารเพิ่ม + เสียงเรียก (FEEDING)',
+      idleText: 'อาหารในชามเพียงพอ ปิดช่องจ่ายอาหาร (STANDBY)',
+    },
+    flowchartSteps: [
+      '1. ตรวจสอบปริมาณอาหารในชามหรือกดปุ่มตั้งเวลาให้อาหาร',
+      '2. ถ้าปริมาณอาหาร < 30 กรัม และยังไม่ครบโควตาประจำวัน:',
+      '3. เล่นเสียงเรียกสัตว์เลี้ยงและหมุน Servo เปิดช่อง 90° นาน 1.5 วินาที',
+      '4. ปิดประตูกลับที่ 0° และบวกตัวนับมื้ออาหาร +1',
+    ],
+    pythonCode: `from microbit import *
+import music
+
+meals = 0
+while True:
+    bowl = pin0.read_analog() // 10
+    if (bowl < 30 or button_a.was_pressed()) and meals < 3:
+        music.play(music.BA_DING)
+        pin1.write_analog(128) # เปิดช่องจ่ายอาหาร
+        sleep(1500)
+        pin1.write_analog(26)  # ปิดช่องอาหาร
+        meals += 1
+    display.show(meals)
+    sleep(500)`,
+  },
+  {
+    id: 'auto_sanitizer',
+    title: '🧴 เครื่องจ่ายเจลแอลกอฮอล์ไร้สัมผัส (Touchless Hand Sanitizer)',
+    subtitle: 'ตรวจจับมือด้วยเซ็นเซอร์อินฟราเรดแล้วปั๊มจ่ายเจลอัตโนมัติ ลดการสัมผัสร่วมกัน',
+    grade: 'ป.5 - ว 4.2 ป.5/2',
+    icon: '🧴',
+    badgeColor: 'teal',
+    science: 'การยับยั้งเชื้อแบคทีเรียและไวรัสด้วยแอลกอฮอล์ 70% และแรงดันของไหลในท่อปั๊ม',
+    technology: 'เซ็นเซอร์อินฟราเรดตรวจจับระยะใกล้ (IR Obstacle Sensor) และปั๊มน้ำจิ๋ว 5V',
+    engineering: 'ออกแบบตำแหน่งหัวจ่ายและเซ็นเซอร์ให้พอดีกับฝ่ามือเด็กโดยไม่หยดเลอะเทอะ',
+    math: 'การจับเวลาจ่ายเจล (มิลลิวินาที) ให้ได้ปริมาณพอดี 2 มิลลิลิตรต่อครั้งและนับสถิติผู้ใช้',
+    hardware: ['บอร์ด Micro:bit V2', 'IR Obstacle Sensor (P0)', 'ปั๊มน้ำ 5V + รีเลย์ (P1)'],
+    simulationState: {
+      label: 'ระยะห่างฝ่ามือจากหัวจ่ายเจล',
+      actionLabel: '🤲 ยื่นมือเข้าใกล้หัวจ่ายเจล',
+      unit: 'ซม.',
+      defaultVal: 24,
+      threshold: 10,
+      mode: 'toggle_low',
+      step: 8,
+      activeText: 'พบฝ่ามือ! จ่ายเจลแอลกอฮอล์ 0.8 วินาที (DISPENSING)',
+      idleText: 'พร้อมใช้งาน รอการยื่นมือเข้าใกล้ (READY)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าสัญญาณจากเซ็นเซอร์อินฟราเรดใต้หัวจ่าย',
+      '2. ตรวจสอบ: ระยะฝ่ามือ < 10 ซม. หรือไม่?',
+      '3. ถ้าพบมือ: สั่งปั๊มทำงาน 800 มิลลิวินาที เพิ่มตัวนับผู้ล้างมือ +1',
+      '4. หยุดปั๊มและหน่วงเวลาพัก 2 วินาทีก่อนรับมือครั้งถัดไป',
+    ],
+    pythonCode: `from microbit import *
+
+count = 0
+while True:
+    if pin0.read_digital() == 0:
+        pin1.write_digital(1) # เปิดปั๊มจ่ายเจล
+        sleep(800)
+        pin1.write_digital(0) # หยุดปั๊ม
+        count += 1
+        display.show(count)
+        sleep(2000) # ป้องกันจ่ายซ้ำ`,
+  },
+  {
+    id: 'smart_greenhouse',
+    title: '🏡 โรงเรือนปลูกผักอัจฉริยะ (Smart Climate Greenhouse)',
+    subtitle: 'ควบคุมพัดลมระบายอากาศและไฟเสริมแสงปลูกพืชอัตโนมัติให้เหมาะสมต่อการเจริญเติบโตของพืช',
+    grade: 'ป.6 - ว 4.2 ป.6/2',
+    icon: '🏡',
+    badgeColor: 'emerald',
+    science: 'กระบวนการสังเคราะห์ด้วยแสง (Photosynthesis) และปัจจัยอุณหภูมิ-ความชื้นต่อการโตของพืช',
+    technology: 'เซ็นเซอร์อุณหภูมิ/แสง, พัดลมระบายอากาศ 5V และหลอดไฟ LED Grow Light',
+    engineering: 'ออกแบบโครงสร้างโรงเรือนโปร่งแสงที่มีช่องลมเข้า-ออกช่วยหมุนเวียนอากาศได้ทั่วถึง',
+    math: 'การวิเคราะห์ช่วงอุณหภูมิเหมาะสม (24–31°C) และการเปรียบเทียบความสูงต้นไม้รายวัน',
+    hardware: ['บอร์ด Micro:bit V2', 'พัดลม 5V + รีเลย์ (P1)', 'หลอดไฟ LED ปลูกพืช (P2)', 'โครงโรงเรือนจำลอง'],
+    simulationState: {
+      label: 'อุณหภูมิภายในโรงเรือนปลูกผัก',
+      actionLabel: '🌡️ จำลองอากาศในโรงเรือนร้อน/เย็น',
+      unit: '°C',
+      defaultVal: 28,
+      threshold: 32,
+      mode: 'toggle_high',
+      step: 4,
+      activeText: 'โรงเรือนร้อนเกิน 32°C! เปิดพัดลมระบายอากาศทันที (COOLING ON)',
+      idleText: 'อากาศในโรงเรือนกำลังพอเหมาะต่อการโตของผัก (OPTIMAL)',
+    },
+    flowchartSteps: [
+      '1. อ่านค่าอุณหภูมิและระดับความสว่างในโรงเรือน',
+      '2. ถ้าอุณหภูมิ >= 32°C: เปิดพัดลมระบายอากาศ (P1=1)',
+      '3. ถ้าระดับแสง < 60: เปิดหลอดไฟ LED เสริมแสงสังเคราะห์ด้วยแสง (P2=1)',
+      '4. ถ้าสภาพอากาศเหมาะสม: ปิดอุปกรณ์ช่วยเพื่อประหยัดพลังงาน',
+    ],
+    pythonCode: `from microbit import *
+
+while True:
+    temp = temperature()
+    light = display.read_light_level()
+    pin1.write_digital(1 if temp >= 32 else 0)  # พัดลม
+    pin2.write_digital(1 if light < 60 else 0)  # ไฟปลูกพืช
+    display.show(Image.HAPPY if temp < 32 else "C")
+    sleep(1500)`,
+  },
+  {
+    id: 'smart_parking',
+    title: '🅿️ ระบบไม้กั้นที่จอดรถอัจฉริยะ (Smart School Parking Gate)',
+    subtitle: 'นับจำนวนรถเข้า-ออกและควบคุมแขนไม้กั้นอัตโนมัติ พร้อมแจ้งเตือน FULL เมื่อลานจอดเต็ม',
+    grade: 'ป.4 - ว 4.2 ป.4/2',
+    icon: '🅿️',
+    badgeColor: 'indigo',
+    science: 'การทำงานของคลื่นอินฟราเรดในการตรวจจับวัตถุเคลื่อนที่และกลไกคานยกไม้กั้น',
+    technology: 'เซ็นเซอร์ตรวจจับรถเข้า-ออก (IR Sensor) และ Micro Servo Motor SG90',
+    engineering: 'ออกแบบแขนไม้กั้นน้ำหนักเบาให้ยกขึ้นลง 90° ได้นุ่มนวลและมีป้ายบอกช่องว่างชัดเจน',
+    math: 'การบวกลบตัวแปรจำนวนรถไม่ให้เกินความจุสูงสุด (0 <= cars <= 5)',
+    hardware: ['บอร์ด Micro:bit V2', 'IR Sensor x 2 ตัว (P1/P2)', 'Micro Servo SG90 (P0)'],
+    simulationState: {
+      label: 'จำนวนรถที่จอดอยู่ในลานจอด',
+      actionLabel: '🚗 จำลองรถขับเข้า / ขับออกลานจอด',
+      unit: 'คัน',
+      defaultVal: 3,
+      threshold: 5,
+      mode: 'toggle_high',
+      step: 2,
+      activeText: 'ลานจอดรถเต็มแล้ว (5/5 คัน)! ล็อกไม้กั้นและขึ้นป้าย FULL',
+      idleText: 'ยังมีช่องจอดว่าง! พร้อมยกไม้กั้นรับรถเข้าจอด (OPEN)',
+    },
+    flowchartSteps: [
+      '1. กำหนดความจุลานจอดสูงสุด = 5 คัน และแสดงจำนวนช่องว่าง',
+      '2. เมื่อมีรถแตะเซ็นเซอร์ทางเข้า: ตรวจว่า cars < 5 หรือไม่?',
+      '3. ถ้ายังมีที่ว่าง: ยกไม้กั้น 90° นาน 2.5 วินาที แล้วเพิ่มตัวนับรถ +1',
+      '4. ถ้าเต็ม 5 คันแล้ว: คงไม้กั้นปิดไว้และแสดงคำว่า FULL บนจอ LED',
+    ],
+    pythonCode: `from microbit import *
+
+cars = 0
+while True:
+    if pin1.read_digital() == 0 and cars < 5:
+        cars += 1
+        pin0.write_analog(128) # ยกไม้กั้น
+        sleep(2500)
+        pin0.write_analog(26)  # ปิดไม้กั้น
+    elif pin2.read_digital() == 0 and cars > 0:
+        cars -= 1
+        sleep(1500)
+    display.show("F" if cars >= 5 else 5 - cars)`,
+  },
 ];
 
 export const StemPacksModal: React.FC<StemPacksModalProps> = ({

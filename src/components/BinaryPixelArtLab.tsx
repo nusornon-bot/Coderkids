@@ -232,7 +232,7 @@ const CIPHER_MISSIONS: {
 
 interface BinaryPixelArtLabProps {
   onBack?: () => void;
-  addPoints?: (amount: number, reason: string, category?: any) => void;
+  addPoints?: (amount: number, reason: string, category?: any, options?: { uniqueKey?: string; maxPerDay?: number }) => void;
   onCelebrate?: () => void;
 }
 
@@ -296,7 +296,12 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
           soundEffects.playFanfare();
           fireConfetti('fireworks');
           if (addPoints) {
-            addPoints(20, `แก้ปริศนาเลขฐานสอง Binary Pixel Art (${PRESETS[targetPresetKey].name}) สำเร็จ!`, 'thinking');
+            addPoints(
+              20,
+              `แก้ปริศนาเลขฐานสอง Binary Pixel Art (${PRESETS[targetPresetKey].name}) สำเร็จ!`,
+              'thinking',
+              { uniqueKey: `binary_pixel_puzzle_${targetPresetKey}` }
+            );
           }
           if (onCelebrate) {
             onCelebrate();
@@ -414,6 +419,7 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
   const currentMission = CIPHER_MISSIONS[cipherMissionIdx] || CIPHER_MISSIONS[0];
 
   const handleCheckDecrypt = () => {
+    if (decryptSuccess === true) return;
     soundEffects.playClick();
     if (decryptInput.trim().toUpperCase() === currentMission.answer) {
       setDecryptSuccess(true);
@@ -423,7 +429,8 @@ export const BinaryPixelArtLab: React.FC<BinaryPixelArtLabProps> = ({
         addPoints(
           currentMission.points,
           `ถอดรหัสลับสายลับ (${currentMission.answer}) สำเร็จ!`,
-          'safety'
+          'safety',
+          { uniqueKey: `binary_cipher_mission_${currentMission.id}` }
         );
       }
       if (onCelebrate) {

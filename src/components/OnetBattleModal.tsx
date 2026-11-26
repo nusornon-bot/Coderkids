@@ -221,7 +221,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
   const [questionCount, setQuestionCount] = useState<number>(10);
   const [shuffleChoicesEnabled, setShuffleChoicesEnabled] = useState<boolean>(true);
 
-  // Question Bank State (Built-in 100 O-NET + Local Teacher Custom)
+  // Question Bank State (Built-in 200 O-NET + Local Teacher Custom)
   const [localQuestions, setLocalQuestions] = useState<OnetBattleQuestionItem[]>(() =>
     loadLocalOnetCustomQuestions()
   );
@@ -263,7 +263,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
   const [score, setScore] = useState<number>(0);
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
-  const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [timeLeft, setTimeLeft] = useState<number>(60);
 
   // Enforce student cannot access teacher bank or projector mode if role changes
   useEffect(() => {
@@ -485,7 +485,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
   const currentQ = activeQuestions[currentRound];
 
   const getSetShortLabel = (setFilter: OnetBattleSetFilter): string => {
-    if (setFilter === 'all') return 'รวมทุกชุด O-NET (10 ชุด)';
+    if (setFilter === 'all') return `รวมทุกชุด O-NET (${ONET_EXAM_SETS.length} ชุด)`;
     const found = ONET_EXAM_SETS.find((s) => s.id === setFilter);
     return found ? `ชุดที่ ${found.setNumber}` : setFilter;
   };
@@ -1934,7 +1934,8 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
                 <div>
                   🎲 สุ่มข้อสอบ{' '}
                   <span className="text-emerald-400 font-black">{effectiveQuestionCount} ข้อ</span>{' '}
-                  จากคลัง O-NET ({eligibleQuestions.length} ข้อที่ตรงเงื่อนไข)
+                  จากคลัง O-NET ({eligibleQuestions.length} ข้อที่ตรงเงื่อนไข) · เวลา{' '}
+                  <span className="text-amber-300 font-bold">60 วินาที/ข้อ</span>
                 </div>
               </div>
 
@@ -2028,10 +2029,10 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
                 </button>
               </div>
 
-              {/* 1. Choose O-NET Set (All 10 Sets or Specific Set 1-10) */}
+              {/* 1. Choose O-NET Set (All 20 Sets or Specific Set 1-20) */}
               <div className="space-y-2">
                 <label className="block text-xs font-semibold text-slate-300">
-                  1. เลือกชุดข้อสอบจากคลัง O-NET (10 ชุดมาตรฐาน):
+                  1. เลือกชุดข้อสอบจากคลัง O-NET ({ONET_EXAM_SETS.length} ชุดมาตรฐาน):
                 </label>
                 <select
                   value={selectedSetFilter}
@@ -2039,7 +2040,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
                   className="w-full bg-slate-900 border border-slate-700 focus:border-amber-400 rounded-xl px-3.5 py-2.5 text-xs font-bold text-amber-200 outline-none"
                 >
                   <option value="all">
-                    🌐 รวมทุกชุด O-NET (สุ่มกระจายทั้ง 10 ชุด · {bankBreakdown.total} ข้อในคลัง)
+                    🌐 รวมทุกชุด O-NET (สุ่มกระจายทั้ง {ONET_EXAM_SETS.length} ชุด · {bankBreakdown.total} ข้อในคลัง)
                   </option>
                   {ONET_EXAM_SETS.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -2244,7 +2245,7 @@ export const OnetBattleModal: React.FC<OnetBattleModalProps> = ({
 
               <div
                 className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-mono font-bold ${
-                  timeLeft <= 6
+                  timeLeft <= 10
                     ? 'bg-rose-500/20 text-rose-400 animate-pulse border border-rose-500/30'
                     : 'bg-slate-800 text-slate-200'
                 }`}

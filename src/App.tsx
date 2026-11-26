@@ -1960,6 +1960,10 @@ export default function App() {
             isTeacherAuthorized={isTeacherAuthorized}
             viewRoleMode={viewRoleMode}
             onChangeViewRoleMode={handleChangeViewRoleMode}
+            onEnrollClassroom={(code) => {
+              const updated = { ...profile, enrolledClassroomCode: code };
+              handleUpdateProfile(updated);
+            }}
           />
         )}
 
@@ -2042,10 +2046,12 @@ export default function App() {
             completedModulesCount={completedCount}
             onOpenCertificate={() => setIsCertificateModalOpen(true)}
             isAdmin={isAdmin}
+            isTeacherAuthorized={isTeacherAuthorized}
             profile={profile}
             profiles={profiles}
             onNavigate={handleNavigate}
             onToggleAdmin={handleToggleAdmin}
+            onOpenLogin={() => setIsLoginModalOpen(true)}
             onEnrollClassroom={(code) => {
               const updated = { ...profile, enrolledClassroomCode: code };
               handleUpdateProfile(updated);
@@ -2135,7 +2141,13 @@ export default function App() {
               />
             )}
             {safetySubTab === 'password' && (
-              <PasswordLab addPoints={(pts) => addPoints(pts, 'ทดสอบสร้างรหัสผ่านปลอดภัย', 'safety')} />
+              <PasswordLab
+                addPoints={(pts) =>
+                  addPoints(pts, 'ทดสอบสร้างรหัสผ่านปลอดภัย', 'safety', {
+                    uniqueKey: 'module1_password_lab_strong',
+                  })
+                }
+              />
             )}
             {safetySubTab === 'netiquette' && (
               <NetiquetteScenarios addPoints={(pts) => addPoints(pts, 'ตอบสถานการณ์มารยาทดิจิทัลถูกต้อง', 'safety')} />
@@ -2149,13 +2161,19 @@ export default function App() {
             {safetySubTab === 'quiz' && (
               <SafetyQuiz
                 onComplete={() => markModuleComplete('safety')}
-                addPoints={(pts) => addPoints(pts, 'ทำแบบทดสอบความปลอดภัยดิจิทัลผ่าน', 'safety')}
+                addPoints={(pts) =>
+                  addPoints(pts, 'ทำแบบทดสอบความปลอดภัยดิจิทัลผ่าน', 'safety', {
+                    uniqueKey: 'module1_safety_quiz_passed',
+                  })
+                }
               />
             )}
             {safetySubTab === 'pdpaGenerator' && (
               <PDPAPrivacyGenerator
                 currentProfile={profile}
-                addPoints={(pts, reason) => addPoints(pts, reason || 'สร้างหนังสือยินยอม PDPA สำเร็จ', 'safety')}
+                addPoints={(pts, reason, _cat, opts) =>
+                  addPoints(pts, reason || 'สร้างหนังสือยินยอม PDPA สำเร็จ', 'safety', opts)
+                }
                 onBackToLab={() => setSafetySubTab('pdpaLab')}
               />
             )}
@@ -2332,13 +2350,13 @@ export default function App() {
                   }
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                addPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+                addPoints={(pts, reason, _category, opts) => addPoints(pts, reason, 'coding', opts)}
               />
             )}
             {codingSubTab === 'debugLab' && (
               <CodeDebuggingLab
                 onComplete={() => markModuleComplete('codingLab')}
-                addPoints={(pts, reason) => addPoints(pts, reason || 'แก้บั๊กโค้ดของผู้อื่นสำเร็จ', 'coding')}
+                addPoints={(pts, reason, opts) => addPoints(pts, reason || 'แก้บั๊กโค้ดของผู้อื่นสำเร็จ', 'coding', opts)}
               />
             )}
           </div>
@@ -2447,8 +2465,8 @@ export default function App() {
             initialCode={pythonHandoff?.code}
             initialTitle={pythonHandoff?.title}
             initialCodeKey={pythonHandoff?.key}
-            onAwardPoints={(pts) => {
-              addPoints(pts, 'เขียนและรันโค้ด Python / JS ใน Junior Playground', 'coding');
+            onAwardPoints={(pts, opts) => {
+              addPoints(pts, 'เขียนและรันโค้ด Python / JS ใน Junior Playground', 'coding', opts);
               setBadges((prev) =>
                 prev.map((b) => (b.id === 'badge_junior_coder' ? { ...b, unlocked: true } : b))
               );
@@ -2459,11 +2477,20 @@ export default function App() {
         {/* ----------------- VIEW: KIDS AI & MACHINE LEARNING LAB ----------------- */}
         {activeTab === 'kidsAILab' && (
           <KidsAILab
-            onAwardPoints={(pts) => {
-              addPoints(pts, 'ฝึกสอนโมเดล AI แยกขยะอัจฉริยะใน Kids AI Lab', 'thinking');
-              setBadges((prev) =>
-                prev.map((b) => (b.id === 'badge_ai_trainer' ? { ...b, unlocked: true } : b))
+            claimedActivities={claimedActivities}
+            onAwardPoints={(pts, opts) => {
+              const awarded = addPoints(
+                pts,
+                opts?.reason || 'ฝึกสอนโมเดล AI จำแนกภาพสำเร็จใน Kids AI Lab',
+                'thinking',
+                opts
               );
+              if (awarded) {
+                setBadges((prev) =>
+                  prev.map((b) => (b.id === 'badge_ai_trainer' ? { ...b, unlocked: true } : b))
+                );
+              }
+              return awarded;
             }}
           />
         )}
@@ -2542,7 +2569,9 @@ export default function App() {
         {activeTab === 'pdpaConsent' && (
           <PDPAPrivacyGenerator
             currentProfile={profile}
-            addPoints={(pts, reason) => addPoints(pts, reason || 'สร้างหนังสือยินยอม PDPA สำเร็จ', 'safety')}
+            addPoints={(pts, reason, _cat, opts) =>
+              addPoints(pts, reason || 'สร้างหนังสือยินยอม PDPA สำเร็จ', 'safety', opts)
+            }
             onBackToLab={() => setActiveTab('safety')}
           />
         )}
@@ -2605,8 +2634,10 @@ export default function App() {
           <UnpluggedWorksheetsModal
             isOpen={isUnpluggedWorksheetsOpen}
             onClose={() => setIsUnpluggedWorksheetsOpen(false)}
-            onCompleteWorksheet={() => {
-              addPoints(15, 'ทำกิจกรรมใบงาน Unplugged Coding ตามมาตรฐาน สพฐ.', 'thinking');
+            onCompleteWorksheet={(sheetId) => {
+              addPoints(15, `ทำกิจกรรมใบงาน Unplugged Coding (${sheetId}) ตามมาตรฐาน สพฐ.`, 'thinking', {
+                uniqueKey: `unplugged_worksheet_${sheetId}`,
+              });
               setBadges((prev) =>
                 prev.map((b) => (b.id === 'badge_unplugged_champ' ? { ...b, unlocked: true } : b))
               );
@@ -2618,8 +2649,8 @@ export default function App() {
           <DailyBugHunterModal
             isOpen={isBugHunterOpen}
             onClose={() => setIsBugHunterOpen(false)}
-            onSuccessBugHunter={(pts) => {
-              addPoints(pts, 'พิชิตภารกิจล่า Bug ประจำวัน (Daily Bug Hunter)', 'coding');
+            onSuccessBugHunter={(pts, opts) => {
+              addPoints(pts, 'พิชิตภารกิจล่า Bug ประจำวัน (Daily Bug Hunter)', 'coding', opts);
               setBadges((prev) =>
                 prev.map((b) => (b.id === 'badge_bug_hunter' ? { ...b, unlocked: true } : b))
               );
@@ -2661,9 +2692,16 @@ export default function App() {
             isOpen={isExamArenaOpen}
             onClose={() => setIsExamArenaOpen(false)}
             studentName={profile.name}
-            onCompleteExam={(score) => {
+            onCompleteExam={(score, setId) => {
               const earned = score * 5;
-              addPoints(earned, `ทำข้อสอบวัดผลจำลอง O-NET / สสวท. ป.6 ได้ ${score}/10 คะแนน`, 'thinking');
+              if (earned > 0) {
+                addPoints(
+                  earned,
+                  `ทำข้อสอบวัดผลจำลอง O-NET / สสวท. ป.6 (${setId || 'set'}) ได้ ${score}/10 คะแนน`,
+                  'thinking',
+                  { uniqueKey: `onet_exam_arena_${setId || 'default'}` }
+                );
+              }
               soundEffects.playFanfare();
             }}
           />
@@ -2739,7 +2777,7 @@ export default function App() {
           <PairProgrammingArena
             isOpen={isPairArenaOpen}
             onClose={() => setIsPairArenaOpen(false)}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'coding', opts)}
           />
         )}
 
@@ -2799,7 +2837,7 @@ export default function App() {
             isOpen={isSmartExamOpen}
             onClose={() => setIsSmartExamOpen(false)}
             studentName={profile.name}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'thinking', opts)}
           />
         )}
 
@@ -2807,7 +2845,7 @@ export default function App() {
           <VisualCodeTracerModal
             isOpen={isCodeTracerOpen}
             onClose={() => setIsCodeTracerOpen(false)}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'coding', opts)}
           />
         )}
 
@@ -2853,7 +2891,7 @@ export default function App() {
           <BlockMazeRunner
             isOpen={isMazeRunnerOpen}
             onClose={() => setIsMazeRunnerOpen(false)}
-            onAwardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+            onAwardPoints={(pts, reason, opts) => addPoints(pts, reason, 'coding', opts)}
           />
         )}
 
@@ -2902,7 +2940,7 @@ export default function App() {
             isOpen={isDailyChallengeOpen}
             onClose={() => setIsDailyChallengeOpen(false)}
             currentStudentName={profile.name}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'thinking')}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'thinking', opts)}
           />
         )}
 
@@ -2920,7 +2958,7 @@ export default function App() {
             isOpen={isSocraticDebuggerOpen}
             onClose={() => setIsSocraticDebuggerOpen(false)}
             currentStudentName={profile.name}
-            onRewardPoints={(pts, reason) => addPoints(pts, reason, 'coding')}
+            onRewardPoints={(pts, reason, opts) => addPoints(pts, reason, 'coding', opts)}
           />
         )}
 

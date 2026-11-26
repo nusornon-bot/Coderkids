@@ -415,12 +415,215 @@ export const STEM_PROJECTS: StemProject[] = [
       },
     ],
   },
+  {
+    id: 'proj_auto_clothesline',
+    title: 'เครื่องตากผ้าอัตโนมัติหลบฝน (Smart Auto Rain-Shield Clothesline)',
+    subtitle: 'ตรวจจับหยดน้ำฝนและระดับแสงแดดเพื่อสั่งมอเตอร์เก็บราวตากผ้าเข้าใต้ชายคาอัตโนมัติทันทีที่ฝนตก',
+    grade: 'ป.5',
+    category: 'IoT & Smart Home',
+    difficulty: 'ปานกลาง',
+    duration: '50-60 นาที',
+    icon: '👕',
+    badgeColor: 'sky',
+    hardware: ['บอร์ด Micro:bit V2', 'เซ็นเซอร์ตรวจจับน้ำฝน (Raindrop Sensor)', 'เซอร์โวมอเตอร์ SG90 / มอเตอร์รางเลื่อน', 'ราวตากผ้าจำลองและโครงหลังคา'],
+    software: ['MakeCode for Micro:bit', 'Servo Extension'],
+    objective: 'ฝึกการอ่านค่าสัญญาณเซ็นเซอร์น้ำฝนร่วมกับเซ็นเซอร์แสง และใช้ตรรกะ OR (`||`) สั่งงานมอเตอร์เก็บผ้าอย่างแม่นยำ',
+    realWorldImpact: 'แก้ปัญหาผ้าเปียกฝนในชีวิตประจำวันเมื่อคนในบ้านไม่อยู่ ช่วยประหยัดเวลาและลดกลิ่นอับชื้นของเสื้อผ้า',
+    curriculumStandard: 'ว 4.2 ป.5/2 ออกแบบและเขียนโปรแกรมที่มีการใช้เหตุผลเชิงตรรกะเพื่อแก้ปัญหาในชีวิตประจำวัน',
+    circuitDescription: 'ต่อขา AO ของ Raindrop Sensor เข้ากับ Pin P0, ต่อสายสัญญาณ Servo Motor เข้ากับ Pin P1 และไฟเลี้ยง 3V–5V ร่วม GND',
+    steps: [
+      {
+        title: 'ขั้นตอนที่ 1: วิเคราะห์เงื่อนไขการเก็บผ้าและตากผ้า',
+        description: 'กำหนดให้เก็บผ้าเข้าร่มเมื่อ "ฝนตก" (ค่าเซ็นเซอร์น้ำฝน > 450) หรือ "ท้องฟ้ามืดครึ้ม" (แสง < 40) และเลื่อนออกตากเมื่อแห้งและแดดออก',
+        tips: 'ควรสร้างตัวแปรสถานะ `isInside` เพื่อไม่ให้มอเตอร์หมุนซ้ำไปมาเมื่อผ้าอยู่ในร่มแล้ว',
+      },
+      {
+        title: 'ขั้นตอนที่ 2: เขียนโค้ดอ่านค่าเซ็นเซอร์น้ำฝนและแสง',
+        description: 'อ่านค่า Analog จาก P0 เก็บในตัวแปร `rainVal` และอ่านค่า `input.lightLevel()` เก็บในตัวแปร `sunVal` ทุกๆ 1 วินาที',
+        codeSnippet: 'let isInside = false\nforever {\n  let rainVal = pins.analogReadPin(AnalogPin.P0)\n  let sunVal = input.lightLevel()\n  if ((rainVal > 450 || sunVal < 40) && !isInside) {\n    servos.P1.setAngle(180) // ดึงราวผ้าเข้าใต้หลังคา\n    isInside = true\n    music.playTone(659, 300)\n    basic.showIcon(IconNames.Umbrella)\n  } else if (rainVal <= 300 && sunVal >= 80 && isInside) {\n    servos.P1.setAngle(0) // เลื่อนราวผ้าออกไปตากแดด\n    isInside = false\n    basic.showIcon(IconNames.Happy)\n  }\n  basic.pause(1000)\n}',
+      },
+      {
+        title: 'ขั้นตอนที่ 3: ประกอบกลไกรางเลื่อนและทดสอบด้วยละอองน้ำ',
+        description: 'ใช้ก้านเชื่อมแขนเซอร์โวกับราวตากผ้าจำลอง จากนั้นลองพ่นละอองน้ำเบาๆ บนแผ่นเซ็นเซอร์เพื่อตรวจสอบความเร็วในการเก็บผ้า',
+      },
+      {
+        title: 'ขั้นตอนที่ 4: เพิ่มปุ่มควบคุมฉุกเฉิน (Manual Override)',
+        description: 'เขียนคำสั่งให้กดปุ่ม A เพื่อสั่งเก็บผ้าด้วยตนเอง และกดปุ่ม B เพื่อเลื่อนผ้าออกตากในกรณีที่ต้องการควบคุมเอง',
+      },
+    ],
+  },
+  {
+    id: 'proj_auto_fire_suppression',
+    title: 'ระบบแจ้งเตือนและดับไฟในอาคารอัตโนมัติ (Smart Building Fire Suppression)',
+    subtitle: 'ตรวจจับเปลวไฟ ควัน และความร้อนสูงเกินเกณฑ์ พร้อมเปิดสปริงเกอร์ดับเพลิง ไซเรน และส่งวิทยุแจ้งเหตุทันที',
+    grade: 'ป.6',
+    category: 'Safety & AI',
+    difficulty: 'ท้าทาย',
+    duration: '60 นาที',
+    icon: '🚒',
+    badgeColor: 'rose',
+    hardware: ['Micro:bit V2 x 2 บอร์ด (ห้องเรียน & ป้อมยาม)', 'เซ็นเซอร์เปลวไฟ (Flame Sensor) / ควัน (MQ-2)', 'ปั๊มน้ำสปริงเกอร์ 5V + โมดูลรีเลย์', 'ไฟ LED เตือนฉุกเฉิน & Buzzer'],
+    software: ['MakeCode for Micro:bit', 'Radio Groups'],
+    objective: 'เข้าใจการออกแบบระบบความปลอดภัยแบบตอบสนองอัตโนมัติ (Fail-Safe Automation) และการส่งสัญญาณแจ้งเหตุฉุกเฉินไร้สาย',
+    realWorldImpact: 'ลดความสูญเสียต่อชีวิตและทรัพย์สินในอาคารเรียนและบ้านเรือน โดยระงับเหตุไฟไหม้เบื้องต้นได้ภายในไม่กี่วินาที',
+    curriculumStandard: 'ว 4.2 ป.6/2 ออกแบบและเขียนโปรแกรมแก้ปัญหาด้านความปลอดภัยอย่างเป็นระบบและตรวจสอบข้อผิดพลาด',
+    circuitDescription: 'ต่อ Flame/Smoke Sensor เข้ากับ Pin P0, ต่อโมดูลรีเลย์ควบคุมปั๊มน้ำสปริงเกอร์เข้ากับ Pin P1 และไฟกะพริบสีแดงที่ Pin P2',
+    steps: [
+      {
+        title: 'ขั้นตอนที่ 1: กำหนดเกณฑ์ตรวจจับเหตุเพลิงไหม้หลายเงื่อนไข',
+        description: 'ระบบจะทำงานเมื่อตรวจพบเปลวไฟ (`flame == 0`) หรือควัน/ความร้อนสูงเกินเกณฑ์ (`temp >= 45°C`) เพื่อลดความผิดพลาด',
+        tips: 'ห้ามทดลองด้วยไฟจริงในห้องเรียน ให้ใช้แสงไฟฉายจำลองหรือปุ่มทดสอบเซ็นเซอร์แทนเพื่อความปลอดภัย',
+      },
+      {
+        title: 'ขั้นตอนที่ 2: เขียนโค้ดเปิดสปริงเกอร์และส่งเสียงไซเรน',
+        description: 'สั่งรีเลย์ปั๊มน้ำ Pin P1 = 1 ฉีดพ่นน้ำดับไฟ พร้อมเปิดไฟกะพริบฉุกเฉินและส่งคลื่นวิทยุ Group 99 แจ้งเจ้าหน้าที่',
+        codeSnippet: 'radio.setGroup(99)\nforever {\n  let flame = pins.digitalReadPin(DigitalPin.P0)\n  let temp = input.temperature()\n  if (flame == 0 || temp >= 45) {\n    pins.digitalWritePin(DigitalPin.P1, 1) // เปิดปั๊มน้ำสปริงเกอร์\n    pins.digitalWritePin(DigitalPin.P2, 1) // ไฟเตือนสีแดง\n    radio.sendString("FIRE_FLOOR_2")\n    music.ringTone(988)\n    basic.showString("FIRE!")\n  } else {\n    pins.digitalWritePin(DigitalPin.P1, 0)\n    pins.digitalWritePin(DigitalPin.P2, 0)\n    music.stopAllSounds()\n    basic.showIcon(IconNames.Yes)\n  }\n  basic.pause(500)\n}',
+      },
+      {
+        title: 'ขั้นตอนที่ 3: เขียนโปรแกรมบอร์ดรับสัญญาณที่ศูนย์ควบคุม',
+        description: 'เมื่อบอร์ดที่ป้อมยามได้รับข้อความ `"FIRE_FLOOR_2"` ให้ส่งเสียงเตือนและแสดงเลขชั้นที่เกิดเหตุบนหน้าจอ LED ทันที',
+        codeSnippet: 'radio.setGroup(99)\nradio.onReceivedString(function (msg) {\n  if (msg.includes("FIRE")) {\n    music.playTone(880, 1000)\n    basic.showString(msg)\n  }\n})',
+      },
+      {
+        title: 'ขั้นตอนที่ 4: ทดสอบปุ่มรีเซ็ตระบบหลังเหตุการณ์สงบ',
+        description: 'เพิ่มเงื่อนไขเมื่อกดปุ่ม A+B พร้อมกันเพื่อหยุดเสียงไซเรนและตรวจสอบสถานะเซ็นเซอร์อีกครั้งก่อนกลับสู่โหมดปกติ',
+      },
+    ],
+  },
+  {
+    id: 'proj_smart_pet_feeder',
+    title: 'เครื่องให้อาหารสัตว์เลี้ยงอัตโนมัติตั้งเวลา (Smart IoT Pet Feeder)',
+    subtitle: 'ควบคุมเซอร์โวมอเตอร์เปิดช่องจ่ายอาหารตามเวลาที่ตั้งไว้ พร้อมเสียงเรียกและตัวนับมื้ออาหารประจำวัน',
+    grade: 'ป.4',
+    category: 'IoT & Smart Home',
+    difficulty: 'ง่าย',
+    duration: '45 นาที',
+    icon: '🐶',
+    badgeColor: 'amber',
+    hardware: ['บอร์ด Micro:bit V2', 'Micro Servo Motor SG90', 'ขวดพลาสติกใสและชามอาหารจำลอง', 'กล่องแบตเตอรี่ AAA'],
+    software: ['MakeCode for Micro:bit', 'Servo Extension'],
+    objective: 'ฝึกการใช้ตัวจับเวลา (Timer) การนับจำนวนมื้อด้วยตัวแปร และการควบคุมระยะเวลาเปิด-ปิดของมอเตอร์ให้ได้ปริมาณอาหารที่พอดี',
+    realWorldImpact: 'ช่วยให้สุนัขหรือแมวที่บ้านได้รับอาหารตรงเวลาแม้เจ้าของไปโรงเรียนหรือออกต่างจังหวัด ป้องกันการให้อาหารมากเกินไป',
+    curriculumStandard: 'ว 4.2 ป.4/2 ออกแบบและเขียนโปรแกรมอย่างง่ายเพื่อแก้ปัญหาในชีวิตประจำวัน',
+    circuitDescription: 'ต่อสายสัญญาณ Servo Motor เข้ากับ Pin P0, ขั้วบวกเข้า 3V/5V และขั้วลบเข้า GND ยึดใบพัดปิดช่องปากขวดอาหาร',
+    steps: [
+      {
+        title: 'ขั้นตอนที่ 1: ออกแบบกลไกประตูจ่ายอาหาร (Dispensing Gate)',
+        description: 'ติดแผ่นกระดาษแข็งหรือพลาสติกกับแขน Servo ให้ปิดปากขวดที่มุม 0° และเปิดช่องเทอาหารที่มุม 90° เป็นเวลา 1.5 วินาที',
+      },
+      {
+        title: 'ขั้นตอนที่ 2: เขียนฟังก์ชันจ่ายอาหารพร้อมเสียงเรียกสัตว์เลี้ยง',
+        description: 'เมื่อกดปุ่ม A หรือถึงรอบเวลาที่กำหนด ให้เล่นโน้ตเพลงเรียกสัตว์เลี้ยง หมุนเปิดช่องจ่ายอาหาร แล้วบวกตัวนับ `meals += 1`',
+        codeSnippet: 'let meals = 0\nfunction feedPet() {\n  if (meals < 3) {\n    music.playTone(523, 300)\n    servos.P0.setAngle(90)  // เปิดช่องอาหาร\n    basic.pause(1500)       // ปล่อยอาหาร 1.5 วินาที\n    servos.P0.setAngle(0)   // ปิดช่องอาหาร\n    meals += 1\n    basic.showNumber(meals)\n  } else {\n    basic.showIcon(IconNames.No) // ครบ 3 มื้อแล้ว\n  }\n}\ninput.onButtonPressed(Button.A, feedPet)',
+      },
+      {
+        title: 'ขั้นตอนที่ 3: เพิ่มปุ่มรีเซ็ตมื้ออาหารประจำวัน',
+        description: 'กดปุ่ม B เพื่อรีเซ็ตตัวนับ `meals = 0` ในเช้าวันใหม่ และทดสอบชั่งน้ำหนักอาหารต่อครั้งให้เหมาะกับขนาดสัตว์เลี้ยง',
+      },
+    ],
+  },
+  {
+    id: 'proj_auto_sanitizer',
+    title: 'เครื่องจ่ายเจลแอลกอฮอล์ไร้สัมผัสอัจฉริยะ (Touchless Auto Sanitizer)',
+    subtitle: 'ตรวจจับมือด้วยเซ็นเซอร์อินฟราเรดแล้วสั่งปั๊มจ่ายเจลอัตโนมัติในปริมาณพอดี พร้อมนับสถิติการล้างมือ',
+    grade: 'ป.5',
+    category: 'Safety & AI',
+    difficulty: 'ปานกลาง',
+    duration: '45 นาที',
+    icon: '🧴',
+    badgeColor: 'teal',
+    hardware: ['บอร์ด Micro:bit V2', 'เซ็นเซอร์อินฟราเรดตรวจจับวัตถุ (IR Sensor)', 'ปั๊มน้ำจิ๋ว 5V + โมดูลรีเลย์ หรือ Servo กดหัวปั๊ม', 'ขวดเจลแอลกอฮอล์'],
+    software: ['MakeCode for Micro:bit'],
+    objective: 'ฝึกการควบคุมเวลาการทำงานของแอคทูเอเตอร์และการใส่ช่วงหน่วงเวลา (Cooldown) เพื่อป้องกันการจ่ายเจลซ้ำโดยไม่ตั้งใจ',
+    realWorldImpact: 'ลดการสัมผัสหัวปั๊มร่วมกันหน้าห้องเรียนและโรงอาหาร ช่วยป้องกันการแพร่กระจายของเชื้อโรคและส่งเสริมสุขอนามัย',
+    curriculumStandard: 'ว 4.2 ป.5/2 เขียนโปรแกรมควบคุมอุปกรณ์และตรวจสอบการทำงานเพื่อแก้ปัญหาด้านสุขอนามัย',
+    circuitDescription: 'ต่อขา OUT ของ IR Sensor เข้ากับ Pin P0 และต่อขาควบคุมรีเลย์ปั๊มน้ำเข้ากับ Pin P1',
+    steps: [
+      {
+        title: 'ขั้นตอนที่ 1: ทดสอบระยะตรวจจับมือของ IR Sensor',
+        description: 'ปรับตัวต้านทานปรับค่าได้บนเซ็นเซอร์ให้ตรวจจับฝ่ามือในระยะ 5–8 เซนติเมตร (เมื่อพบมือจะส่งสัญญาณ Digital = 0)',
+      },
+      {
+        title: 'ขั้นตอนที่ 2: เขียนโค้ดจ่ายเจลแบบมีระบบหน่วงเวลาป้องกันเปลือง',
+        description: 'เมื่อตรวจพบมือ ให้เปิดปั๊ม 800 มิลลิวินาที เพิ่มตัวนับ `washCount += 1` แล้วหน่วงเวลาพัก 2 วินาทีก่อนรับมือคนถัดไป',
+        codeSnippet: 'let washCount = 0\nforever {\n  let handDetected = pins.digitalReadPin(DigitalPin.P0) == 0\n  if (handDetected) {\n    pins.digitalWritePin(DigitalPin.P1, 1) // จ่ายเจล\n    basic.pause(800)\n    pins.digitalWritePin(DigitalPin.P1, 0) // หยุดจ่าย\n    washCount += 1\n    music.playTone(784, 150)\n    basic.showNumber(washCount)\n    basic.pause(2000) // พักกันจ่ายซ้ำ\n  }\n}',
+      },
+      {
+        title: 'ขั้นตอนที่ 3: บันทึกสถิติจำนวนครั้งการล้างมือหน้าห้องเรียน',
+        description: 'เมื่อกดปุ่ม A ให้แสดงจำนวนผู้ล้างมือทั้งหมดในวันนี้ เพื่อกระตุ้นให้เพื่อนๆ แข่งกันรักษาความสะอาด',
+      },
+    ],
+  },
+  {
+    id: 'proj_smart_greenhouse',
+    title: 'โรงเรือนปลูกผักอัจฉริยะควบคุมสภาพอากาศ (Smart Mini Greenhouse)',
+    subtitle: 'ควบคุมอุณหภูมิ แสงสว่าง และความชื้นดินพร้อมกันในโรงเรือนจิ๋วด้วยพัดลม ไฟปลูกพืช และปั๊มน้ำอัตโนมัติ',
+    grade: 'ป.6',
+    category: 'Environmental & Green',
+    difficulty: 'ท้าทาย',
+    duration: '60 นาที',
+    icon: '🏡',
+    badgeColor: 'emerald',
+    hardware: ['บอร์ด Micro:bit V2', 'เซ็นเซอร์ความชื้นดิน + เซ็นเซอร์แสง/อุณหภูมิ', 'พัดลมระบายอากาศ 5V + แถบไฟ LED ปลูกพืช', 'โมดูลรีเลย์ 2 ช่อง & โครงโรงเรือนใส'],
+    software: ['MakeCode for Micro:bit'],
+    objective: 'บูรณาการการทำงานของหลายเซ็นเซอร์และหลายอุปกรณ์เอาต์พุตพร้อมกัน (Multi-Condition Automation) ในระบบปิด',
+    realWorldImpact: 'ช่วยให้แปลงเกษตรอาหารกลางวันของโรงเรียนปลูกผักสลัดและต้นอ่อนได้ตลอดปีโดยไม่ขึ้นกับสภาพอากาศแปรปรวน',
+    curriculumStandard: 'ว 4.2 ป.6/2 ออกแบบและพัฒนาโปรแกรมควบคุมระบบเกษตรอัจฉริยะอย่างเป็นขั้นตอน',
+    circuitDescription: 'ต่อเซ็นเซอร์ความชื้นดินที่ Pin P0, พัดลมระบายความร้อนที่ Pin P1 และแถบไฟ LED เสริมแสงที่ Pin P2',
+    steps: [
+      {
+        title: 'ขั้นตอนที่ 1: กำหนดเกณฑ์สภาพอากาศเหมาะสมสำหรับต้นอ่อน',
+        description: 'อุณหภูมิไม่เกิน 32°C (เกินให้เปิดพัดลม), แสงไม่ต่ำกว่า 60 (มืดให้เปิดไฟ Grow Light) และความชื้นดินไม่ต่ำกว่า 350',
+      },
+      {
+        title: 'ขั้นตอนที่ 2: เขียนโปรแกรมควบคุม 3 เงื่อนไขพร้อมกันในลูปเดียว',
+        description: 'แยกบล็อก `if-else` อิสระสำหรับอุณหภูมิและแสง เพื่อให้พัดลมและไฟปลูกพืชทำงานร่วมกันได้อย่างไม่ขัดแย้ง',
+        codeSnippet: 'forever {\n  let temp = input.temperature()\n  let lightVal = input.lightLevel()\n  let soil = pins.analogReadPin(AnalogPin.P0)\n  // 1. ควบคุมพัดลมระบายความร้อน\n  pins.digitalWritePin(DigitalPin.P1, temp >= 32 ? 1 : 0)\n  // 2. ควบคุมไฟเสริมแสงปลูกพืช\n  pins.digitalWritePin(DigitalPin.P2, lightVal < 60 ? 1 : 0)\n  // 3. แจ้งเตือนเมื่อดินแห้ง\n  if (soil < 350) {\n    basic.showIcon(IconNames.Umbrella)\n  } else {\n    basic.showIcon(IconNames.Happy)\n  }\n  basic.pause(1500)\n}',
+      },
+      {
+        title: 'ขั้นตอนที่ 3: ทดสอบการเติบโตและเก็บข้อมูลเปรียบเทียบ',
+        description: 'ทดลองปลูกต้นอ่อนทานตะวัน 2 กระถาง (ในโรงเรือนอัจฉริยะ vs นอกโรงเรือน) แล้ววัดความสูงบันทึกผลทุกวันเป็นเวลา 7 วัน',
+      },
+    ],
+  },
+  {
+    id: 'proj_smart_parking',
+    title: 'ระบบไม้กั้นและนับที่จอดรถอัจฉริยะหน้าโรงเรียน (Smart School Parking Gate)',
+    subtitle: 'นับจำนวนรถเข้า-ออกอัตโนมัติ แสดงจำนวนช่องจอดว่างบนจอ LED และยกไม้กั้นเปิดเฉพาะเมื่อยังมีที่ว่าง',
+    grade: 'ป.4',
+    category: 'IoT & Smart Home',
+    difficulty: 'ปานกลาง',
+    duration: '50 นาที',
+    icon: '🅿️',
+    badgeColor: 'indigo',
+    hardware: ['บอร์ด Micro:bit V2', 'เซ็นเซอร์ตรวจจับรถเข้า-ออก (IR Sensor x 2)', 'Micro Servo Motor SG90 (แขนไม้กั้น)', 'โมเดลลานจอดรถกระดาษแข็ง'],
+    software: ['MakeCode for Micro:bit', 'Servo Extension'],
+    objective: 'ฝึกการใช้ตัวแปรนับจำนวนแบบมีขอบเขต (0 ถึง 5 คัน) และการใช้เงื่อนไขตรวจสอบก่อนสั่งเปิดกลไกไม้กั้น',
+    realWorldImpact: 'ช่วยจัดระเบียบลานจอดรถรับ-ส่งผู้ปกครองหน้าโรงเรียน ลดความแออัดและป้องกันรถวนหาที่จอดเมื่อลานจอดเต็ม',
+    curriculumStandard: 'ว 4.2 ป.4/2 เขียนโปรแกรมใช้ตัวแปรและเงื่อนไขแก้ปัญหาการจราจรในชุมชนโรงเรียน',
+    circuitDescription: 'ต่อเซ็นเซอร์ทางเข้าที่ Pin P1, เซ็นเซอร์ทางออกที่ Pin P2 และต่อ Servo Motor แขนไม้กั้นเข้ากับ Pin P0',
+    steps: [
+      {
+        title: 'ขั้นตอนที่ 1: กำหนดตัวแปรช่องจอดว่างเริ่มต้น',
+        description: 'สร้างตัวแปร `freeSlots = 5` และแสดงตัวเลขจำนวนที่ว่างบนหน้าจอ LED ทันทีที่เปิดระบบ',
+      },
+      {
+        title: 'ขั้นตอนที่ 2: เขียนเงื่อนไขยกไม้กั้นเมื่อรถเข้าและคืนค่าเมื่อรถออก',
+        description: 'ถ้ารถแตะเซ็นเซอร์เข้า (P1) และ `freeSlots > 0` ให้ยกไม้กั้น 90° ลดที่ว่างลง 1 หากเต็มแล้วให้ขึ้นคำว่า `"FULL"`',
+        codeSnippet: 'let freeSlots = 5\nservos.P0.setAngle(0)\nforever {\n  if (pins.digitalReadPin(DigitalPin.P1) == 0) {\n    if (freeSlots > 0) {\n      freeSlots -= 1\n      servos.P0.setAngle(90)\n      basic.pause(2500)\n      servos.P0.setAngle(0)\n    } else {\n      basic.showString("FULL")\n    }\n  }\n  if (pins.digitalReadPin(DigitalPin.P2) == 0 && freeSlots < 5) {\n    freeSlots += 1\n    basic.pause(1500)\n  }\n  basic.showNumber(freeSlots)\n}',
+      },
+      {
+        title: 'ขั้นตอนที่ 3: ทดลองวิ่งรถของเล่นจำลองสถานการณ์ลานจอดเต็ม',
+        description: 'ทดสอบนำรถของเล่นเข้าครบ 5 คัน เพื่อดูว่าระบบล็อกไม้กั้นและแสดงข้อความ FULL ได้ถูกต้อง และคืนที่ว่างเมื่อมีรถขับออก',
+      },
+    ],
+  },
 ];
 
 interface StemProjectHubProps {
   onBack?: () => void;
   onNavigate?: (moduleKey: string, subSection?: string) => void;
-  addPoints?: (amount: number, reason: string, category?: any) => void;
+  addPoints?: (amount: number, reason: string, category?: any, options?: { uniqueKey?: string }) => void;
   onCelebrate?: () => void;
 }
 
@@ -476,11 +679,14 @@ export const StemProjectHub: React.FC<StemProjectHubProps> = ({
   };
 
   const handleSaveCanvas = () => {
+    if (isSavedCanvas) return;
     soundEffects.playFanfare();
     fireConfetti('burst');
     setIsSavedCanvas(true);
     if (addPoints) {
-      addPoints(25, `ออกแบบโครงงานนวัตกรรม: ${selectedProject.title}`, 'coding');
+      addPoints(25, `ออกแบบโครงงานนวัตกรรม: ${selectedProject.title}`, 'coding', {
+        uniqueKey: `stem_canvas_${selectedProject.id}`,
+      });
     }
     if (onCelebrate) {
       onCelebrate();
@@ -534,27 +740,28 @@ export const StemProjectHub: React.FC<StemProjectHubProps> = ({
       </div>
 
       {/* 2. Filters & Navigation Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-        {/* Grade filter */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 shrink-0">ระดับชั้น:</span>
-          {(['All', 'ป.4', 'ป.5', 'ป.6'] as const).map((grade) => (
-            <button
-              key={grade}
-              onClick={() => {
-                soundEffects.playClick();
-                setActiveGradeFilter(grade);
-              }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeGradeFilter === grade
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              {grade === 'All' ? 'ทั้งหมด (ป.4-ป.6)' : grade}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-col gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Grade filter */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 shrink-0">ระดับชั้น:</span>
+            {(['All', 'ป.4', 'ป.5', 'ป.6'] as const).map((grade) => (
+              <button
+                key={grade}
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveGradeFilter(grade);
+                }}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  activeGradeFilter === grade
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                }`}
+              >
+                {grade === 'All' ? `ทั้งหมด (${STEM_PROJECTS.length} โครงงาน)` : grade}
+              </button>
+            ))}
+          </div>
 
         {/* Tab switch inside project view */}
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl self-start sm:self-auto">
@@ -610,6 +817,36 @@ export const StemProjectHub: React.FC<StemProjectHubProps> = ({
             </button>
           )}
         </div>
+        </div>
+
+        {/* Category filter */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pt-2 border-t border-slate-100 dark:border-slate-800">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-1 shrink-0">หมวดนวัตกรรม:</span>
+          {(
+            [
+              { id: 'All', label: 'ทุกหมวด' },
+              { id: 'IoT & Smart Home', label: '🏠 IoT & Smart Home' },
+              { id: 'Safety & AI', label: '🛡️ Safety & AI' },
+              { id: 'Environmental & Green', label: '🌿 Environmental & Green' },
+              { id: 'Game & Animation', label: '🎮 Game & Animation' },
+            ] as const
+          ).map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => {
+                soundEffects.playClick();
+                setActiveCategoryFilter(cat.id);
+              }}
+              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                activeCategoryFilter === cat.id
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 3. Main Split View: Left List, Right Detail */}
@@ -621,7 +858,7 @@ export const StemProjectHub: React.FC<StemProjectHubProps> = ({
             <span>คลิกเพื่อดูวิธีทำ</span>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 max-h-[820px] overflow-y-auto pr-1">
             {filteredProjects.map((proj) => {
               const isSelected = selectedProject.id === proj.id;
               return (

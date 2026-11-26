@@ -190,6 +190,7 @@ export interface UserProfile {
   unlockedRewardIds: string[];
   selectedTitle: string;
   points?: number;
+  completedModulesCount?: number;
   role?: 'student' | 'teacher' | 'admin';
   enrolledClassroomCode?: string;
 }

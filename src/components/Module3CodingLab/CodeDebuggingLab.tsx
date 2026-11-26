@@ -12,9 +12,10 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { soundEffects } from '../../utils/soundEffects.ts';
+import type { PointAwardOptions } from '../../utils/antiCheatGuard.ts';
 
 interface CodeDebuggingLabProps {
-  addPoints: (points: number, reason?: string) => void;
+  addPoints: (points: number, reason?: string, options?: PointAwardOptions) => void;
   onComplete?: () => void;
 }
 
@@ -67,18 +68,18 @@ const DEBUG_CHALLENGES: DebugChallenge[] = [
     ],
     fixOptions: [
       {
-        label: 'แก้บรรทัดที่ 5 เป็น: หมุนตามเข็ม (90) องศา',
-        detail: 'เพราะรูปสี่เหลี่ยมมีมุมภายนอก 360° ÷ 4 = 90°',
-        isCorrect: true,
-      },
-      {
-        label: 'แก้บรรทัดที่ 3 เป็น: ทำซ้ำ (2) รอบ',
-        detail: 'จะวาดได้แค่ 2 ด้านเท่านั้น',
+        label: 'แก้บรรทัดที่ 3 เป็น: ทำซ้ำ (2) รอบแทน 4 รอบ',
+        detail: 'ลดจำนวนรอบการวาดลงครึ่งหนึ่งให้เหลือแค่ 2 ด้าน',
         isCorrect: false,
       },
       {
-        label: 'ลบบรรทัดที่ 2 จรดปากกา ออก',
-        detail: 'แมวจะเดินโดยไม่มีเส้นวาดเลย',
+        label: 'แก้บรรทัดที่ 5 เป็น: หมุนตามเข็ม (90) องศา',
+        detail: 'ใช้มุมภายนอกของสี่เหลี่ยมจัตุรัส 360° ÷ 4 = 90°',
+        isCorrect: true,
+      },
+      {
+        label: 'ลบบรรทัดที่ 2 คำสั่งจรดปากกา (Pen Down) ออก',
+        detail: 'ถอดคำสั่งจรดปากกาออกเพื่อให้ตัวละครเดินเปล่า',
         isCorrect: false,
       },
     ],
@@ -113,19 +114,19 @@ const DEBUG_CHALLENGES: DebugChallenge[] = [
     ],
     fixOptions: [
       {
+        label: 'แก้เงื่อนไขบรรทัด 2 เป็น: ถ้า (n < 10) แล้ว',
+        detail: 'ตรวจสอบเฉพาะตัวเลขที่มีค่าน้อยกว่า 10 เท่านั้น',
+        isCorrect: false,
+      },
+      {
+        label: 'ลบคำสั่งมิฉะนั้น (Else) ออกให้เหลือแต่บล็อก If',
+        detail: 'ตัดทางเลือกกรณีที่เงื่อนไขเป็นเท็จออกทั้งหมด',
+        isCorrect: false,
+      },
+      {
         label: 'แก้เงื่อนไขบรรทัด 2 เป็น: ถ้า (n mod 2 == 0)',
         detail: 'ใช้ตัวดำเนินการ mod ตรวจว่าหาร 2 เหลือเศษ 0 หรือไม่',
         isCorrect: true,
-      },
-      {
-        label: 'แก้เงื่อนไขบรรทัด 2 เป็น: ถ้า (n < 10)',
-        detail: 'เลขคี่ที่น้อยกว่า 10 อย่าง 7 ก็ยังผิดอยู่ดี',
-        isCorrect: false,
-      },
-      {
-        label: 'ลบคำสั่ง Else ออกให้เหลือแต่ If',
-        detail: 'ทำให้โปรแกรมไม่ครอบคลุมกรณีเลขคี่',
-        isCorrect: false,
       },
     ],
     fixedLinesPreview: [
@@ -165,13 +166,13 @@ const DEBUG_CHALLENGES: DebugChallenge[] = [
         isCorrect: true,
       },
       {
-        label: 'เปลี่ยนเครื่องหมาย < เป็น + ในทุกบรรทัด',
-        detail: 'ไม่สามารถเปรียบเทียบตัวเลขได้',
+        label: 'เปลี่ยนเครื่องหมายเปรียบเทียบ < เป็นเครื่องหมายบวก (+) ทุกบรรทัด',
+        detail: 'เปลี่ยนตัวดำเนินการเปรียบเทียบทั้งหมดให้เป็นการบวกค่าแทน',
         isCorrect: false,
       },
       {
-        label: 'ใส่ค่า BMI = 20 คงที่ไว้ตั้งแต่บรรทัดแรก',
-        detail: 'จะทำให้รับค่าจากผู้ใช้จริงไม่ได้',
+        label: 'กำหนดค่าตัวแปร BMI = 20 คงที่ไว้ตั้งแต่บรรทัดแรกของโปรแกรม',
+        detail: 'ตั้งค่าคงที่ไว้ล่วงหน้าแทนการคำนวณจากน้ำหนักและส่วนสูงจริง',
         isCorrect: false,
       },
     ],
@@ -206,18 +207,18 @@ const DEBUG_CHALLENGES: DebugChallenge[] = [
     ],
     fixOptions: [
       {
-        label: 'แก้บรรทัดที่ 4 เป็น: เปลี่ยนค่า lcm เพิ่มขึ้น 1',
-        detail: 'เพื่อให้ lcm ขยับจาก 6 -> 7 -> ... -> 12 จนหารทั้ง a และ b ลงตัว',
-        isCorrect: true,
-      },
-      {
-        label: 'แก้บรรทัดที่ 3 เป็น: ทำซ้ำ (1) รอบ',
-        detail: 'จะได้คำตอบเป็น 6 ซึ่งหาร 4 ไม่ลงตัว',
+        label: 'แก้บรรทัดที่ 3 เป็น: ทำซ้ำเพียง (1) รอบแล้วหยุด',
+        detail: 'กำหนดให้ลูปตรวจสอบเงื่อนไขแค่รอบแรกแล้วแสดงค่า 6',
         isCorrect: false,
       },
       {
-        label: 'เปลี่ยนคำว่า "และ" เป็น "หรือ"',
-        detail: '6 หาร 6 ลงตัวตั้งแต่รอบแรก จะตอบ 6 ซึ่งผิด ค.ร.น.',
+        label: 'แก้บรรทัดที่ 4 เป็น: เปลี่ยนค่า lcm เพิ่มขึ้นทีละ 1',
+        detail: 'ให้ lcm ขยับจาก 6 ไปเรื่อยๆ จนหารทั้ง a และ b ลงตัว',
+        isCorrect: true,
+      },
+      {
+        label: 'เปลี่ยนตัวเชื่อม "และ" ในบรรทัดที่ 3 เป็น "หรือ"',
+        detail: 'หยุดลูปทันทีที่ตัวเลขหารตัวใดตัวหนึ่งลงตัวก่อน',
         isCorrect: false,
       },
     ],
@@ -253,19 +254,19 @@ const DEBUG_CHALLENGES: DebugChallenge[] = [
     ],
     fixOptions: [
       {
+        label: 'ลบคำสั่งรับค่าปุ่มที่พิมพ์จากคีย์บอร์ดในบรรทัดที่ 2 ออก',
+        detail: 'ตัดการรับข้อมูลตัวอักษรจากผู้เล่นออกเพื่อไม่ให้พิมพ์ผิด',
+        isCorrect: false,
+      },
+      {
+        label: 'เปลี่ยนค่าปรับคะแนนในบรรทัดที่ 5 จาก (-5) เป็น (+5)',
+        detail: 'ปรับค่าคะแนนในกิ่งมิฉะนั้นให้เป็นบวกแทนการหักคะแนน',
+        isCorrect: false,
+      },
+      {
         label: 'ย้าย "เปลี่ยน คะแนน เพิ่ม (10)" เข้าไปไว้ในกิ่ง "ถ้า (If)"',
-        detail: 'เพื่อให้บวก +10 เฉพาะตอนที่พิมพ์ตรงกับเป้าหมายเท่านั้น',
+        detail: 'ให้บวก +10 เฉพาะตอนที่พิมพ์ตรงกับตัวอักษรเป้าหมายเท่านั้น',
         isCorrect: true,
-      },
-      {
-        label: 'ลบคำสั่งรับค่าปุ่มที่พิมพ์ออก',
-        detail: 'เกมจะรับข้อมูลจากคีย์บอร์ดไม่ได้',
-        isCorrect: false,
-      },
-      {
-        label: 'เปลี่ยน -5 เป็น +5',
-        detail: 'จะยิ่งได้คะแนนฟรีแม้พิมพ์ผิด',
-        isCorrect: false,
       },
     ],
     fixedLinesPreview: [
@@ -309,7 +310,9 @@ export const CodeDebuggingLab: React.FC<CodeDebuggingLabProps> = ({ addPoints, o
       if (!solvedIds.includes(challenge.id)) {
         const nextSolved = [...solvedIds, challenge.id];
         setSolvedIds(nextSolved);
-        addPoints(20, `แก้บั๊กโค้ดสำเร็จ: ${challenge.title}`);
+        addPoints(20, `แก้บั๊กโค้ดสำเร็จ: ${challenge.title}`, {
+          uniqueKey: `code_debugging_lab_${challenge.id}`,
+        });
         if (nextSolved.length >= 3) {
           onComplete?.();
         }

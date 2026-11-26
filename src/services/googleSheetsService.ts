@@ -663,6 +663,11 @@ export const fetchStudentsFromGoogleSheet = async (
             joinedDate: (s.registeredAt || '2026-11-08').split(' ')[0],
             streakDays: 1,
             unlockedRewardIds: ['title_junior'],
+            points: typeof s.points === 'number' && Number.isFinite(s.points) ? Math.max(0, Math.round(s.points)) : 0,
+            completedModulesCount:
+              typeof s.completedModulesCount === 'number' && Number.isFinite(s.completedModulesCount)
+                ? Math.max(0, Math.min(4, Math.round(s.completedModulesCount)))
+                : 0,
             role: 'student',
             enrolledClassroomCode: 'COD-2026',
           }));
@@ -695,6 +700,7 @@ function parseStudentRows(rows: string[][]): UserProfile[] {
   let titleCol = header.findIndex((h) => h.includes('ฉายา') || h.includes('title'));
   let bioCol = header.findIndex((h) => h.includes('bio') || h.includes('แนะนำตัว'));
   let pointsCol = header.findIndex((h) => h.includes('แต้ม') || h.includes('points') || h.includes('คะแนน'));
+  let modulesCol = header.findIndex((h) => h.includes('ภารกิจ') || h.includes('module'));
   let emailCol = header.findIndex((h) => h.includes('อีเมล') || h.includes('email'));
 
   if (idCol === -1) idCol = 0;
@@ -706,6 +712,7 @@ function parseStudentRows(rows: string[][]): UserProfile[] {
   if (titleCol === -1) titleCol = 6;
   if (bioCol === -1) bioCol = 7;
   if (pointsCol === -1) pointsCol = 8;
+  if (modulesCol === -1) modulesCol = 10;
   if (emailCol === -1) emailCol = 12;
 
   for (let i = 1; i < rows.length; i++) {
@@ -743,7 +750,17 @@ function parseStudentRows(rows: string[][]): UserProfile[] {
     const school = (r[schoolCol] || 'โรงเรียนอนุบาลนราธิวาส').trim();
     const selectedTitle = (r[titleCol] || 'นักประดิษฐ์รุ่นเยาว์ (Junior Innovator)').trim();
     const bio = (r[bioCol] || 'พร้อมเรียนรู้และสนุกกับการเขียนโปรแกรมคอมพิวเตอร์!').trim();
-    const pointsNum = parseInt(r[pointsCol] || '100', 10) || 100;
+    const rawPointsText = (r[pointsCol] || '').trim().replace(/,/g, '');
+    const parsedPoints = parseInt(rawPointsText, 10);
+    const pointsNum = Number.isFinite(parsedPoints) ? Math.max(0, parsedPoints) : 0;
+
+    const rawModulesText = (r[modulesCol] || '').trim();
+    const moduleMatch = rawModulesText.match(/^(\d+)/);
+    const parsedModules = moduleMatch ? parseInt(moduleMatch[1], 10) : 0;
+    const completedModulesCount = Number.isFinite(parsedModules)
+      ? Math.max(0, Math.min(4, parsedModules))
+      : 0;
+
     const contactEmail = (r[emailCol] || '').trim();
 
     students.push({
@@ -765,6 +782,8 @@ function parseStudentRows(rows: string[][]): UserProfile[] {
       joinedDate: (r[dateCol] || '2026-10-22').split(' ')[0],
       streakDays: Math.max(1, Math.floor(pointsNum / 40)),
       unlockedRewardIds: ['title_junior'],
+      points: pointsNum,
+      completedModulesCount,
       role: 'student',
       enrolledClassroomCode: 'COD-2026',
     });

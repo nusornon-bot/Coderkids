@@ -17,10 +17,11 @@ import {
   Lock,
 } from 'lucide-react';
 import { AudioReaderButton } from './AudioReaderButton.tsx';
+import type { PointAwardOptions } from '../utils/antiCheatGuard.ts';
 
 interface AiPromptLabProps {
   onBack: () => void;
-  addPoints: (amount: number, reason: string, category: 'thinking') => void;
+  addPoints: (amount: number, reason: string, category: 'thinking', options?: PointAwardOptions) => void;
   onCelebrate: (type: 'badge' | 'module_completed' | 'points_milestone' | 'quiz_perfect', title: string, desc: string, icon: string) => void;
 }
 
@@ -34,6 +35,13 @@ export const AiPromptLab: React.FC<AiPromptLabProps> = ({ onBack, addPoints, onC
   const [constraint, setConstraint] = useState<string>('ความยาวไม่เกิน 3 ย่อหน้าสั้นๆ');
   const [copiedPrompt, setCopiedPrompt] = useState<boolean>(false);
   const [hasGeneratedAiResponse, setHasGeneratedAiResponse] = useState<boolean>(true);
+  const [promptBuilderClaimed, setPromptBuilderClaimed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('coderkids_ai_prompt_builder_claimed') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // 2. Deepfake Buster State
   const [currentScenarioIndex, setCurrentScenarioIndex] = useState<number>(0);
@@ -144,6 +152,7 @@ export const AiPromptLab: React.FC<AiPromptLabProps> = ({ onBack, addPoints, onC
   ];
 
   const handleBusterAnswer = (userGuessedAiOrScam: boolean) => {
+    if (scenarioAnswers[currentScenarioIndex] !== undefined) return;
     const scenario = busterScenarios[currentScenarioIndex];
     const isCorrect = userGuessedAiOrScam === (scenario.isAiGenerated || scenario.isScam);
 
@@ -153,7 +162,9 @@ export const AiPromptLab: React.FC<AiPromptLabProps> = ({ onBack, addPoints, onC
     });
 
     if (isCorrect) {
-      addPoints(15, `ตอบถูกในภารกิจ AI & Deepfake Buster: ${scenario.title}`, 'thinking');
+      addPoints(15, `ตอบถูกในภารกิจ AI & Deepfake Buster: ${scenario.title}`, 'thinking', {
+        uniqueKey: `ai_buster_scenario_${scenario.id}`,
+      });
       onCelebrate('points_milestone', 'สุดยอดนักสืบดิจิทัล!', 'คุณตรวจจับเนื้อหา AI และภัยออนไลน์ได้อย่างแม่นยำ (+15 แต้ม)', '🛡️');
     }
   };
@@ -191,7 +202,9 @@ export const AiPromptLab: React.FC<AiPromptLabProps> = ({ onBack, addPoints, onC
     const noUnsafePicked = safeItems.filter((i) => !i.isSafe).every((i) => !selectedSafetyItems.includes(i.id));
 
     if (correctlyPickedSafe && noUnsafePicked) {
-      addPoints(25, 'พิชิตแบบทดสอบ Digital Footprint & Netiquette ปลอดภัย 100%', 'thinking');
+      addPoints(25, 'พิชิตแบบทดสอบ Digital Footprint & Netiquette ปลอดภัย 100%', 'thinking', {
+        uniqueKey: 'ai_prompt_digital_footprint_quiz',
+      });
       onCelebrate('badge', 'ผู้พิทักษ์ความปลอดภัยดิจิทัล!', 'คุณเข้าใจการปกป้องข้อมูลส่วนบุคคลตามกฎหมาย PDPA เด็ก (+25 แต้ม)', '🔒');
     }
   };
@@ -435,13 +448,25 @@ export const AiPromptLab: React.FC<AiPromptLabProps> = ({ onBack, addPoints, onC
               <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[11px] text-slate-500">ทดลองสร้างคำสั่งหลากหลายเพื่อดูผลลัพธ์</span>
                 <button
+                  disabled={promptBuilderClaimed}
                   onClick={() => {
-                    addPoints(10, 'ฝึกผสมคำสั่ง AI Prompt Builder', 'thinking');
+                    if (promptBuilderClaimed) return;
+                    setPromptBuilderClaimed(true);
+                    try {
+                      localStorage.setItem('coderkids_ai_prompt_builder_claimed', 'true');
+                    } catch {}
+                    addPoints(10, 'ฝึกผสมคำสั่ง AI Prompt Builder', 'thinking', {
+                      uniqueKey: 'ai_prompt_builder_complete',
+                    });
                     onCelebrate('points_milestone', 'เก่งมาก!', 'คุณได้เรียนรู้โครงสร้างการสั่งงาน AI ยุคใหม่ (+10 แต้ม)', '💡');
                   }}
-                  className="text-xs bg-purple-600 hover:bg-purple-700 text-white font-bold px-3.5 py-1.5 rounded-xl shadow-sm transition-all"
+                  className={`text-xs font-bold px-3.5 py-1.5 rounded-xl shadow-sm transition-all ${
+                    promptBuilderClaimed
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 cursor-not-allowed'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white cursor-pointer'
+                  }`}
                 >
-                  สะสมแต้มสำเร็จ (+10 XP)
+                  {promptBuilderClaimed ? 'รับแต้มสำเร็จแล้ว ✓' : 'สะสมแต้มสำเร็จ (+10 XP)'}
                 </button>
               </div>
             </div>

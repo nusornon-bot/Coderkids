@@ -354,7 +354,7 @@ export const QuickSearchModal: React.FC<QuickSearchModalProps> = ({
               title: 'Live Classroom O-NET Battle ประลอง O-NET สด',
               category: 'teacher' as const,
               categoryLabel: 'เครื่องมือห้องเรียน',
-              desc: 'แข่งขันคลังข้อสอบ O-NET ป.6 (100 ข้อ) สดในห้องเรียนด้วยรหัส Game PIN',
+              desc: 'แข่งขันคลังข้อสอบ O-NET ป.6 (200 ข้อ) สดในห้องเรียนด้วยรหัส Game PIN',
               keywords: ['onet', 'o-net', 'battle', 'onet battle', 'ประลองสด', 'ข้อสอบ', 'pin', 'ห้องเรียน'],
               icon: GraduationCap,
               action: onOpenOnetBattle,

@@ -106,6 +106,7 @@ interface DashboardProps {
   isTeacherAuthorized?: boolean;
   viewRoleMode?: 'student' | 'teacher';
   onChangeViewRoleMode?: (mode: 'student' | 'teacher') => void;
+  onEnrollClassroom?: (code: string) => void;
 }
 
 export const getGoalDestination = (goalText: string, category?: string) => {
@@ -208,6 +209,16 @@ const ONET_SETS_SUMMARY = [
   { setNo: 8, title: 'ชุดที่ 8: ประยุกต์ใช้ Micro:bit & เซนเซอร์', focus: 'อ่านค่าเซนเซอร์ & ระบบอัตโนมัติ', badge: 'ว 4.2 ป.6/1,2' },
   { setNo: 9, title: 'ชุดที่ 9: Scratch ขั้นสูง (Broadcast & Nested If)', focus: 'ส่งสารตัวละคร จัด Layer & เงื่อนไขซ้อน', badge: 'ว 4.2 ป.6/1,2' },
   { setNo: 10, title: 'ชุดที่ 10: ผลกระทบเทคโนโลยีต่อสุขภาพ & การเรียน', focus: 'Ergonomics, สุขภาวะดิจิทัล & การเรียน', badge: 'ว 4.2 ป.6/4' },
+  { setNo: 11, title: 'ชุดที่ 11: สถานะเริ่มต้น & สิทธิพื้นฐานดิจิทัล', focus: 'ระบบล็อกเกอร์ การเดินทาง & PDPA', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 12, title: 'ชุดที่ 12: อัลกอริทึมจัดตาราง & ความปลอดภัยบัญชี', focus: 'ลำดับคิว เส้นทางรถ & Phishing/OTP', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 13, title: 'ชุดที่ 13: เงื่อนไขซ้อน & จริยธรรมงานกลุ่มออนไลน์', focus: 'Broadcast, Nested If & สิทธิ์คลาวด์', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 14, title: 'ชุดที่ 14: ระบบอัตโนมัติ & รอยเท้าดิจิทัล', focus: 'เครื่องตากผ้าอัตโนมัติ คิว & PDPA', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 15, title: 'ชุดที่ 15: การค้นหาแบบแบ่งครึ่ง & ภัยไซเบอร์', focus: 'Binary Search ลูปสะสม & Wi-Fi สาธารณะ', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 16, title: 'ชุดที่ 16: ตารางตรรกะ & การรู้เท่าทัน Deepfake', focus: 'จัดสรรทรัพยากร & เสียง AI ปลอม', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 17, title: 'ชุดที่ 17: Scratch/Flowchart เชิงตรรกะ & ลิขสิทธิ์', focus: 'พิกัด เขาวงกต & รอยเท้าดิจิทัล', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 18, title: 'ชุดที่ 18: นวัตกรรมสมองกล & สุขภาวะดิจิทัล', focus: 'โดรน ระบบดับไฟ & กฎ 20-20-20', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 19, title: 'ชุดที่ 19: สังเคราะห์ตรรกะ-เวลา & กฎหมายดิจิทัล', focus: 'ค.ร.น. สลับค่าตัวแปร & PDPA อ่อนไหว', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
+  { setNo: 20, title: 'ชุดที่ 20: โค้งสุดท้าย O-NET เชิงวิเคราะห์-สังเคราะห์', focus: 'ตารางซัก-อบผ้า 2FA & พลเมืองดิจิทัล', badge: 'ว 4.2 ป.4/1,6/1,6/4' },
 ];
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -247,6 +258,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   isTeacherAuthorized = false,
   viewRoleMode = 'student',
   onChangeViewRoleMode,
+  onEnrollClassroom,
 }) => {
   const [activeCategory, setActiveCategory] = useState<
     'all' | 'curriculum' | 'labs' | 'onet' | 'stem' | 'progress' | 'teacher'
@@ -350,7 +362,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
       key: 'certificate',
       stepNum: 'สำเร็จครบ 4 ก้าว',
       title: 'เรียนจบครบทั้ง 4 ก้าวหลักเรียบร้อยแล้ว!',
-      desc: 'ยอดเยี่ยมมาก! คุณผ่านครบทุกบทเรียนหลัก สามารถเปิดรับเกียรติบัตร หรือท้าทายคลังข้อสอบ O-NET 10 ชุดได้เลย',
+      desc: 'ยอดเยี่ยมมาก! คุณผ่านครบทุกบทเรียนหลัก สามารถเปิดรับเกียรติบัตร หรือท้าทายคลังข้อสอบ O-NET 20 ชุดได้เลย',
       badge: 'สำเร็จสมบูรณ์ 100%',
       btnText: 'เปิดดูเกียรติบัตรทางการ',
       gradient: 'from-amber-600 to-orange-700',
@@ -460,7 +472,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             }`}
           >
             <Trophy className={`w-3.5 h-3.5 shrink-0 ${activeCategory === 'onet' ? 'text-amber-200' : 'text-rose-500 dark:text-rose-400'}`} />
-            <span>3. คลังข้อสอบ O-NET (10 ชุด)</span>
+            <span>3. คลังข้อสอบ O-NET (20 ชุด)</span>
           </button>
 
           <button
@@ -670,7 +682,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs sm:text-sm font-bold border border-slate-700 transition-all active:scale-95 cursor-pointer"
                 >
                   <Trophy className="w-4 h-4 text-amber-400" />
-                  <span>ฝึกทำข้อสอบ O-NET (10 ชุด)</span>
+                  <span>ฝึกทำข้อสอบ O-NET (20 ชุด)</span>
                 </button>
               )}
 
@@ -1230,14 +1242,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <GraduationCap className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                    คลัง O-NET 100 ข้อ
+                    คลัง O-NET 200 ข้อ
                   </span>
                 </div>
                 <h3 className="font-bold text-base text-slate-900 dark:text-white">
                   Live Classroom O-NET Battle
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  ประลองข้อสอบ O-NET ป.6 สดในห้องเรียนด้วย Game PIN สุ่มจากคลัง 10 ชุด (100 ข้อ) เลือกหมวดและระดับความยากได้
+                  ประลองข้อสอบ O-NET ป.6 สดในห้องเรียนด้วย Game PIN สุ่มจากคลัง 20 ชุด (200 ข้อ) เลือกหมวดและระดับความยากได้
                 </p>
               </div>
               <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400">
@@ -1604,14 +1616,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <Rocket className="w-4 h-4" />
                       </div>
                       <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300">
-                        12 โครงงาน
+                        {STEM_PROJECTS.length} โครงงาน
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
                       11. คลังโครงงาน STEM Project Hub
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                      คลังโครงงานต้นแบบ 12 โครงงาน พร้อมวงจร โค้ดตัวอย่าง และใบงาน Canvas A4
+                      คลังโครงงานต้นแบบ {STEM_PROJECTS.length} โครงงาน พร้อมวงจร โค้ดตัวอย่าง และใบงาน Canvas A4
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-indigo-600 dark:text-indigo-400">
@@ -1631,7 +1643,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <Layers className="w-4 h-4" />
                       </div>
                       <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300">
-                        9 ชุด S·T·E·M
+                        {STEM_PACKS.length} ชุด S·T·E·M
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
@@ -1673,10 +1685,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">
-                      13. Kids AI &amp; Machine Learning Lab (ฝึกสอน AI แยกประเภทข้อมูล)
+                      13. Kids AI &amp; Machine Learning Lab (ฝึกสอน AI จำแนกภาพ)
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                      ทดลองป้อนข้อมูลตัวอย่าง (Training Data) ฝึกสอนโมเดล AI คัดแยกขยะรีไซเคิล ท่าทาง และอารมณ์ข้อความ
+                      ฝึกสอนโมเดล AI ในบราวเซอร์ด้วยภาพวาด อัปโหลด หรือเว็บแคม เพื่อแยกขยะรีไซเคิล ผักผลไม้ และรับแต้ม XP
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-purple-600 dark:text-purple-400">
@@ -1815,14 +1827,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <GraduationCap className="w-4 h-4" />
                       </div>
                       <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
-                        O-NET 100 ข้อ
+                        O-NET 200 ข้อ
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">
                       17.5 Live Classroom O-NET Battle
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                      ประลองคลังข้อสอบ O-NET ป.6 สดในชั้นเรียนด้วย Game PIN สุ่มข้อสอบจาก 10 ชุดมาตรฐาน
+                      ประลองคลังข้อสอบ O-NET ป.6 สดในชั้นเรียนด้วย Game PIN สุ่มข้อสอบจาก 20 ชุดมาตรฐาน
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-amber-600 dark:text-amber-400">
@@ -2012,7 +2024,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 ขั้นตอนที่ 3 ของการเรียนรู้ · ทดสอบความรู้และวิเคราะห์จุดที่ควรทบทวน
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">
-                คลังข้อสอบ O-NET &amp; สสวท. ป.6 (ครบ 10 ชุด · 100 ข้อ) &amp; รายงานวิเคราะห์รายบุคคล
+                คลังข้อสอบ O-NET &amp; สสวท. ป.6 (ครบ 20 ชุด · 200 ข้อ) &amp; รายงานวิเคราะห์รายบุคคล
               </h2>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -2025,13 +2037,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="space-y-3 max-w-2xl">
                 <div className="flex items-center gap-2 text-xs text-amber-400 font-semibold">
                   <Trophy className="w-4 h-4" />
-                  <span>มาตรฐานการทดสอบ ว 4.2 ป.6 · ครบ 10 ชุด รวม 100 ข้อ (500 คะแนนเต็ม)</span>
+                  <span>มาตรฐานการทดสอบ ว 4.2 ป.6 · ครบ 20 ชุด รวม 200 ข้อ (1,000 คะแนนเต็ม)</span>
                 </div>
                 <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
-                  ฝึกทำข้อสอบชุดที่ 1–10 และดูกราฟวิเคราะห์จุดแข็งรายวิชาของฉัน
+                  ฝึกทำข้อสอบชุดที่ 1–20 และดูกราฟวิเคราะห์จุดแข็งรายวิชาของฉัน
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                  ระบบจะบันทึกคะแนนย้อนหลังทั้ง 10 ชุดเพื่อสร้างกราฟเปรียบเทียบสมรรถนะระหว่าง <span className="text-white font-semibold">การคิดเชิงคำนวณ &amp; โค้ดดิ้ง</span> กับ <span className="text-white font-semibold">ความปลอดภัยดิจิทัล &amp; สารสนเทศ</span> พร้อมสร้างการ์ดบทเรียนทบทวนเฉพาะเรื่องที่ยังทำผิดให้ทันที
+                  ระบบจะบันทึกคะแนนย้อนหลังทั้ง 20 ชุดเพื่อสร้างกราฟเปรียบเทียบสมรรถนะระหว่าง <span className="text-white font-semibold">การคิดเชิงคำนวณ &amp; โค้ดดิ้ง</span> กับ <span className="text-white font-semibold">ความปลอดภัยดิจิทัล &amp; สารสนเทศ</span> พร้อมสร้างการ์ดบทเรียนทบทวนเฉพาะเรื่องที่ยังทำผิดให้ทันที
                 </p>
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   {onOpenExamArena && (
@@ -2067,7 +2079,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <div className="grid grid-cols-2 gap-3 shrink-0 lg:w-80">
                 <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700">
                   <div className="text-xs text-slate-400">คลังข้อสอบมาตรฐาน</div>
-                  <div className="text-2xl font-black text-amber-400 mt-1 font-mono tabular-nums">10 ชุด</div>
+                  <div className="text-2xl font-black text-amber-400 mt-1 font-mono tabular-nums">20 ชุด</div>
                   <div className="text-[11px] text-slate-300 mt-0.5">ชุดละ 10 ข้อ (50 คะแนน)</div>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700">
@@ -2079,7 +2091,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* รายการชุดข้อสอบทั้ง 10 ชุด */}
+          {/* รายการชุดข้อสอบทั้ง 20 ชุด */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {ONET_SETS_SUMMARY.map((item) => (
               <button
@@ -2124,7 +2136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 ขั้นตอนที่ 4 ของการเรียนรู้ · บูรณาการความรู้สร้างนวัตกรรมแก้ปัญหาจริง (STEM Project Hub &amp; สะเต็มศึกษา 5E)
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">
-                คลังโครงงาน STEM Project Hub (12 โครงงาน) &amp; ชุดกิจกรรมสะเต็มศึกษา 5E (S·T·E·M 9 ชุด)
+                คลังโครงงาน STEM Project Hub ({STEM_PROJECTS.length} โครงงาน) &amp; ชุดกิจกรรมสะเต็มศึกษา 5E (S·T·E·M {STEM_PACKS.length} ชุด)
               </h2>
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400">
@@ -2144,14 +2156,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <Rocket className="w-5 h-5" />
                   </div>
                   <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2.5 py-0.5 rounded-lg">
-                    12 โครงงาน + Canvas A4
+                    {STEM_PROJECTS.length} โครงงาน + Canvas A4
                   </span>
                 </div>
                 <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
                   คลังโครงงาน STEM Project Hub
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  เรียนรู้โครงงานต้นแบบ 12 โครงงาน พร้อมผังการต่อวงจร โค้ดตัวอย่าง และเครื่องมือร่างใบงานโครงงาน A4
+                  เรียนรู้โครงงานต้นแบบ {STEM_PROJECTS.length} โครงงาน พร้อมผังการต่อวงจร โค้ดตัวอย่าง และเครื่องมือร่างใบงานโครงงาน A4
                 </p>
               </div>
               <div className="pt-3.5 mt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400">
@@ -2170,7 +2182,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     <Microscope className="w-5 h-5" />
                   </div>
                   <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-lg">
-                    9 ชุดจำลอง S·T·E·M
+                    {STEM_PACKS.length} ชุดจำลอง S·T·E·M
                   </span>
                 </div>
                 <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white">
@@ -2688,9 +2700,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
               completedModulesCount={completedCount}
               onOpenCertificate={onOpenCertificate}
               isAdmin={isAdmin}
+              isTeacherAuthorized={isTeacherAuthorized}
               profile={profile}
               profiles={profiles}
               onNavigate={onNavigate}
+              onEnrollClassroom={onEnrollClassroom}
             />
           </div>
         </section>
@@ -2935,14 +2949,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         <Trophy className="w-4 h-4" />
                       </div>
                       <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300">
-                        10 ชุด (100 ข้อ)
+                        20 ชุด (200 ข้อ)
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">
                       1. คลังข้อสอบ O-NET &amp; สสวท. ป.6
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                      ฝึกทำข้อสอบ 10 ชุด (ชุดละ 10 ข้อ) พร้อมกราฟวิเคราะห์จุดแข็งรายบุคคลและการ์ดทบทวน
+                      ฝึกทำข้อสอบ 20 ชุด (ชุดละ 10 ข้อ) พร้อมกราฟวิเคราะห์จุดแข็งรายบุคคลและการ์ดทบทวน
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-amber-600 dark:text-amber-400">
@@ -2969,7 +2983,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       1.5 Live Classroom O-NET Battle
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                      นำคลังข้อสอบ O-NET 100 ข้อมาแข่งขันสดในห้องเรียน ครูตั้งรหัส PIN สุ่มชุดข้อสอบได้ทันที
+                      นำคลังข้อสอบ O-NET 200 ข้อมาแข่งขันสดในห้องเรียน ครูตั้งรหัส PIN สุ่มชุดข้อสอบได้ทันที
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-orange-600 dark:text-orange-400">
@@ -3450,7 +3464,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       17. รายงานวิเคราะห์ผลสัมฤทธิ์ ปพ.5
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                      วิเคราะห์คะแนนย้อนหลังข้อสอบชุดที่ 1–10 เปรียบเทียบจุดแข็งรายวิชาและส่งออก CSV
+                      วิเคราะห์คะแนนย้อนหลังข้อสอบชุดที่ 1–20 เปรียบเทียบจุดแข็งรายวิชาและส่งออก CSV
                     </p>
                   </div>
                   <div className="mt-3 pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px] font-bold text-purple-600 dark:text-purple-400">

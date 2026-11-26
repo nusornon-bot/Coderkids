@@ -250,7 +250,7 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
   const [score, setScore] = useState<number>(0);
   const [correctCount, setCorrectCount] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
-  const [timeLeft, setTimeLeft] = useState<number>(15);
+  const [timeLeft, setTimeLeft] = useState<number>(60);
 
   // Enforce student cannot stay on 'bank' view if role switches to student
   useEffect(() => {
@@ -1995,7 +1995,8 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
                 <div>
                   🎲 ระบบจะสุ่มข้อสอบ{' '}
                   <span className="text-emerald-400 font-black">{effectiveQuestionCount} ข้อ</span>{' '}
-                  จากคลัง ({eligibleQuestions.length} ข้อที่ตรงเงื่อนไข) เมื่อสร้างห้อง
+                  จากคลัง ({eligibleQuestions.length} ข้อที่ตรงเงื่อนไข) · เวลา{' '}
+                  <span className="text-amber-300 font-bold">60 วินาที/ข้อ</span> เมื่อสร้างห้อง
                   นักเรียนกรอกรหัส PIN เพื่อเข้าร่วมได้ทันที
                 </div>
               </div>
@@ -2285,7 +2286,7 @@ export const ClassroomBattleModal: React.FC<ClassroomBattleModalProps> = ({
 
               <div
                 className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-mono font-bold ${
-                  timeLeft <= 5
+                  timeLeft <= 10
                     ? 'bg-rose-500/20 text-rose-400 animate-pulse border border-rose-500/30'
                     : 'bg-slate-800 text-slate-200'
                 }`}

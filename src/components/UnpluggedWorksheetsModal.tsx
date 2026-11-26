@@ -16,7 +16,7 @@ import {
 interface UnpluggedWorksheetsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCompleteWorksheet?: () => void;
+  onCompleteWorksheet?: (sheetId: string) => void;
 }
 
 export const UnpluggedWorksheetsModal: React.FC<UnpluggedWorksheetsModalProps> = ({
@@ -30,7 +30,7 @@ export const UnpluggedWorksheetsModal: React.FC<UnpluggedWorksheetsModalProps> =
 
   const handlePrint = () => {
     if (onCompleteWorksheet) {
-      onCompleteWorksheet();
+      onCompleteWorksheet(selectedSheet);
     }
     window.print();
   };

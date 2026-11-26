@@ -63,18 +63,18 @@ say [ภารกิจสำเร็จ!]`,
         question: 'น้องแมวถาม: ในบล็อก `repeat until <energy = 0>` ค่า energy จะกลายเป็น 0 ได้อย่างไร?',
         catSpeech: 'เหมียว! ดูเงื่อนไขการหยุดสิ ถ้า energy เริ่มต้นที่ 10 แล้วในลูปไม่มีคำสั่งเปลี่ยนค่า energy เลย แล้วมันจะหยุดได้ยังไงนะ?',
         options: [
-          { text: 'energy จะลดลงเองอัตโนมัติตามเวลา', isCorrect: false, hint: 'ตัวแปรในคอมพิวเตอร์จะไม่เปลี่ยนค่าเองถ้าเราไม่เขียนคำสั่งเปลี่ยนนะเหมียว!' },
-          { text: 'ต้องมีคำสั่ง change [energy] by (-1) ในลูป', isCorrect: true, hint: 'ถูกต้อง! การลดค่าตัวแปรในแต่ละรอบจะทำให้เงื่อนไขหยุดเป็นจริงได้ในที่สุด' },
-          { text: 'เปลี่ยนเป็น repeat until <energy = 10>', isCorrect: false, hint: 'ถ้าทำแบบนั้น ลูปจะหยุดทันทีตั้งแต่รอบแรกเลยนะเหมียว' },
+          { text: 'ตัวแปร energy จะลดค่าลงเองอัตโนมัติตามเวลา', isCorrect: false, hint: 'ตัวแปรในคอมพิวเตอร์จะไม่เปลี่ยนค่าเองถ้าเราไม่เขียนคำสั่งเปลี่ยนนะเหมียว!' },
+          { text: 'ต้องเพิ่มบล็อก change [energy] by (-1) ในลูป', isCorrect: true, hint: 'ถูกต้อง! การลดค่าตัวแปรในแต่ละรอบจะทำให้เงื่อนไขหยุดเป็นจริงได้ในที่สุด' },
+          { text: 'เปลี่ยนเงื่อนไขเป็น repeat until energy = 10', isCorrect: false, hint: 'ถ้าทำแบบนั้น ลูปจะหยุดทันทีตั้งแต่รอบแรกเลยนะเหมียว' },
         ],
       },
       {
         question: 'น้องแมวถาม: การทำงานแบบนี้ในทางคอมพิวเตอร์เรียกว่าอะไร?',
         catSpeech: 'สุดยอดเลย! แล้วรู้ไหมว่าเวลาลูปทำงานวนไม่รู้จบแบบนี้ ภาษาโปรแกรมเมอร์เขาเรียกกันว่าอะไรนะ?',
         options: [
-          { text: 'Infinite Loop (ลูปไม่รู้จบ)', isCorrect: true, hint: 'ใช่เลย! เป็นบั๊กยอดฮิตที่ทำให้โปรแกรมค้าง' },
-          { text: 'Syntax Error (ไวยากรณ์ผิด)', isCorrect: false, hint: 'ไวยากรณ์เขียนถูกแล้ว แต่ตรรกะเหตุผลไม่สมบูรณ์ต่างหากล่ะเหมียว' },
-          { text: 'Hardware Freeze', isCorrect: false, hint: 'ปัญหานี้เกิดจากโค้ดของซอฟต์แวร์ ไม่ใช่บอร์ดเสียนะ' },
+          { text: 'Syntax Error (ข้อผิดพลาดทางไวยากรณ์)', isCorrect: false, hint: 'ไวยากรณ์เขียนถูกแล้ว แต่ตรรกะเหตุผลไม่สมบูรณ์ต่างหากล่ะเหมียว' },
+          { text: 'Hardware Freeze (บอร์ดฮาร์ดแวร์ค้าง)', isCorrect: false, hint: 'ปัญหานี้เกิดจากโค้ดของซอฟต์แวร์ ไม่ใช่บอร์ดเสียนะ' },
+          { text: 'Infinite Loop (การวนซ้ำแบบไม่รู้จบ)', isCorrect: true, hint: 'ใช่เลย! เป็นบั๊กยอดฮิตที่ทำให้โปรแกรมค้าง' },
         ],
       },
     ],
@@ -107,9 +107,9 @@ end`,
         question: 'น้องแมวถาม: เมื่อผู้เล่นเริ่มเกมใหม่ ค่า score ควรเริ่มต้นด้วยค่าใด?',
         catSpeech: 'เหมียว! ปกติเวลาเราเล่นเกมใหม่ เราควรเริ่มนับคะแนนจากเท่าไหร่ดีนะ?',
         options: [
-          { text: 'เริ่มจาก 0 เสมอ', isCorrect: true, hint: 'ถูกต้องเลย! ต้องตั้งค่าเริ่มต้นด้วยบล็อก `set [score] to [0]`' },
-          { text: 'ปล่อยให้คอมพิวเตอร์สุ่มค่าขึ้นมา', isCorrect: false, hint: 'ถ้าสุ่มค่า ผู้เล่นแต่ละคนก็จะได้คะแนนไม่เท่ากันสิเหมียว' },
-          { text: 'ไม่ต้องกำหนด ปล่อยให้จำค่าเดิม', isCorrect: false, hint: 'ถ้าจำค่าเดิม คะแนนก็จะสะสมข้ามตาไปเรื่อยๆ เกมก็ไม่ยุติธรรมนะ' },
+          { text: 'กำหนดค่าเริ่มต้นให้ score เป็น 0 ทุกครั้งที่เริ่ม', isCorrect: true, hint: 'ถูกต้องเลย! ต้องตั้งค่าเริ่มต้นด้วยบล็อก `set [score] to [0]`' },
+          { text: 'ปล่อยให้คอมพิวเตอร์สุ่มค่าคะแนนเริ่มต้นขึ้นมาเอง', isCorrect: false, hint: 'ถ้าสุ่มค่า ผู้เล่นแต่ละคนก็จะได้คะแนนไม่เท่ากันสิเหมียว' },
+          { text: 'ไม่ต้องกำหนดค่าใหม่ ปล่อยให้ระบบจำคะแนนเดิมต่อไป', isCorrect: false, hint: 'ถ้าจำค่าเดิม คะแนนก็จะสะสมข้ามตาไปเรื่อยๆ เกมก็ไม่ยุติธรรมนะ' },
         ],
       },
     ],
@@ -142,8 +142,9 @@ end`,
         question: 'น้องแมวถาม: เซ็นเซอร์วัดแสงของ Micro:bit ค่าน้อยหมายถึงอะไร?',
         catSpeech: 'เหมียว! ค่า lightLevel อยู่ระหว่าง 0 ถึง 255 เมื่อเอามือบังให้มืด ตัวเลขจะสูงขึ้นหรือลดลงนะ?',
         options: [
-          { text: 'ค่ายิ่งน้อย แสดงว่ายิ่งมืด (0 = มืดสนิท)', isCorrect: true, hint: 'เป๊ะเลย! ดังนั้นเงื่อนไขเปิดไฟตอนกลางคืนต้องใช้เครื่องหมายน้อยกว่า (< 50)' },
-          { text: 'ค่ายิ่งน้อย แสดงว่ายิ่งสว่างจัด', isCorrect: false, hint: 'ตรงกันข้ามเลยเหมียว! 255 คือสว่างจ้าแดดจัดต่างหาก' },
+          { text: 'ค่ายิ่งน้อย แสดงว่าสภาพแวดล้อมยิ่งสว่างจ้ามาก', isCorrect: false, hint: 'ตรงกันข้ามเลยเหมียว! 255 คือสว่างจ้าแดดจัดต่างหาก' },
+          { text: 'ค่ายิ่งน้อย แสดงว่าสภาพแวดล้อมยิ่งมืดสนิทมาก', isCorrect: true, hint: 'เป๊ะเลย! ดังนั้นเงื่อนไขเปิดไฟตอนกลางคืนต้องใช้เครื่องหมายน้อยกว่า (< 50)' },
+          { text: 'ค่ายิ่งน้อย แสดงว่าเซ็นเซอร์วัดแสงหยุดทำงานแล้ว', isCorrect: false, hint: 'เซ็นเซอร์ยังทำงานปกติ แต่ค่า 0 หมายถึงไม่มีแสงตกกระทบเลยนะเหมียว' },
         ],
       },
     ],
@@ -155,7 +156,7 @@ interface SmartSocraticDebuggerModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentStudentName: string;
-  onRewardPoints?: (pts: number, reason: string) => void;
+  onRewardPoints?: (pts: number, reason: string, options?: { uniqueKey?: string }) => void;
 }
 
 export const SmartSocraticDebuggerModal: React.FC<SmartSocraticDebuggerModalProps> = ({
@@ -187,6 +188,7 @@ export const SmartSocraticDebuggerModal: React.FC<SmartSocraticDebuggerModalProp
   };
 
   const handleSelectOption = (idx: number) => {
+    if (isFixed) return;
     setSelectedOptionIdx(idx);
     setIsAnswerChecked(true);
 
@@ -203,7 +205,9 @@ export const SmartSocraticDebuggerModal: React.FC<SmartSocraticDebuggerModalProp
         setIsFixed(true);
         confetti({ particleCount: 40, spread: 50 });
         if (onRewardPoints) {
-          onRewardPoints(15, `แก้บั๊ก "${currentBug.title}" ด้วยวิธีคิดแบบโสเครติส`);
+          onRewardPoints(15, `แก้บั๊ก "${currentBug.title}" ด้วยวิธีคิดแบบโสเครติส`, {
+            uniqueKey: `socratic_debugger_${currentBug.id}`,
+          });
         }
       }
     } else {

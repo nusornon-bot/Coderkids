@@ -45,12 +45,13 @@ import {
   isCloudFirestoreReadyForUser,
   listBattleQuestionsFromFirestore,
 } from '../services/firestoreService.ts';
+import { getThailandDateKey, type PointAwardOptions } from '../utils/antiCheatGuard.ts';
 
 interface SmartExamGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
   studentName?: string;
-  onRewardPoints?: (points: number, reason: string) => void;
+  onRewardPoints?: (points: number, reason: string, options?: PointAwardOptions) => void;
 }
 
 const LOCAL_CUSTOM_BANK_KEY = 'coderkids_battle_custom_questions_v1';
@@ -257,14 +258,18 @@ export const SmartExamGeneratorModal: React.FC<SmartExamGeneratorModalProps> = (
       }
 
       const correct = calculateScore(examQuestions, userAnswers);
-      if (onRewardPoints && examQuestions.length > 0) {
+      if (onRewardPoints && examQuestions.length > 0 && correct > 0) {
         onRewardPoints(
           correct * 10,
-          `สอบสุ่มข้อสอบ ${sourceTitle} ได้ ${correct}/${examQuestions.length}`
+          `สอบสุ่มข้อสอบ ${sourceTitle} ได้ ${correct}/${examQuestions.length}`,
+          {
+            uniqueKey: `smart_exam_${selectedSource}_${getThailandDateKey()}`,
+            maxPerDay: 1,
+          }
         );
       }
     },
-    [calculateScore, examQuestions, userAnswers, onRewardPoints, sourceTitle]
+    [calculateScore, examQuestions, userAnswers, onRewardPoints, sourceTitle, selectedSource]
   );
 
   // Timer countdown with audio ticks for final warnings

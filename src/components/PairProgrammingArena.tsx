@@ -21,12 +21,13 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects.ts';
+import { getThailandDateKey } from '../utils/antiCheatGuard.ts';
 import confetti from 'canvas-confetti';
 
 interface PairProgrammingArenaProps {
   isOpen: boolean;
   onClose: () => void;
-  onRewardPoints?: (points: number, reason: string) => void;
+  onRewardPoints?: (points: number, reason: string, options?: { uniqueKey?: string; maxPerDay?: number }) => void;
 }
 
 interface DuelChallenge {
@@ -48,10 +49,10 @@ const DUEL_CHALLENGES: DuelChallenge[] = [
     scenario: 'โปรแกรมนี้ตั้งใจให้หุ่นยนต์เดิน 5 ก้าว แต่กลับเดินไม่ยอมหยุด เกิดจากบั๊กใด?',
     buggyCode: `count = 0\nwhile count < 5:\n    robot.step_forward()\n    # ลืมบรรทัดนี้!`,
     options: [
-      { label: 'count = count + 1', isCorrect: true, explanation: 'ถูกต้อง! ถ้าไม่เพิ่มค่า count ลูปจะกลายเป็น Infinite Loop ไม่รู้จบ' },
-      { label: 'count = 0', isCorrect: false, explanation: 'ไม่ใช่ จะทำให้ count เป็น 0 ตลอดไป' },
-      { label: 'break', isCorrect: false, explanation: 'การใส่ break ทันทีจะทำให้เดินได้แค่ 1 ก้าวเท่านั้น' },
+      { label: 'count = count * 0', isCorrect: false, explanation: 'ไม่ใช่ จะทำให้ count เป็น 0 ตลอดไป' },
       { label: 'count = count - 1', isCorrect: false, explanation: 'จะทำให้ค่ายิ่งลดลงและไม่ถึง 5' },
+      { label: 'count = count + 1', isCorrect: true, explanation: 'ถูกต้อง! ถ้าไม่เพิ่มค่า count ลูปจะกลายเป็น Infinite Loop ไม่รู้จบ' },
+      { label: 'count = 5; break', isCorrect: false, explanation: 'การใส่ break ทันทีจะทำให้เดินได้แค่ 1 ก้าวเท่านั้น' },
     ],
   },
   {
@@ -72,10 +73,10 @@ const DUEL_CHALLENGES: DuelChallenge[] = [
     scenario: 'ต้องการจำลองการทอยลูกเต๋าหกหน้า คำสั่งใน Python ข้อใดถูกต้องที่สุด?',
     buggyCode: `import random\ndice = ?????\nprint("แต้มลูกเต๋า:", dice)`,
     options: [
+      { label: 'random.random(1, 6)', isCorrect: false, explanation: 'random() ไม่รับค่าพารามิเตอร์ช่วงตัวเลขแบบนี้' },
+      { label: 'random.choice(1, 6)', isCorrect: false, explanation: 'choice() ต้องรับลิสต์หรือลำดับ เช่น [1, 2, 3, 4, 5, 6]' },
+      { label: 'random.range(1, 6)', isCorrect: false, explanation: 'ไม่มีฟังก์ชัน random.range ในโมดูล random' },
       { label: 'random.randint(1, 6)', isCorrect: true, explanation: 'ถูกต้อง! ฟังก์ชัน randint(a, b) สุ่มตัวเลขจำนวนเต็มตั้งแต่ a ถึง b' },
-      { label: 'random.random(6)', isCorrect: false, explanation: 'random() ไม่รับค่าพารามิเตอร์เดี่ยวแบบนี้' },
-      { label: 'random.choice(6)', isCorrect: false, explanation: 'choice() ต้องรับลิสต์หรือลำดับ เช่น [1, 2, 3, 4, 5, 6]' },
-      { label: 'random.range(1, 6)', isCorrect: false, explanation: 'ไม่มีโมดูลย่อย random.range' },
     ],
   },
   {
@@ -84,21 +85,21 @@ const DUEL_CHALLENGES: DuelChallenge[] = [
     scenario: 'เงื่อนไข: รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร',
     buggyCode: `password = input("ตั้งรหัสผ่าน: ")\nif ?????:\n    print("รหัสผ่านปลอดภัย")`,
     options: [
-      { label: 'len(password) >= 8', isCorrect: true, explanation: 'ถูกต้อง! ฟังก์ชัน len() ตรวจสอบความยาว และ >= หมายถึงอย่างน้อย 8 ตัว' },
       { label: 'password.length > 8', isCorrect: false, explanation: 'ใน Python ใช้ len(obj) ไม่ใช่ .length' },
+      { label: 'len(password) >= 8', isCorrect: true, explanation: 'ถูกต้อง! ฟังก์ชัน len() ตรวจสอบความยาว และ >= หมายถึงอย่างน้อย 8 ตัว' },
       { label: 'len(password) == 8', isCorrect: false, explanation: 'ถ้าเท่ากับ 8 พอดี คนที่ตั้ง 9 หรือ 10 ตัวจะใช้งานไม่ได้' },
-      { label: 'password >= 8', isCorrect: false, explanation: 'ไม่สามารถเปรียบเทียบสตริงกับตัวเลขได้โดยตรง' },
+      { label: 'str(password) >= 8', isCorrect: false, explanation: 'ไม่สามารถเปรียบเทียบสตริงกับตัวเลขได้โดยตรง' },
     ],
   },
   {
     id: 5,
-    title: 'ภารกิจที่ 5: หยิบไอเทมชิ้นสุดท้ายในกระเป๋า (Python List)',
+    title: 'ภารกิจที่ 5: หยิบไอเทมชิ้นแรกในกระเป๋า (Python List)',
     scenario: 'ต้องการแสดงไอเทมชิ้นแรกในลิสต์ inventory ต้องใส่เลขดัชนี (Index) ใด?',
     buggyCode: `inventory = ["เกราะ", "โล่", "คบเพลิง"]\nfirst_item = inventory[?????]\nprint("หยิบ:", first_item)`,
     options: [
-      { label: '1', isCorrect: false, explanation: 'inventory[1] จะได้ "โล่" เพราะคอมพิวเตอร์เริ่มนับตำแหน่งที่ 0' },
       { label: '0', isCorrect: true, explanation: 'ถูกต้อง! โครงสร้างข้อมูล List/Array เริ่มนับ Index ตัวแรกที่เลข 0 เสมอ' },
-      { label: 'first', isCorrect: false, explanation: 'ต้องระบุเป็นตัวเลขจำนวนเต็ม ไม่ใช่คำว่า first' },
+      { label: '1', isCorrect: false, explanation: 'inventory[1] จะได้ "โล่" เพราะคอมพิวเตอร์เริ่มนับตำแหน่งที่ 0' },
+      { label: '2', isCorrect: false, explanation: 'inventory[2] จะได้ "คบเพลิง" ซึ่งเป็นไอเทมชิ้นสุดท้าย' },
       { label: '3', isCorrect: false, explanation: 'Index 3 จะเกิดข้อผิดพลาด IndexError เพราะเกินขนาดลิสต์' },
     ],
   },
@@ -111,7 +112,7 @@ const DUEL_CHALLENGES: DuelChallenge[] = [
       { label: 'or', isCorrect: false, explanation: 'การใช้ or จะเปิดประตูแม้ขาดอย่างใดอย่างหนึ่ง ซึ่งไม่ปลอดภัย' },
       { label: 'not', isCorrect: false, explanation: 'not เป็นตัวดำเนินการกลับค่าจริง-เท็จ ใช้เชื่อมสองเงื่อนไขแบบนี้ไม่ได้' },
       { label: 'and', isCorrect: true, explanation: 'ถูกต้อง! ตัวดำเนินการ and จะเป็นจริงก็ต่อเมื่อเงื่อนไขทั้งซ้ายและขวาเป็นจริงทั้งคู่' },
-      { label: '+', isCorrect: false, explanation: 'เครื่องหมาย + ใช้บวกเลข ไม่ใช่ตัวเชื่อมตรรกะ' },
+      { label: 'xor', isCorrect: false, explanation: 'Python ไม่มีคำสั่งเชื่อมเงื่อนไขว่า xor โดยตรง และจะผิดตรรกะที่ต้องการให้จริงทั้งคู่' },
     ],
   },
   {
@@ -132,10 +133,10 @@ const DUEL_CHALLENGES: DuelChallenge[] = [
     scenario: 'ต้องใช้คำสำคัญ (Keyword) ใดขึ้นต้นการสร้างฟังก์ชันใหม่ในภาษา Python?',
     buggyCode: `????? heal_hero(hp, bonus):\n    return hp + bonus\n\nprint(heal_hero(80, 20))`,
     options: [
-      { label: 'function', isCorrect: false, explanation: 'คำว่า function ใช้ใน JavaScript ส่วนภาษา Python ใช้คำสั้นกว่านี้' },
-      { label: 'def', isCorrect: true, explanation: 'ถูกต้อง! ใน Python ใช้ keyword "def" (define) เพื่อประกาศสร้างฟังก์ชัน' },
       { label: 'func', isCorrect: false, explanation: 'คำว่า func ใช้ในภาษา Go หรือ Swift ไม่ใช่ Python' },
-      { label: 'create', isCorrect: false, explanation: 'ไม่มี keyword create ในภาษา Python' },
+      { label: 'def', isCorrect: true, explanation: 'ถูกต้อง! ใน Python ใช้ keyword "def" (define) เพื่อประกาศสร้างฟังก์ชัน' },
+      { label: 'var', isCorrect: false, explanation: 'คำว่า var ใช้ประกาศตัวแปรใน JavaScript ไม่ใช่สร้างฟังก์ชันใน Python' },
+      { label: 'new', isCorrect: false, explanation: 'ไม่มี keyword new สำหรับสร้างฟังก์ชันในภาษา Python' },
     ],
   },
 ];
@@ -240,7 +241,12 @@ export const PairProgrammingArena: React.FC<PairProgrammingArenaProps> = ({
 
           if (soundEnabled) soundEffects.play('victory');
           confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-          if (onRewardPoints) onRewardPoints(40, 'จบการแข่งขัน Pair Programming Arena');
+          if (onRewardPoints) {
+            onRewardPoints(40, 'จบการแข่งขัน Pair Programming Arena', {
+              uniqueKey: `pair_programming_arena_${getThailandDateKey()}`,
+              maxPerDay: 1,
+            });
+          }
         }
       }, 1800);
     }

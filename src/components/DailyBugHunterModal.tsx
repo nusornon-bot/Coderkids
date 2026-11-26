@@ -46,17 +46,17 @@ const DAILY_BUG_CHALLENGES: BugChallenge[] = [
     explanation: 'ตัวแปร steps ถูกบวกเพิ่มด้วย 0 เสมอ ทำให้ค่า steps ไม่เคยเท่ากับ 5 ลูปจึงทำงานไม่รู้จบ (Infinite Loop)',
     fixOptions: [
       {
-        text: 'เปลี่ยนคำสั่งในบรรทัดที่ 5 เป็น change [steps v] by (1)',
-        isCorrect: true,
-        feedback: 'ถูกต้องยอดเยี่ยม! เมื่อตัวแปร steps เพิ่มทีละ 1 จะนับถึง 5 แล้วออกจากลูปได้ตามเป้าหมาย',
-      },
-      {
-        text: 'เปลี่ยน move (10) steps เป็น move (0) steps',
+        text: 'เปลี่ยนคำสั่งเดินในบรรทัดที่ 4 เป็น move (0) steps เพื่อหยุดเดิน',
         isCorrect: false,
         feedback: 'ยังไม่ถูกต้อง การเปลี่ยนระยะก้าวไม่ได้แก้ปัญหาค่าตัวแปร steps ที่ไม่เพิ่มขึ้น',
       },
       {
-        text: 'ลบบรรทัด repeat until ออกทั้งหมด',
+        text: 'เปลี่ยนคำสั่งในบรรทัดที่ 5 เป็น change [steps v] by (1) เพื่อนับเพิ่ม',
+        isCorrect: true,
+        feedback: 'ถูกต้องยอดเยี่ยม! เมื่อตัวแปร steps เพิ่มทีละ 1 จะนับถึง 5 แล้วออกจากลูปได้ตามเป้าหมาย',
+      },
+      {
+        text: 'ลบบรรทัดคำสั่ง repeat until ออกทั้งหมดเพื่อให้สไปรต์เดินรอบเดียว',
         isCorrect: false,
         feedback: 'ไม่ถูกต้อง เพราะโปรแกรมต้องการทำซ้ำ 5 ครั้งตามขั้นตอน',
       },
@@ -79,19 +79,19 @@ const DAILY_BUG_CHALLENGES: BugChallenge[] = [
     explanation: 'เงื่อนไขในบรรทัดที่ 4 ใช้เครื่องหมายน้อยกว่า (<) ทำให้คะแนนต่ำกว่า 50 กลายเป็นบอกว่าสอบผ่าน สลับความหมายกัน!',
     fixOptions: [
       {
-        text: 'สลับคำพูด หรือเปลี่ยนเงื่อนไขเป็น if <(myScore) > (49)> then [ยินดีด้วย คุณสอบผ่าน!]',
-        isCorrect: true,
-        feedback: 'ถูกต้อง! การใช้เครื่องหมายเปรียบเทียบผิดทิศทาง เป็นหนึ่งในข้อผิดพลาดเชิงตรรกะ (Logic Error) ที่พบบ่อยที่สุด',
-      },
-      {
-        text: 'เปลี่ยนตัวเลข 50 เป็น 100',
+        text: 'เปลี่ยนตัวเลขเกณฑ์ผ่านในบรรทัดที่ 4 จาก 50 เป็น 100 เพื่อเพิ่มระดับ',
         isCorrect: false,
         feedback: 'ยังไม่ถูก หากเปลี่ยนเป็น 100 จะยิ่งทำให้ตรรกะคะแนนผิดเพี้ยนไปอีก',
       },
       {
-        text: 'เปลี่ยนบล็อก say เป็น play sound',
+        text: 'เปลี่ยนบล็อกคำสั่ง say ในบรรทัดที่ 5 เป็น play sound เพื่อแจ้งเตือน',
         isCorrect: false,
         feedback: 'เสียงไม่เกี่ยวข้องกับการตัดสินเงื่อนไขตรรกะ',
+      },
+      {
+        text: 'เปลี่ยนเงื่อนไขบรรทัดที่ 4 เป็น if <(myScore) > (49)> เพื่อให้ผ่านถูก',
+        isCorrect: true,
+        feedback: 'ถูกต้อง! การใช้เครื่องหมายเปรียบเทียบผิดทิศทาง เป็นหนึ่งในข้อผิดพลาดเชิงตรรกะ (Logic Error) ที่พบบ่อยที่สุด',
       },
     ],
   },
@@ -112,17 +112,17 @@ const DAILY_BUG_CHALLENGES: BugChallenge[] = [
     explanation: 'ขาดการกำหนดค่าเริ่มต้น (Initialization) ให้กับตัวแปร coinScore เมื่อเริ่มเกมใหม่',
     fixOptions: [
       {
-        text: 'เพิ่มบล็อก set [coinScore v] to (0) ใต้ when green flag clicked',
+        text: 'เพิ่มบล็อก set [coinScore v] to (0) ใต้คำสั่ง when green flag clicked',
         isCorrect: true,
         feedback: 'ยอดเยี่ยมมาก! การ Initial ค่าตัวแปรให้เป็น 0 ก่อนเริ่มทำงานรอบใหม่เป็นหลักการพื้นฐานที่สำคัญของการเขียนโปรแกรม',
       },
       {
-        text: 'เปลี่ยน forever เป็น repeat (10)',
+        text: 'เปลี่ยนบล็อก forever ในบรรทัดที่ 4 เป็น repeat (10) เพื่อจำกัดรอบเกม',
         isCorrect: false,
         feedback: 'ทำให้เกมตรวจสอบการชนแค่ 10 รอบแล้วหยุดทำงาน',
       },
       {
-        text: 'ลบตัวแปร coinScore ทิ้ง',
+        text: 'ลบบล็อกตัวแปร coinScore ทิ้งทั้งหมดแล้วเริ่มนับคะแนนใหม่ในตัวแปรอื่น',
         isCorrect: false,
         feedback: 'การลบตัวแปรจะทำให้เกมนับแต้มไม่ได้เลย',
       },
@@ -145,17 +145,17 @@ const DAILY_BUG_CHALLENGES: BugChallenge[] = [
     explanation: 'ค่า moisture ยิ่งมากแปลว่าดินยิ่งเปียก แต่บรรทัดที่ 3 ดันสั่งเปิดปั๊มเมื่อ moisture > 600',
     fixOptions: [
       {
-        text: 'เปลี่ยนเงื่อนไขในบรรทัดที่ 3 เป็น if (moisture < 400)',
-        isCorrect: true,
-        feedback: 'ถูกต้อง! เมื่อค่าความชื้นต่ำกว่าเกณฑ์ (ดินแห้ง) จึงค่อยสั่งเปิดปั๊มน้ำรดต้นไม้',
-      },
-      {
-        text: 'เปลี่ยน AnalogPin.P0 เป็น DigitalPin.P2',
+        text: 'เปลี่ยนขาอ่านค่า AnalogPin.P0 เป็น DigitalPin.P2 เพื่อให้รับสัญญาณใหม่',
         isCorrect: false,
         feedback: 'เซนเซอร์ความชื้นดินต้องอ่านแบบ Analog จึงจะวัดระดับเปียก-แห้งได้ละเอียด',
       },
       {
-        text: 'ลบคำสั่ง else ทิ้งทั้งหมด',
+        text: 'เปลี่ยนเงื่อนไขในบรรทัดที่ 3 เป็น if (moisture < 400) เพื่อรดตอนดินแห้ง',
+        isCorrect: true,
+        feedback: 'ถูกต้อง! เมื่อค่าความชื้นต่ำกว่าเกณฑ์ (ดินแห้ง) จึงค่อยสั่งเปิดปั๊มน้ำรดต้นไม้',
+      },
+      {
+        text: 'ลบคำสั่ง else ในบรรทัดที่ 5 ถึง 7 ทิ้งทั้งหมดเพื่อให้ปั๊มทำงานต่อเนื่อง',
         isCorrect: false,
         feedback: 'ถ้าไม่มี else สั่งปิดปั๊ม ปั๊มน้ำจะเปิดค้างตลอดเวลาไม่มีวันหยุด!',
       },
@@ -175,19 +175,19 @@ const DAILY_BUG_CHALLENGES: BugChallenge[] = [
     explanation: 'ฟังก์ชัน input() ใน Python คืนค่าเป็นข้อความ (String) เสมอ การนำข้อความ "40" + "50" จะได้ "4050"',
     fixOptions: [
       {
-        text: 'ใช้คำสั่ง multiply (*) แทนเครื่องหมายบวก (+)',
+        text: 'เปลี่ยนเครื่องหมายบวก (+) ในบรรทัดที่ 3 เป็นเครื่องหมายคูณ (*) แทนกัน',
         isCorrect: false,
         feedback: 'ข้อความคูณข้อความใน Python จะเกิด TypeError ทันที',
       },
       {
-        text: 'แปลงชนิดข้อมูลด้วย int(): total = int(math_score) + int(sci_score)',
-        isCorrect: true,
-        feedback: 'ถูกต้องแม่นยำ! การแปลง String เป็น Integer ด้วย int() ทำให้คำนวณบวกเลขได้ถูกต้อง = 90',
-      },
-      {
-        text: 'เปลี่ยนชื่อตัวแปร total เป็น sum_all',
+        text: 'เปลี่ยนชื่อตัวแปร total ในบรรทัดที่ 3 เป็น sum_all เพื่อให้ระบบรวมเลข',
         isCorrect: false,
         feedback: 'ชื่อตัวแปรไม่มีผลต่อชนิดข้อมูลที่ input() ส่งกลับมา',
+      },
+      {
+        text: 'แปลงค่าด้วย int() ในบรรทัดที่ 3 เป็น int(math_score) + int(sci_score)',
+        isCorrect: true,
+        feedback: 'ถูกต้องแม่นยำ! การแปลง String เป็น Integer ด้วย int() ทำให้คำนวณบวกเลขได้ถูกต้อง = 90',
       },
     ],
   },
@@ -206,19 +206,19 @@ const DAILY_BUG_CHALLENGES: BugChallenge[] = [
     explanation: 'คอมพิวเตอร์ทำงานเร็วมาก หลังแสดง Heart ในบรรทัดที่ 2 จะถูก SmallHeart ในบรรทัดที่ 3 ทับทันทีในเสี้ยววินาทีโดยไม่มีเวลาหยุดพัก',
     fixOptions: [
       {
-        text: 'ลบ basic.pause(500) ในบรรทัดที่ 4 ออก',
+        text: 'เพิ่ม basic.pause(500) คั่นระหว่างบรรทัดที่ 2 และบรรทัดที่ 3 ให้เห็นภาพ',
+        isCorrect: true,
+        feedback: 'สุดยอด! การใส่ pause(500) หลังโชว์หัวใจใหญ่ ทำให้ตามนุษย์มองเห็นจังหวะเต้นสลับกันชัดเจน',
+      },
+      {
+        text: 'ลบคำสั่ง basic.pause(500) ในบรรทัดที่ 4 ออกทั้งหมดเพื่อให้ภาพเปลี่ยนไว',
         isCorrect: false,
         feedback: 'ถ้าไม่มี pause เลย ทั้งสองภาพจะยิ่งเปลี่ยนเร็วจนตาคนมองไม่ทัน',
       },
       {
-        text: 'เปลี่ยน basic.forever เป็น on start',
+        text: 'เปลี่ยนลูป basic.forever ในบรรทัดที่ 1 เป็น on start เพื่อแสดงครั้งเดียว',
         isCorrect: false,
         feedback: 'จะทำให้แอนิเมชันเล่นเพียงรอบเดียวแล้วหยุด',
-      },
-      {
-        text: 'เพิ่ม basic.pause(500) คั่นระหว่างบรรทัดที่ 2 และบรรทัดที่ 3',
-        isCorrect: true,
-        feedback: 'สุดยอด! การใส่ pause(500) หลังโชว์หัวใจใหญ่ ทำให้ตามนุษย์มองเห็นจังหวะเต้นสลับกันชัดเจน',
       },
     ],
   },
@@ -227,7 +227,7 @@ const DAILY_BUG_CHALLENGES: BugChallenge[] = [
 interface DailyBugHunterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccessBugHunter: (points: number) => void;
+  onSuccessBugHunter: (points: number, options?: { uniqueKey?: string }) => void;
 }
 
 export const DailyBugHunterModal: React.FC<DailyBugHunterModalProps> = ({
@@ -266,7 +266,7 @@ export const DailyBugHunterModal: React.FC<DailyBugHunterModalProps> = ({
         origin: { y: 0.6 },
       });
 
-      onSuccessBugHunter(15);
+      onSuccessBugHunter(15, { uniqueKey: `daily_bug_hunter_${challenge.id}` });
     } else {
       setIsWon(false);
     }

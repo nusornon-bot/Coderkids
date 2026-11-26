@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { getThailandDateKey, type PointAwardOptions } from '../utils/antiCheatGuard.ts';
 import {
   Music,
   Play,
@@ -421,7 +422,12 @@ export const PRESET_MELODIES: PresetMelody[] = [
 
 interface MicrobitMusicLabProps {
   onBack?: () => void;
-  addPoints?: (points: number, reason?: string, category?: 'safety' | 'thinking' | 'coding' | 'showcase' | 'classroom') => void;
+  addPoints?: (
+    points: number,
+    reason?: string,
+    category?: 'safety' | 'thinking' | 'coding' | 'showcase' | 'classroom',
+    options?: PointAwardOptions
+  ) => void;
   onNavigateCodingLab?: () => void;
 }
 
@@ -1050,10 +1056,13 @@ export const MicrobitMusicLab: React.FC<MicrobitMusicLabProps> = ({
     });
 
     if (addPoints) {
-      addPoints(10, `บันทึกทำนองเพลง "${newMelody.name}" ลงคลังเพลงสำเร็จ`, 'coding');
+      addPoints(10, `บันทึกทำนองเพลง "${newMelody.name}" ลงคลังเพลงสำเร็จ`, 'coding', {
+        uniqueKey: `music_lab_custom_save_${getThailandDateKey()}`,
+        maxPerDay: 1,
+      });
     }
 
-    setToastMessage(`🎉 บันทึก "${newMelody.name}" ลงในคลังเพลงเรียบร้อย (+10 EXP)`);
+    setToastMessage(`🎉 บันทึก "${newMelody.name}" ลงในคลังเพลงเรียบร้อย`);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
@@ -1163,7 +1172,9 @@ export const MicrobitMusicLab: React.FC<MicrobitMusicLabProps> = ({
       origin: { y: 0.6 },
     });
     if (addPoints) {
-      addPoints(15, `ผ่านภารกิจเสียงดนตรี: ${questTitle}`, 'coding');
+      addPoints(15, `ผ่านภารกิจเสียงดนตรี: ${questTitle}`, 'coding', {
+        uniqueKey: `music_lab_quest_${questId}`,
+      });
     }
   };
 

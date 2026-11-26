@@ -100,7 +100,7 @@ const TEMPLATES: CodeTemplate[] = [
 ];
 
 interface JuniorCodePlaygroundProps {
-  onAwardPoints?: (pts: number) => void;
+  onAwardPoints?: (pts: number, options?: { uniqueKey?: string }) => void;
   initialCode?: string;
   initialTitle?: string;
   initialCodeKey?: number;
@@ -193,7 +193,8 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
             origin: { y: 0.7 },
           });
           if (onAwardPoints) {
-            onAwardPoints(10);
+            const templateKey = isFlowchartHandoff ? 'flowchart_handoff' : selectedTemplate.id;
+            onAwardPoints(10, { uniqueKey: `junior_playground_${templateKey}` });
           }
         }
         return;
@@ -208,7 +209,7 @@ export const JuniorCodePlayground: React.FC<JuniorCodePlaygroundProps> = ({
         origin: { y: 0.7 },
       });
       if (onAwardPoints) {
-        onAwardPoints(10);
+        onAwardPoints(10, { uniqueKey: `junior_playground_${selectedTemplate.id}` });
       }
     }, 280);
   };

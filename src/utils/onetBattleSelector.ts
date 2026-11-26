@@ -47,7 +47,7 @@ export const ONET_DIFFICULTY_META: Record<
     label: 'มาตรฐาน (ง่าย)',
     shortLabel: 'ง่าย',
     emoji: '🟢',
-    timeSeconds: 25,
+    timeSeconds: 60,
     basePoints: 100,
     badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
   },
@@ -55,7 +55,7 @@ export const ONET_DIFFICULTY_META: Record<
     label: 'เข้มข้น (ปานกลาง)',
     shortLabel: 'ปานกลาง',
     emoji: '🟡',
-    timeSeconds: 30,
+    timeSeconds: 60,
     basePoints: 140,
     badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
   },
@@ -63,7 +63,7 @@ export const ONET_DIFFICULTY_META: Record<
     label: 'ท้าทาย O-NET (ยาก)',
     shortLabel: 'ยาก',
     emoji: '🔴',
-    timeSeconds: 35,
+    timeSeconds: 60,
     basePoints: 180,
     badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
   },
@@ -118,8 +118,8 @@ export function mapExamSetDifficulty(
 }
 
 /**
- * Converts ONET_EXAM_SETS (10 sets × 10 questions = 100 questions) into normalized battle items
- * with guaranteed unique IDs (`onet_set1_1` .. `onet_set10_10`).
+ * Converts ONET_EXAM_SETS (20 sets × 10 questions = 200 questions) into normalized battle items
+ * with guaranteed unique IDs (`onet_set1_1` .. `onet_set20_10`).
  */
 export function buildBuiltinOnetBattleQuestions(
   sets: ExamSetMeta[] = ONET_EXAM_SETS

@@ -8,11 +8,11 @@ import {
 } from '../onetBattleSelector';
 
 describe('onetBattleSelector', () => {
-  it('loads all 100 built-in O-NET questions with unique IDs and 4 valid options', () => {
-    expect(BUILTIN_ONET_BATTLE_QUESTIONS.length).toBe(100);
+  it('loads all 200 built-in O-NET questions with unique IDs and 4 valid options', () => {
+    expect(BUILTIN_ONET_BATTLE_QUESTIONS.length).toBe(200);
 
     const idSet = new Set(BUILTIN_ONET_BATTLE_QUESTIONS.map((q) => q.id));
-    expect(idSet.size).toBe(100);
+    expect(idSet.size).toBe(200);
 
     for (const q of BUILTIN_ONET_BATTLE_QUESTIONS) {
       expect(q.id.startsWith('onet_set')).toBe(true);
@@ -55,14 +55,14 @@ describe('onetBattleSelector', () => {
       setFilter: 'all',
       categoryFilter: 'all',
       difficultyFilter: 'all',
-      count: 10,
+      count: 20,
       shuffleOptions: true,
     });
 
-    expect(drawn).toHaveLength(10);
-    expect(new Set(drawn.map((q) => q.id)).size).toBe(10);
-    // Drawing 10 questions across 10 sets via round-robin yields 10 distinct sets
-    expect(new Set(drawn.map((q) => q.setId)).size).toBe(10);
+    expect(drawn).toHaveLength(20);
+    expect(new Set(drawn.map((q) => q.id)).size).toBe(20);
+    // Drawing 20 questions across 20 sets via round-robin yields 20 distinct sets
+    expect(new Set(drawn.map((q) => q.setId)).size).toBe(20);
   });
 
   it('caps requested count to available filtered pool without failing', () => {
@@ -95,17 +95,19 @@ describe('onetBattleSelector', () => {
 
   it('computes accurate breakdown counts across sets, categories, difficulties, and choices', () => {
     const breakdown = getOnetBankBreakdownCounts(BUILTIN_ONET_BATTLE_QUESTIONS);
-    expect(breakdown.total).toBe(100);
+    expect(breakdown.total).toBe(200);
     expect(breakdown.bySet.set1).toBe(10);
     expect(breakdown.bySet.set10).toBe(10);
+    expect(breakdown.bySet.set11).toBe(10);
+    expect(breakdown.bySet.set20).toBe(10);
 
     const diffSum =
       breakdown.byDifficulty.easy +
       breakdown.byDifficulty.medium +
       breakdown.byDifficulty.hard;
-    expect(diffSum).toBe(100);
+    expect(diffSum).toBe(200);
 
     const choiceSum = breakdown.byCorrectIndex.reduce((acc, n) => acc + n, 0);
-    expect(choiceSum).toBe(100);
+    expect(choiceSum).toBe(200);
   });
 });

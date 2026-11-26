@@ -29,34 +29,10 @@ import {
 } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects.ts';
 import confetti from 'canvas-confetti';
+import type { OnetExamSetId, ExamQuestion, ExamSetMeta } from '../data/onetTypes.ts';
+import { EXTRA_ONET_EXAM_SETS } from '../data/onetExtraSetsData.ts';
 
-export interface ExamQuestion {
-  id: number;
-  setId: 'set1' | 'set2' | 'set3' | 'set4' | 'set5' | 'set6' | 'set7' | 'set8' | 'set9' | 'set10';
-  category: 'thinking' | 'coding' | 'data' | 'debugging' | 'search' | 'safety';
-  categoryLabel: string;
-  indicator: string; // ตัวชี้วัด สพฐ. ตามผัง O-NET 2569 & สสวท.
-  isMustKnow?: boolean; // ตัวชี้วัดต้องรู้ (ป.4/1, ป.6/1, ป.6/4)
-  questionFormat: 'single_choice' | 'complex_choice'; // รูปแบบปรนัย 4 ตัวเลือก หรือ รูปแบบเลือกตอบเชิงซ้อน
-  blueprintTopic: string; // สาระการเรียนรู้แกนกลางตามผัง สทศ. / สสวท.
-  question: string;
-  options: string[];
-  correctIndex: number;
-  explanation: string;
-  codeSnippet?: string;
-}
-
-export interface ExamSetMeta {
-  id: 'set1' | 'set2' | 'set3' | 'set4' | 'set5' | 'set6' | 'set7' | 'set8' | 'set9' | 'set10';
-  setNumber: number;
-  title: string;
-  subtitle: string;
-  badgeText: string;
-  focusIndicators: string[];
-  difficulty: 'มาตรฐาน (Standard)' | 'เข้มข้น (Intermediate)' | 'ท้าทาย O-NET & สสวท. (Advanced)';
-  timeMinutes: number;
-  questions: ExamQuestion[];
-}
+export type { OnetExamSetId, ExamQuestion, ExamSetMeta };
 
 export interface BlueprintItem {
   grade: string;
@@ -79,7 +55,7 @@ export const ONET_2569_BLUEPRINT_ANALYSIS: BlueprintItem[] = [
       'สถานะเริ่มต้นของการทำงานที่แตกต่างกันจะให้ผลลัพธ์ที่แตกต่างกัน',
     ],
     sampleProblems: 'เกม OX, โปรแกรมคำนวณ, โปรแกรมตัวละครหลายตัวสื่อสารกัน, การเดินทางไปโรงเรียนโดยวิธีการต่างๆ',
-    appearsInSets: 'ชุดที่ 1 (ข้อ 1, 2, 3) & ชุดที่ 9 (ข้อ 2)',
+    appearsInSets: 'ชุดที่ 1 (ข้อ 1–3), ชุดที่ 9 (ข้อ 2) & ชุดที่ 11–20 (เชิงสถานการณ์)',
   },
   {
     grade: 'ป.4',
@@ -153,7 +129,7 @@ export const ONET_2569_BLUEPRINT_ANALYSIS: BlueprintItem[] = [
       'การพิจารณากระบวนการทำงานที่มีการวนซ้ำหรือเงื่อนไขเพื่อเพิ่มประสิทธิภาพ',
     ],
     sampleProblems: 'การค้นหาเลขหน้าที่ต้องการให้เร็วที่สุด, การทายเลข 1-1,000,000 ภายใน 20 คำถาม, การคำนวณเวลาเดินทางโดยคำนึงถึงระยะทาง เวลา และจุดหยุดพัก',
-    appearsInSets: 'ชุดที่ 2 (ข้อ 8–10), ชุดที่ 3 (ข้อ 1–2), ชุดที่ 4 (ข้อ 1–10), ชุดที่ 7 (ข้อ 6–10), ชุดที่ 8 (ข้อ 8–10), ชุดที่ 9 (ข้อ 5, 8, 10) & ชุดที่ 10 (ข้อ 6, 10)',
+    appearsInSets: 'ชุดที่ 2–4, ชุดที่ 7–10 & ชุดที่ 11–20 (วิเคราะห์-สังเคราะห์เชิงสถานการณ์)',
   },
   {
     grade: 'ป.6',
@@ -192,7 +168,7 @@ export const ONET_2569_BLUEPRINT_ANALYSIS: BlueprintItem[] = [
       'การใช้เทคโนโลยีสารสนเทศอย่างมีความรับผิดชอบ มารยาทในการทำงานร่วมกันออนไลน์ การรู้เท่าทันข่าวปลอม (Fake News) และการวิเคราะห์ผลกระทบต่อสุขภาพและการเรียน',
     ],
     sampleProblems: 'การตั้งรหัสผ่านและออกจากระบบเมื่อใช้เครื่องสาธารณะ, การคัดกรองข่าวปลอมและลิงก์หลอกลวง, มารยาทการทำงานกลุ่มออนไลน์, การดูแลสุขภาพจากการใช้อุปกรณ์ดิจิทัล',
-    appearsInSets: 'ชุดที่ 5 (ข้อ 1–10), ชุดที่ 6 (ข้อ 6–10) & ชุดที่ 10 (ข้อ 1–3, 5, 7, 9)',
+    appearsInSets: 'ชุดที่ 5–6, ชุดที่ 10 & ชุดที่ 11–20 (วิเคราะห์-สังเคราะห์เชิงสถานการณ์)',
   },
 ];
 
@@ -2553,6 +2529,7 @@ export const ONET_EXAM_SETS: ExamSetMeta[] = [
     timeMinutes: 15,
     questions: SET_10_QUESTIONS,
   },
+  ...EXTRA_ONET_EXAM_SETS,
 ];
 
 export const ALL_ONET_QUESTIONS: ExamQuestion[] = ONET_EXAM_SETS.flatMap((s) => s.questions);
@@ -2641,7 +2618,7 @@ export const REVIEW_LESSONS_BY_INDICATOR: ReviewLessonItem[] = [
       'นักเรียนมักลืมดู "ค่าเริ่มต้น" หรือ "ทิศทางเริ่มต้น" ของตัวละคร ทำให้บวกค่าตัวแปรหรือเลี้ยวซ้าย-ขวาผิดทิศ',
     examProTip:
       'เขียนตารางทดสั้นๆ ระบุ "ก่อนทำ -> คำสั่ง -> หลังทำ" ทุกครั้งที่โจทย์ถามผลลัพธ์สุดท้าย',
-    recommendedSets: 'ชุดที่ 1 (ข้อ 1–3), ชุดที่ 4 (ข้อ 3, 9) & ชุดที่ 9 (ข้อ 2)',
+    recommendedSets: 'ชุดที่ 1 (ข้อ 1–3), ชุดที่ 4 (ข้อ 3, 9), ชุดที่ 9 (ข้อ 2) & ชุดที่ 11–20',
   },
   {
     indicator: 'ว 4.2 ป.4/2',
@@ -2775,7 +2752,7 @@ export const REVIEW_LESSONS_BY_INDICATOR: ReviewLessonItem[] = [
       'ลืมบวกเวลาหยุดพักระหว่างทางเมื่อคำนวณเวลาถึงที่หมาย หรือเผลอเข้าไปเช็กเงื่อนไขชั้นในของ Nested If ทั้งที่เงื่อนไขชั้นนอกเป็นเท็จไปแล้ว',
     examProTip:
       'สำหรับข้อสอบรูปแบบเลือกตอบเชิงซ้อน (ก) และ (ข) ให้แยกคิดทีละข้อความ เขียน "ใช่" หรือ "ไม่ใช่" กำกับไว้ข้างๆ ก่อนไปเลือกช้อยส์ 1–4',
-    recommendedSets: 'ชุดที่ 2 (ข้อ 8–10), ชุดที่ 3 (ข้อ 1–2), ชุดที่ 4 (ทั้งชุด), ชุดที่ 7–10',
+    recommendedSets: 'ชุดที่ 2 (ข้อ 8–10), ชุดที่ 3 (ข้อ 1–2), ชุดที่ 4 (ทั้งชุด) & ชุดที่ 7–20',
   },
   {
     indicator: 'ว 4.2 ป.6/2',
@@ -2845,15 +2822,15 @@ export const REVIEW_LESSONS_BY_INDICATOR: ReviewLessonItem[] = [
       'คิดว่าการปิดหน้าต่างเว็บเบราว์เซอร์ (กากบาท X) บนเครื่องสาธารณะเท่ากับการออกจากระบบ (Log out) หรือคิดว่าการใช้ AI คัดลอกการบ้านส่งครูช่วยพัฒนาการเรียน',
     examProTip:
       'หากโจทย์ถามวิธีรับมือภัยไซเบอร์หรือการกลั่นแกล้งออนไลน์ (Cyberbullying) คำตอบที่ถูกคือ "ไม่ตอบโต้ เก็บหลักฐาน (แคปหน้าจอ) บล็อก และแจ้งผู้ปกครอง/ครู"',
-    recommendedSets: 'ชุดที่ 5 (ทั้งชุด), ชุดที่ 6 (ข้อ 6–10) & ชุดที่ 10 (ข้อ 1–3, 5, 7, 9)',
+    recommendedSets: 'ชุดที่ 5 (ทั้งชุด), ชุดที่ 6 (ข้อ 6–10), ชุดที่ 10 & ชุดที่ 11–20',
   },
 ];
 
 export interface ExamArenaModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAwardPoints?: (points: number, reason: string) => void;
-  onCompleteExam?: (score: number) => void;
+  onAwardPoints?: (points: number, reason: string, options?: { uniqueKey?: string; maxPerDay?: number }) => void;
+  onCompleteExam?: (score: number, setId?: string) => void;
   studentName: string;
 }
 
@@ -2934,7 +2911,7 @@ const buildHistoricalProfileForArchetype = (
     studentName,
     grade: 'ป.6',
     school: 'โรงเรียนอนุบาลนราธิวาส',
-    updatedAt: 'ดึงผลคะแนนย้อนหลังครบชุดที่ 1–10',
+    updatedAt: `ดึงผลคะแนนย้อนหลังครบชุดที่ 1–${ONET_EXAM_SETS.length}`,
     setResults,
     questionAnswers,
   };
@@ -2962,7 +2939,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
   onCompleteExam,
   studentName,
 }) => {
-  const [selectedSetId, setSelectedSetId] = useState<'set1' | 'set2' | 'set3' | 'set4' | 'set5' | 'set6' | 'set7' | 'set8' | 'set9' | 'set10'>('set1');
+  const [selectedSetId, setSelectedSetId] = useState<OnetExamSetId>('set1');
   const [activeView, setActiveView] = useState<'hub' | 'diagnostic' | 'blueprint' | 'exam'>('hub');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<{ [qId: number]: number }>({});
@@ -2980,7 +2957,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
 
   // Historical chart view mode & selected set in Diagnostic Report
   const [chartVisualMode, setChartVisualMode] = useState<'split' | 'trend' | 'radar'>('split');
-  const [selectedHistorySetId, setSelectedHistorySetId] = useState<'set1' | 'set2' | 'set3' | 'set4' | 'set5' | 'set6' | 'set7' | 'set8' | 'set9' | 'set10'>('set1');
+  const [selectedHistorySetId, setSelectedHistorySetId] = useState<OnetExamSetId>('set1');
 
   const normalizedActiveStudent = (studentName || 'นักเรียนผู้ใช้งาน').trim();
   const [inspectedStudentName, setInspectedStudentName] = useState<string>(normalizedActiveStudent);
@@ -3227,9 +3204,9 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
 
     const diffPercent = compAccuracy - safetyAccuracy;
     let dominantDomain: 'comp_thinking' | 'digital_safety' | 'balanced' | 'untested' = 'untested';
-    let verdictTitle = 'รอข้อมูลผลสอบย้อนหลังจากชุดที่ 1–10';
+    let verdictTitle = `รอข้อมูลผลสอบย้อนหลังจากชุดที่ 1–${ONET_EXAM_SETS.length}`;
     let verdictDetail =
-      'คลิกปุ่ม "ดึงผลคะแนนย้อนหลังตัวอย่างครบ 10 ชุด" หรือเริ่มทำข้อสอบเพื่อเปรียบเทียบจุดแข็งระหว่างการคิดเชิงคำนวณกับความปลอดภัยดิจิทัล';
+      `คลิกปุ่ม "ดึงผลคะแนนย้อนหลังตัวอย่างครบ ${ONET_EXAM_SETS.length} ชุด" หรือเริ่มทำข้อสอบเพื่อเปรียบเทียบจุดแข็งระหว่างการคิดเชิงคำนวณกับความปลอดภัยดิจิทัล`;
 
     if (totalAnswered > 0) {
       if (diffPercent >= 6) {
@@ -3328,7 +3305,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
   const seconds = timeLeftSeconds % 60;
   const timeFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-  const handleStartSet = (setId: 'set1' | 'set2' | 'set3' | 'set4' | 'set5' | 'set6' | 'set7' | 'set8' | 'set9' | 'set10') => {
+  const handleStartSet = (setId: OnetExamSetId) => {
     soundEffects.playClick();
     setRemedialQuestions(null);
     setRemedialTitle('');
@@ -3469,20 +3446,23 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
       soundEffects.playFanfare();
     }
 
+    const setKey = remedialQuestions ? `remedial_${new Date().toISOString().slice(0, 10)}` : selectedSetId;
     if (onCompleteExam) {
-      onCompleteExam(score);
+      onCompleteExam(score, setKey);
     }
-    if (onAwardPoints) {
+    if (onAwardPoints && score > 0) {
       const examLabel = remedialQuestions ? remedialTitle : currentSet.title.split(':')[0];
       if (percent >= 70) {
         onAwardPoints(
           30,
-          `พิชิตข้อสอบ O-NET 69 & สสวท. ป.6 (${examLabel}) ได้ ${score}/${currentQuestions.length} ข้อ (${points50} คะแนน)`
+          `พิชิตข้อสอบ O-NET 69 & สสวท. ป.6 (${examLabel}) ได้ ${score}/${currentQuestions.length} ข้อ (${points50} คะแนน)`,
+          { uniqueKey: `onet_exam_arena_${setKey}` }
         );
       } else {
         onAwardPoints(
           15,
-          `ทำข้อสอบ O-NET 69 & สสวท. ป.6 (${examLabel}) ได้ ${score}/${currentQuestions.length} ข้อ (${points50} คะแนน)`
+          `ทำข้อสอบ O-NET 69 & สสวท. ป.6 (${examLabel}) ได้ ${score}/${currentQuestions.length} ข้อ (${points50} คะแนน)`,
+          { uniqueKey: `onet_exam_arena_${setKey}` }
         );
       }
     }
@@ -3653,7 +3633,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                แยกเป็น 10 ชุดมาตรฐาน ชุดละ 10 ข้อ (รวม 100 ข้อ • 500 คะแนน) พร้อมระบบวิเคราะห์จุดเด่น-จุดที่ต้องแก้ไข &amp; สร้างเนื้อหาทบทวนรายบุคคล
+                แยกเป็น {ONET_EXAM_SETS.length} ชุดมาตรฐาน ชุดละ 10 ข้อ (รวม {ALL_ONET_QUESTIONS.length} ข้อ • {ALL_ONET_QUESTIONS.length * 5} คะแนน) พร้อมระบบวิเคราะห์จุดเด่น-จุดที่ต้องแก้ไข &amp; สร้างเนื้อหาทบทวนรายบุคคล
               </p>
             </div>
           </div>
@@ -3710,7 +3690,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>ชุดข้อสอบทั้ง 10 ชุด (100 ข้อ)</span>
+                <span>ชุดข้อสอบทั้ง {ONET_EXAM_SETS.length} ชุด ({ALL_ONET_QUESTIONS.length} ข้อ)</span>
               </button>
 
               <button
@@ -3752,13 +3732,13 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
             <div className="flex items-center gap-2 px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs">
               <span className="text-slate-500 dark:text-slate-400">ความก้าวหน้า ({activeStudentDiagnostic.studentName}):</span>
               <span className="font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
-                ทำสำเร็จแล้ว {activeStudentDiagnostic.completedSetsCount} / 10 ชุด
+                ทำสำเร็จแล้ว {activeStudentDiagnostic.completedSetsCount} / {ONET_EXAM_SETS.length} ชุด
               </span>
             </div>
           </div>
         )}
 
-        {/* VIEW 1: EXAM SETS HUB (10 SETS X 10 QUESTIONS) */}
+        {/* VIEW 1: EXAM SETS HUB (20 SETS X 10 QUESTIONS) */}
         {activeView === 'hub' && (
           <div className="space-y-6">
             {/* Summary Banner of Blueprint Analysis & Individual Diagnostic CTA */}
@@ -3769,7 +3749,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                   <span>ระบบคลังข้อสอบ O-NET 69 &amp; สสวท. ป.6 พร้อมวิเคราะห์จุดเด่น-จุดที่ต้องแก้ไขและสร้างเนื้อหาทบทวนรายบุคคล</span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  ครอบคลุมครบ <strong>10 ชุดมาตรฐาน (100 ข้อ • 500 คะแนน)</strong> เมื่อนักเรียนทำข้อสอบ ระบบจะวิเคราะห์ความแม่นยำแยกตาม <strong>6 หมวดทักษะ</strong> และ <strong>10 ตัวชี้วัด ว 4.2</strong> เพื่อระบุจุดเด่น จุดที่ต้องแก้ไข และสร้างบทเรียนทบทวนพร้อมแบบฝึกหัดซ่อมเสริมให้อัตโนมัติ
+                  ครอบคลุมครบ <strong>{ONET_EXAM_SETS.length} ชุดมาตรฐาน ({ALL_ONET_QUESTIONS.length} ข้อ • {ALL_ONET_QUESTIONS.length * 5} คะแนน)</strong> เมื่อนักเรียนทำข้อสอบ ระบบจะวิเคราะห์ความแม่นยำแยกตาม <strong>6 หมวดทักษะ</strong> และ <strong>10 ตัวชี้วัด ว 4.2</strong> เพื่อระบุจุดเด่น จุดที่ต้องแก้ไข และสร้างบทเรียนทบทวนพร้อมแบบฝึกหัดซ่อมเสริมให้อัตโนมัติ
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -3994,10 +3974,10 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
               <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
                 <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400">จำนวนข้อสอบที่ทำแล้ว</div>
                 <div className="text-2xl font-black text-slate-900 dark:text-white font-mono tabular-nums">
-                  {activeStudentDiagnostic.totalAnswered} / 100 ข้อ
+                  {activeStudentDiagnostic.totalAnswered} / {ALL_ONET_QUESTIONS.length} ข้อ
                 </div>
                 <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                  ทำสำเร็จ {activeStudentDiagnostic.completedSetsCount} จาก 10 ชุด
+                  ทำสำเร็จ {activeStudentDiagnostic.completedSetsCount} จาก {ONET_EXAM_SETS.length} ชุด
                 </div>
               </div>
 
@@ -4045,13 +4025,13 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">
                     <TrendingUp className="w-4 h-4" />
-                    <span>HISTORICAL SCORE &amp; SUBJECT STRENGTH ANALYTICS (ชุดที่ 1–10)</span>
+                    <span>HISTORICAL SCORE &amp; SUBJECT STRENGTH ANALYTICS (ชุดที่ 1–{ONET_EXAM_SETS.length})</span>
                   </div>
                   <h5 className="font-black text-base sm:text-lg text-slate-900 dark:text-white">
-                    กราฟดึงผลคะแนนย้อนหลัง ชุดที่ 1–10 &amp; วิเคราะห์จุดแข็งรายวิชา ({activeStudentDiagnostic.studentName})
+                    กราฟดึงผลคะแนนย้อนหลัง ชุดที่ 1–{ONET_EXAM_SETS.length} &amp; วิเคราะห์จุดแข็งรายวิชา ({activeStudentDiagnostic.studentName})
                   </h5>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    เปรียบเทียบสมรรถนะระหว่าง <strong>การคิดเชิงคำนวณ &amp; โค้ดดิ้ง</strong> กับ <strong>ความปลอดภัยดิจิทัล &amp; สารสนเทศ</strong> จากประวัติการทำข้อสอบทั้ง 10 ชุด
+                    เปรียบเทียบสมรรถนะระหว่าง <strong>การคิดเชิงคำนวณ &amp; โค้ดดิ้ง</strong> กับ <strong>ความปลอดภัยดิจิทัล &amp; สารสนเทศ</strong> จากประวัติการทำข้อสอบทั้ง {ONET_EXAM_SETS.length} ชุด
                   </p>
                 </div>
 
@@ -4082,7 +4062,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-200/60'
                       }`}
                     >
-                      📊 กราฟย้อนหลัง ชุดที่ 1–10
+                      📊 กราฟย้อนหลัง ชุดที่ 1–{ONET_EXAM_SETS.length}
                     </button>
                     <button
                       onClick={() => {
@@ -4101,32 +4081,32 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                 </div>
               </div>
 
-              {/* Quick Pull/Simulate 10-Set History Bar (for easy testing or loading full 10-set records) */}
+              {/* Quick Pull/Simulate 20-Set History Bar (for easy testing or loading full set records) */}
               <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="text-xs text-slate-600 dark:text-slate-300">
                   <span className="font-bold text-slate-900 dark:text-white">
-                    📥 ดึงข้อมูลผลสอบย้อนหลัง ชุดที่ 1–10 ({activeStudentDiagnostic.completedSetsCount}/10 ชุด):
+                    📥 ดึงข้อมูลผลสอบย้อนหลัง ชุดที่ 1–{ONET_EXAM_SETS.length} ({activeStudentDiagnostic.completedSetsCount}/{ONET_EXAM_SETS.length} ชุด):
                   </span>{' '}
-                  ระบบดึงคะแนนจริงจากการทำข้อสอบอัตโนมัติ หรือกดดึงข้อมูลตัวอย่างครบ 10 ชุดเพื่อทดสอบกราฟเปรียบเทียบจุดแข็งรายวิชาได้ทันที
+                  ระบบดึงคะแนนจริงจากการทำข้อสอบอัตโนมัติ หรือกดดึงข้อมูลตัวอย่างครบ {ONET_EXAM_SETS.length} ชุดเพื่อทดสอบกราฟเปรียบเทียบจุดแข็งรายวิชาได้ทันที
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => handleApplyHistoricalArchetype('comp_thinking_strong')}
                     className="px-2.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[11px] font-bold cursor-pointer transition-all"
                   >
-                    ⚡ จำลองผล 10 ชุด (เด่นคิดเชิงคำนวณ)
+                    ⚡ จำลองผล {ONET_EXAM_SETS.length} ชุด (เด่นคิดเชิงคำนวณ)
                   </button>
                   <button
                     onClick={() => handleApplyHistoricalArchetype('digital_safety_strong')}
                     className="px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold cursor-pointer transition-all"
                   >
-                    🛡️ จำลองผล 10 ชุด (เด่นความปลอดภัยดิจิทัล)
+                    🛡️ จำลองผล {ONET_EXAM_SETS.length} ชุด (เด่นความปลอดภัยดิจิทัล)
                   </button>
                   <button
                     onClick={() => handleApplyHistoricalArchetype('balanced_progressive')}
                     className="px-2.5 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/80 hover:bg-amber-100 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[11px] font-bold cursor-pointer transition-all"
                   >
-                    📈 จำลองผล 10 ชุด (พัฒนาการก้าวกระโดด)
+                    📈 จำลองผล {ONET_EXAM_SETS.length} ชุด (พัฒนาการก้าวกระโดด)
                   </button>
                 </div>
               </div>
@@ -4277,10 +4257,10 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
                         <h6 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
-                          <span>📊 กราฟผลคะแนนย้อนหลังรายชุด (ชุดที่ 1 – ชุดที่ 10) แยกตามจุดแข็งรายวิชา</span>
+                          <span>📊 กราฟผลคะแนนย้อนหลังรายชุด (ชุดที่ 1 – ชุดที่ {ONET_EXAM_SETS.length}) แยกตามจุดแข็งรายวิชา</span>
                         </h6>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          คลิกที่แท่งกราฟชุดที่ 1–10 เพื่อเจาะลึกคะแนนรายวิชาและข้อที่ตอบผิดในชุดนั้น
+                          คลิกที่แท่งกราฟชุดที่ 1–{ONET_EXAM_SETS.length} เพื่อเจาะลึกคะแนนรายวิชาและข้อที่ตอบผิดในชุดนั้น (เลื่อนซ้าย-ขวาได้)
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold">
@@ -4296,13 +4276,13 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                       </div>
                     </div>
 
-                    {/* SVG 10-Set Combo Bar & Line Chart */}
-                    <div className="w-full overflow-x-auto">
+                    {/* SVG Combo Bar & Line Chart (Supports 20+ sets with horizontal scroll) */}
+                    <div className="w-full overflow-x-auto pb-1">
                       <svg
-                        viewBox="0 0 680 235"
-                        className="w-full min-w-[540px] h-auto select-none"
+                        viewBox={`0 0 ${Math.max(680, 62 + ONET_EXAM_SETS.length * 61)} 235`}
+                        className="w-full min-w-[960px] h-auto select-none"
                         role="img"
-                        aria-label="กราฟผลคะแนนย้อนหลังชุดที่ 1 ถึง 10"
+                        aria-label={`กราฟผลคะแนนย้อนหลังชุดที่ 1 ถึง ${ONET_EXAM_SETS.length}`}
                       >
                         {/* Horizontal Grid Lines (0%, 25%, 50%, 75%, 100%) */}
                         {[0, 25, 50, 75, 100].map((tick) => {
@@ -4313,7 +4293,7 @@ export const ExamArenaModal: React.FC<ExamArenaModalProps> = ({
                               <line
                                 x1={42}
                                 y1={y}
-                                x2={662}
+                                x2={Math.max(662, 42 + ONET_EXAM_SETS.length * 61)}
                                 y2={y}
                                 stroke={isBenchmark ? '#f59e0b' : '#cbd5e1'}
                                 strokeWidth={isBenchmark ? 1.5 : 0.8}

@@ -19,11 +19,12 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundEffects } from '../utils/soundEffects.ts';
+import type { PointAwardOptions } from '../utils/antiCheatGuard.ts';
 
 interface BlockMazeRunnerProps {
   isOpen: boolean;
   onClose: () => void;
-  onAwardPoints?: (amount: number, reason: string) => void;
+  onAwardPoints?: (amount: number, reason: string, options?: PointAwardOptions) => void;
 }
 
 export type CommandType =
@@ -576,7 +577,9 @@ export const BlockMazeRunner: React.FC<BlockMazeRunnerProps> = ({
       setLevelStars((prev) => ({ ...prev, [level.id]: Math.max(prev[level.id] || 0, starCount) }));
 
       if (onAwardPoints) {
-        onAwardPoints(15, `ผ่านด่านที่ ${level.id} ใน Block Maze Runner (+15 EXP)`);
+        onAwardPoints(15, `ผ่านด่านที่ ${level.id} ใน Block Maze Runner (+15 EXP)`, {
+          uniqueKey: `maze_runner_level_${level.id}`,
+        });
       }
     } else {
       setErrorMessage('🏁 ยังไม่ถึงธงชัยชนะ! ลองเพิ่มคำสั่งให้ถึงจุดหมายนะ');
